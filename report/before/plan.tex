@@ -1,0 +1,375 @@
+% xelatex plan_closed.tex && xelatex plan_closed.tex
+\documentclass[a4paper,zihao=-4]{ctexart}
+
+% ---- 基础宏包 ----
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage[top=2.54cm,bottom=2.54cm,left=2cm,right=2cm,
+  headheight=24pt,headsep=8mm]{geometry}
+\usepackage{fancyhdr}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+}
+
+\setlist{nosep}
+
+% ---- 图片路径 ----
+\graphicspath{{../assets/}}
+
+% ---- 页眉页脚 ----
+% 首页/摘要/目录：空页眉，仅页脚页码
+\fancypagestyle{frontpage}{
+  \fancyhf{}
+  \fancyfoot[C]{\zihao{5}\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+}
+
+% 正文页：左标题 + 右校徽
+\fancypagestyle{contentpage}{
+  \fancyhf{}
+  \fancyhead[L]{\zihao{5} 基于大模型的智能文件管理与智能体协同平台 · 开发计划}
+  \fancyhead[R]{\includegraphics[height=18pt]{whu.png}}
+  \fancyfoot[C]{\zihao{5}\thepage}
+  \renewcommand{\headrulewidth}{0.5pt}
+}
+
+\begin{document}
+
+% ========== 首页（大校徽 → 标题 → 成员） ==========
+\thispagestyle{empty}
+\begin{center}
+
+  \vspace*{2cm}
+
+  \includegraphics[height=5cm]{whu.png}
+
+  \vspace{1.5cm}
+
+  {\heiti\zihao{1} 基于大模型的智能文件管理与智能体协同平台开发计划}
+
+  \vspace{2cm}
+
+  {\zihao{3} \textbf{项目成员}}
+
+  \vspace{10pt}
+
+  \begin{tabular}{rl}
+    \zihao{4} 成员 A & \zihao{4} xxx \\
+    \zihao{4} 成员 B & \zihao{4} yyy \\
+  \end{tabular}
+
+  \vspace{2cm}
+
+  {\zihao{4} 2026年7月}
+
+\end{center}
+\newpage
+
+% ========== 摘要 + 目录 ==========
+\pagestyle{frontpage}
+
+\tableofcontents
+\newpage
+
+\pagestyle{contentpage}
+
+\section{项目概述}
+
+\subsection{项目定位}
+
+本项目构建一个\textbf{以文件管理为基座、知识检索为大脑、智能体为交互中枢、团队协作为纽带}的一体化平台。
+
+\subsubsection{核心差异化竞争力}
+
+\begin{enumerate}
+  \item \textbf{不只是网盘}——上传的文件自动解析、自动标签、可被自然语言检索和问答
+  \item \textbf{不只是问答}——用户可通过可视化界面自定义工具流水线，让AI按需编排任务
+  \item \textbf{不只是单机}——完整的团队空间、权限体系、在线交流，支撑小组协同工作
+\end{enumerate}
+
+\subsection{用户故事}
+
+\subsubsection{场景一：个人使用}
+
+小明上传多份实验报告（PDF），RAG解析PDF建立知识索引。小明在对话框输入“总结所有用到显微镜的实验步骤”，系统检索相关文档并生成对比摘要。
+
+\subsubsection{场景二：团队协作}
+
+课程小组创建团队空间“生物学实验”，邀请3位成员。成员上传各自的实验数据到团队文件夹，在文档上批注讨论。组长在工具流编排器中拖拽“文件扫描 → 内容提取 →
+汇总报告”三个工具，配置参数后一键执行，Agent遍历团队文件夹中的所有文档生成汇总报告。
+
+% ============================================================
+% 第二章  系统架构
+% ============================================================
+\section{系统架构}
+
+\subsection{技术选型}
+
+\begin{table}[H]
+  \centering
+  \caption{技术栈选型}
+  \begin{tabular}{p{2.5cm}p{4cm}p{6.5cm}}
+    \toprule
+    层次         & 技术                            & 理由
+    \\
+    \midrule
+    后端框架     & Python FastAPI                  & 异步原生支持，AI生态完善
+    \\
+    前端         & Vue 3 + Naive UI                & Vue生态完善且活跃
+    \\
+    关系数据库   & MySQL 8.0                       & 存储用户、文件元数据、权限、消息等    \\
+    向量数据库   & FAISS / Milvus                  & FAISS零部署、轻量；Milvus作为后期扩展
+    \\
+    文件存储     & MinIO / 本地文件系统            & 支持大文件对象存储，API兼容AWS S3
+    \\
+    大模型       & DeepSeek API / ChatGLM          & 中文能力强，成本可控
+    \\
+    智能体框架   & LangChain + LangGraph           & ReAct Agent + 有状态多步骤编排
+    \\
+    向量化       & BGE-M3 / text2vec-large-chinese & 中文Embedding评测领先
+    \\
+    OCR          & PaddleOCR                       & 图像文字识别，配合YOLO提取图中文字
+    \\
+    实时通信     & WebSocket                       & 在线聊天、工具流执行进度推送
+    \\
+    工具流可视化 & Vue Flow                        & 轻量、可拖拽节点编辑
+    \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{系统三大支柱}
+
+\begin{description}
+  \item[文件管理与权限系统] 文件CRUD、版本控制、细粒度RBAC权限
+  \item[知识检索与智能问答] 文档解析、向量检索、RAG问答、多轮对话、引用溯源
+  \item[团队协作与在线交流] 团队空间、角色权限、实时聊天、协作批注、活动动态流
+\end{description}
+
+在此之上，智能体编排引擎提供ReAct循环与工具调度能力，可视化工具流编排系统支持管理员定义工具库、用户拖拽构建流程、引擎按DAG执行。
+
+\subsection{数据库核心表设计}
+
+系统设计18+张核心表，涵盖以下域：
+
+\begin{itemize}
+  \item \textbf{用户与权限域：} users, teams, team\_members, permission\_rules,
+        tool\_permissions
+  \item \textbf{文件管理域：} files, folders, file\_versions, team\_folders
+  \item \textbf{知识库域：} knowledge\_bases, documents, conversations
+  \item \textbf{协作域：} chat\_messages, file\_annotations, team\_activities
+  \item \textbf{工具流域：} tool\_definitions, workflow\_definitions,
+        workflow\_executions
+\end{itemize}
+
+% 完整ER图在技术文档中交付。
+
+% ============================================================
+% 第三章  功能模块详述
+% ============================================================
+\section{功能模块详述}
+
+\subsection{模块A：文件管理基座}
+
+包含以下功能组：
+
+\begin{itemize}
+  \item \textbf{用户系统：} 注册、登录、JWT鉴权、个人信息管理
+  \item \textbf{文件CRUD：} 上传（断点续传、分片上传）、下载、删除、重命名、移动、复制
+  \item \textbf{文件夹管理：} 创建/删除/移动/嵌套，树形导航，面包屑路径
+  \item \textbf{标签系统：} 手动标签创建/编辑/删除；自动标签同步，按标签筛选与聚合
+  \item \textbf{全文搜索：} 文件名搜索（MySQL Fulltext）+ 标签联合筛选 + 文件类型过滤
+  \item \textbf{版本控制：} 文件历史版本自动保存；版本列表查看；任意版本回滚/下载
+  \item \textbf{文件分享：} 生成分享链接（支持密码保护 + 过期时间 + 下载次数限制）
+  \item \textbf{数据安全：} 传输加密（HTTPS）；文件完整性校验（SHA256）；敏感文件标记
+  \item \textbf{备份恢复：} 元数据定时SQL dump；文件存储异步同步；一键恢复
+\end{itemize}
+
+\subsection{模块B：RAG知识检索}
+
+核心链路为：文档解析 → 分块 → 向量化 → 索引 → 语义检索 → 重排序 → 答案生成。
+
+\begin{itemize}
+  \item \textbf{文档解析：} 支持PDF/DOCX/PPTX/TXT/Markdown/CSV批量导入，提取纯文本 + 表格 + 图片描述
+  \item \textbf{知识库管理：} Web可视化界面：创建知识库、批量上传、分类标注、更新、归档、删除
+  \item \textbf{文档分块：} 滑动窗口（chunk\_size=512, overlap=128），保留源文档ID + 段落位置元数据
+  \item \textbf{向量化与索引：} BGE-M3 Embedding → FAISS索引；支持增量更新
+  \item \textbf{语义检索：} Query Embedding → ANN Top-K召回 → Cross-Encoder
+        Reranker精排
+  \item \textbf{答案生成：} 检索片段 + 对话历史 + System Prompt → LLM流式生成，标注引用来源
+  \item \textbf{多轮对话：} LangChain ConversationBufferWindowMemory，窗口大小可配置
+  \item \textbf{引用溯源：} 回答中标记\texttt{[文档名 § 段落号]}，前端支持点击跳转至源文档预览
+\end{itemize}
+
+\subsection{模块C：智能体任务编排}
+
+实现ReAct模式的任务编排引擎。
+
+\begin{itemize}
+  \item \textbf{工具注册中心：} 统一工具Schema：名称、描述、参数定义（JSON Schema）、返回值类型。不少于6种工具
+  \item \textbf{内置工具清单：}
+
+        \texttt{file\_search}、\texttt{knowledge\_qa}、\texttt{image\_detect}、\texttt{file\_compare}、\texttt{team\_activity}
+  \item \textbf{ReAct Agent：} “Thought → Action → Observation → ... →
+        Answer”循环；LangGraph实现状态图
+  \item \textbf{任务分解：} 复杂任务自动拆分为子任务DAG，确定执行顺序与依赖
+  \item \textbf{容错与重试：} 单工具超时$\leq$30s；失败自动重试1次；重试失败触发降级策略
+  \item \textbf{执行透明：} 前端实时展示思考链
+  \item \textbf{测试用例：} $\geq$10条，覆盖5类场景
+\end{itemize}
+
+\subsection{可视化工具流编排系统}
+
+管理员定义工具库，用户拖拽式构建工作流，引擎按DAG执行。
+
+\subsubsection{工具管理（管理员端）}
+
+\begin{itemize}
+  \item \textbf{工具注册：} 通过Web界面注册新工具：定义名称、描述、参数Schema（JSON
+        Schema编辑器）、调用方式（API/Python函数/Shell命令）
+  \item \textbf{工具分类：} 文件操作类、AI处理类、数据分析类、通知类、自定义类
+  \item \textbf{工具测试：} 管理员可直接在界面测试调用，输入测试参数，查看返回结果
+  \item \textbf{工具版本管理：} 支持版本号，更新后不影响已发布流程中引用的旧版本
+  \item \textbf{工具市场：} 系统预置工具 + 管理员自定义工具，统一浏览和搜索
+\end{itemize}
+
+\subsubsection{流程编排（用户端）}
+
+\begin{itemize}
+  \item \textbf{可视化编辑器：} 基于Vue Flow实现拖拽式节点编辑器
+  \item \textbf{节点类型：} 工具节点、条件节点（if/else分支）、循环节点、聚合节点、输出节点
+  \item \textbf{参数绑定：} 支持上游节点输出 → 下游节点输入的参数引用
+  \item \textbf{流程模板：} 预置模板（“新文件自动摘要”“团队周报生成”“图像批量标注”）
+  \item \textbf{流程调试：} 单步执行模式，逐节点查看输入/输出
+  \item \textbf{流程发布：} 支持手动触发或事件触发
+\end{itemize}
+
+\subsubsection{流程执行引擎}
+
+\begin{itemize}
+  \item \textbf{执行调度：} 解析流程DAG → 拓扑排序 → 无依赖节点并行执行
+  \item \textbf{状态管理：} PENDING → RUNNING → SUCCESS / FAILED / CANCELLED
+  \item \textbf{进度推送：} WebSocket实时推送每个节点的执行状态
+  \item \textbf{执行历史：} 保存每次触发记录（触发人、时间、参数、各节点输入/输出/耗时）
+  \item \textbf{错误处理：} 节点失败策略可配置：终止/跳过/默认值
+\end{itemize}
+
+\subsection{模块D：权限系统与团队协作}
+
+\subsubsection{权限系统（RBAC）}
+
+\begin{itemize}
+  \item \textbf{RBAC模型：} 系统角色（超管/团队管理员/普通成员/访客）+ 自定义角色
+  \item \textbf{资源级权限：} 对文件、文件夹、知识库、工具、流程模板分别控制：不可见/只读/读写/管理
+  \item \textbf{权限继承：} 文件夹权限默认继承至子文件和子文件夹；可单独覆盖
+  \item \textbf{工具使用权限：} 管理员可设置哪些角色/用户可以使用特定工具
+  \item \textbf{知识库权限：} 知识库可设为私有/团队可见/全员可见
+  \item \textbf{操作审计：} 记录关键操作日志，支持查询审计日志
+  \item \textbf{权限检查中间件：} FastAPI中间件统一拦截请求
+\end{itemize}
+
+\subsubsection{团队协作}
+
+\begin{itemize}
+  \item \textbf{团队管理：} 创建团队、编辑团队信息、成员邀请、角色分配
+  \item \textbf{团队文件夹：} 团队空间内创建文件夹树，区别于个人文件夹
+  \item \textbf{实时聊天：} WebSocket驱动的团队群聊和1v1私聊；消息持久化存储
+  \item \textbf{文件批注：} 在文件预览页面对文档/图片添加批注，成员可回复讨论
+  \item \textbf{活动动态：} 团队动态流：成员操作以时间线展示
+  \item \textbf{通知系统：} @提醒、批注通知、邀请通知、流程完成通知
+\end{itemize}
+
+% ============================================================
+% 第五章  团队分工
+% ============================================================
+\section{团队分工}
+
+\begin{itemize}
+  \item \textbf{xxx（A）}：文件管理基座、RAG 知识检索、智能体编排、数据库设计、LLM 网关
+  \item \textbf{yyy（B）}：前端UI/UX、权限系统开发、团队协作与在线交流、可视化交互界面、系统测试与文档
+\end{itemize}
+
+\section{测试策略}
+
+\subsection{单元测试}
+
+\begin{itemize}
+  \item 文件管理API（CRUD、权限校验、版本控制）：覆盖率$\geq$80\%（pytest）
+  \item RAG Pipeline各环节（解析、分块、检索、生成）：每环节$\geq$5条独立用例
+  \item 权限中间件：各角色对各资源的增删改查权限矩阵全量覆盖
+  \item 流程执行引擎：DAG解析、拓扑排序、节点调度、错误处理各$\geq$3条用例
+\end{itemize}
+
+\subsection{集成测试}
+
+\begin{itemize}
+  \item 文档上传 → 解析 → 向量入库 → 语义检索 → 答案+引用
+  \item 智能体多工具编排：文件搜索 + 问答 + 统计查询
+  \item 工具流：拖拽编排 → 保存 → 触发执行 → 各节点依次完成
+  \item 团队权限：A团队文件对B团队成员不可见
+\end{itemize}
+
+\subsection{系统测试}
+
+\begin{table}[H]
+  \centering
+  \caption{系统测试标准}
+  \begin{tabular}{p{5cm}p{8cm}}
+    \toprule
+    测试项         & 标准                                                    \\
+    \midrule
+    智能体测试用例 & $\geq$10条，覆盖5类场景，任务完成率目标$\geq$80\%       \\
+    RAG问答质量    & $\geq$20条领域问题，人工评分（1--5），目标均分$\geq$3.5 \\
+    工具流编排     & $\geq$5个不同场景的流程模板测试                         \\
+    团队协作       & 3人团队并发操作测试，无死锁/无消息丢失                  \\
+    并发性能       & 10并发上传 + 5并发问答，响应时间$\leq$3s                \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{安全测试}
+
+\begin{itemize}
+  \item 文件上传绕过：双扩展名、MIME伪装、超大文件、空文件
+  \item 越权访问：A用户Token访问B用户的文件/知识库/团队空间
+  \item XSS：文件名、标签名、聊天消息、批注内容注入脚本
+  \item JWT安全：过期Token、篡改签名、伪造角色字段
+  \item WebSocket安全：未认证连接、跨团队消息窃听、消息篡改
+\end{itemize}
+
+\section{交付物清单}
+
+\begin{table}[H]
+  \centering
+  \caption{交付物清单}
+  \begin{tabular}{p{3cm}p{10cm}}
+    \toprule
+    交付物     & 说明
+    \\
+    \midrule
+    源代码     & Git仓库，完整提交历史，\texttt{.gitignore}规范，\texttt{README.md}，开发与启动指南
+    \\
+    技术文档   & 系统架构图、数据库ER图、API Swagger文档、模块设计说明
+    \\
+    用户手册   & 功能截图与操作步骤，覆盖文件管理、知识问答、团队协作、工具流编排                   \\
+    测试报告   & 单元测试覆盖率、智能体任务完成率、安全测试结论
+    \\
+    工具流示例 & $\geq$5个可运行的流程模板 + 执行历史截图
+    \\
+    答辩PPT    & 项目背景、选题融合思路、技术架构、核心亮点、分工与贡献                             \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\end{document}
