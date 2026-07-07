@@ -5,5 +5,5 @@
 *.pdf
 **/*_closed.*
 *.synctex.gz
-requirements/build/
-requirements/tools/plantuml.jar
+build/
+tools/plantuml.jar
