@@ -27,12 +27,10 @@ function timelineType(status: AgentStep['status']) {
           <h2 class="panel-title">智能体与工具流</h2>
           <p class="mt-1 panel-subtitle">ReAct 执行步骤、工具注册中心和可运行模板</p>
         </div>
-        <NButton type="primary">
-          <template #icon>
-            <NIcon aria-hidden="true"><Play /></NIcon>
-          </template>
-          运行
-        </NButton>
+        <RouterLink class="btn-primary no-underline" to="/workflow">
+          <NIcon aria-hidden="true" class="mr-1.5"><Play /></NIcon>
+          打开编排器
+        </RouterLink>
       </div>
     </template>
 

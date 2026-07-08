@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import LoginView from '@/views/LoginView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import WorkspaceView from '@/views/WorkspaceView.vue'
+import WorkflowBuilderView from '@/views/WorkflowBuilderView.vue'
 
 export function createAppRouter(history: RouterHistory = createWebHistory(import.meta.env.BASE_URL)) {
   const router = createRouter({
@@ -19,6 +20,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
         path: '/',
         name: 'workspace',
         component: WorkspaceView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/workflow',
+        name: 'workflow-builder',
+        component: WorkflowBuilderView,
         meta: { requiresAuth: true },
       },
       {
