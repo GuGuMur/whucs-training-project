@@ -121,8 +121,6 @@ class PermissionService:
             detail=payload.model_dump(mode="json"),
         )
         return payload
-    
-    #下面是资源继承的问题
 
     def set_resource_parent(self, payload: ResourceParentSet, actor_id: int | None) -> ResourceParentSet:
         self.store.parent_resources[(payload.resource_type, payload.resource_id)] = (
