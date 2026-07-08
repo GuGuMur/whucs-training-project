@@ -1,19 +1,16 @@
-﻿from fastapi import FastAPI
-
-from app.routers.permissions import router as permissions_router
-from app.security.middleware import PermissionMiddleware
+from app.main import app
 
 
-app = FastAPI(
-    title="WHU Intelligent File Workspace API",
-    description="Backend API for permission management and team collaboration.",
-    version="0.1.0",
-)
+def main() -> None:
+    import uvicorn
 
-app.add_middleware(PermissionMiddleware)
-app.include_router(permissions_router, prefix="/api/v1")
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )
 
 
-@app.get("/health", tags=["system"])
-async def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+if __name__ == "__main__":
+    main()
