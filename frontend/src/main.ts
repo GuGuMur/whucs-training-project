@@ -1,13 +1,14 @@
 import './assets/main.css'
-import 'virtual:uno.css'
 
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'
 
 import App from './App.vue'
-import { installAppPlugins } from './plugins'
+import router from './router'
 
 const app = createApp(App)
 
-installAppPlugins(app)
+app.use(createPinia())
+app.use(router)
 
 app.mount('#app')
