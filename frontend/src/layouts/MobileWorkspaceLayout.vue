@@ -20,19 +20,32 @@ defineProps<{
       </div>
 
       <nav class="mt-3 grid grid-cols-5 gap-1.5">
-        <a
-          v-for="item in navItems"
-          :key="item.href"
-          class="flex min-h-48px flex-col items-center justify-center gap-1 rounded-1.5 px-1 text-12px font-650 no-underline transition-colors hover:bg-primarySoft hover:text-primary"
-          :class="item.active ? 'bg-primarySoft text-primary' : 'text-sub'"
-          :href="item.href"
-          :aria-label="item.label"
-        >
-          <NIcon :size="20" aria-hidden="true">
-            <component :is="item.icon" />
-          </NIcon>
-          <span>{{ item.label }}</span>
-        </a>
+        <template v-for="item in navItems" :key="item.to ?? item.href">
+          <RouterLink
+            v-if="item.to"
+            class="flex min-h-48px flex-col items-center justify-center gap-1 rounded-1.5 px-1 text-12px font-650 no-underline transition-colors hover:bg-primarySoft hover:text-primary"
+            :class="item.active ? 'bg-primarySoft text-primary' : 'text-sub'"
+            :to="item.to"
+            :aria-label="item.label"
+          >
+            <NIcon :size="20" aria-hidden="true">
+              <component :is="item.icon" />
+            </NIcon>
+            <span>{{ item.label }}</span>
+          </RouterLink>
+          <a
+            v-else
+            class="flex min-h-48px flex-col items-center justify-center gap-1 rounded-1.5 px-1 text-12px font-650 no-underline transition-colors hover:bg-primarySoft hover:text-primary"
+            :class="item.active ? 'bg-primarySoft text-primary' : 'text-sub'"
+            :href="item.href"
+            :aria-label="item.label"
+          >
+            <NIcon :size="20" aria-hidden="true">
+              <component :is="item.icon" />
+            </NIcon>
+            <span>{{ item.label }}</span>
+          </a>
+        </template>
       </nav>
     </header>
 

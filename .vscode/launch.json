@@ -3,30 +3,41 @@
   "configurations": [
     {
       "name": "Debug From Login",
-      "type": "pwa-msedge",
+      "type": "msedge",
       "request": "launch",
       "url": "http://localhost:8080/login",
-      "webRoot": "C:/Users/18971/OneDrive/文档/巨作业/tmp/whucs-training-project-main/whucs-training-project-main/frontend",
-      "preLaunchTask": "frontend: vite dev",
+      "webRoot": "${workspaceFolder}/frontend",
       "sourceMaps": true,
       "smartStep": true,
       "skipFiles": [
         "<node_internals>/**",
-        "C:/Users/18971/OneDrive/文档/巨作业/tmp/whucs-training-project-main/whucs-training-project-main/frontend/node_modules/**"
+        "${workspaceFolder}/frontend/node_modules/**"
       ]
     },
     {
       "name": "Debug Workflow Directly",
-      "type": "pwa-msedge",
+      "type": "msedge",
       "request": "launch",
       "url": "http://localhost:8080/workflow",
-      "webRoot": "C:/Users/18971/OneDrive/文档/巨作业/tmp/whucs-training-project-main/whucs-training-project-main/frontend",
-      "preLaunchTask": "frontend: vite dev",
+      "webRoot": "${workspaceFolder}/frontend",
       "sourceMaps": true,
       "smartStep": true,
       "skipFiles": [
         "<node_internals>/**",
-        "C:/Users/18971/OneDrive/文档/巨作业/tmp/whucs-training-project-main/whucs-training-project-main/frontend/node_modules/**"
+        "${workspaceFolder}/frontend/node_modules/**"
+      ]
+    },
+    {
+      "name": "Debug Team Chat Directly",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:8080/team-chat",
+      "webRoot": "${workspaceFolder}/frontend",
+      "sourceMaps": true,
+      "smartStep": true,
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/frontend/node_modules/**"
       ]
     }
   ]

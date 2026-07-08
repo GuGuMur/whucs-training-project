@@ -84,7 +84,7 @@ const message = useMessage()
 const workspace = useWorkspaceStore()
 const { apiState, summary } = storeToRefs(workspace)
 const { isMobileLayout } = useWorkspaceLayoutMode()
-const { apiStateLabel, apiStateType, navItems } = useWorkspaceNavigation(apiState)
+const { apiStateLabel, apiStateType, navItems } = useWorkspaceNavigation(apiState, 'workflow')
 const workspaceLayout = computed(() => (isMobileLayout.value ? MobileWorkspaceLayout : DesktopWorkspaceLayout))
 
 const flow = useVueFlow()

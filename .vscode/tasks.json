@@ -1,50 +1,61 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "frontend: vite dev",
-      "type": "shell",
-      "command": "node node_modules/vite/bin/vite.js --host localhost --port 8080 --strictPort",
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "vite",
-        "pattern": {
-          "regexp": "^$"
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "VITE|vite",
-          "endsPattern": "Local:.*http://localhost:8080/"
-        }
-      },
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "clear": true
-      },
-      "options": {
-        "cwd": "C:/Users/18971/OneDrive/文档/巨作业/tmp/whucs-training-project-main/whucs-training-project-main/frontend"
-      }
-    },
-    {
-      "label": "frontend: type check",
-      "type": "shell",
-      "command": "node node_modules/vue-tsc/bin/vue-tsc.js --build",
-      "group": "build",
-      "problemMatcher": "$tsc",
-      "options": {
-        "cwd": "C:/Users/18971/OneDrive/文档/巨作业/tmp/whucs-training-project-main/whucs-training-project-main/frontend"
-      }
-    },
-    {
-      "label": "frontend: unit tests",
-      "type": "shell",
-      "command": "node node_modules/vitest/vitest.mjs run",
-      "group": "test",
-      "problemMatcher": [],
-      "options": {
-        "cwd": "C:/Users/18971/OneDrive/文档/巨作业/tmp/whucs-training-project-main/whucs-training-project-main/frontend"
-      }
-    }
-  ]
+    "version":  "2.0.0",
+    "tasks":  [
+                  {
+                      "label":  "backend: api dev",
+                      "type":  "shell",
+                      "command":  "$env:UV_CACHE_DIR = \u0027${workspaceFolder}/.uv-cache\u0027; uv run python main.py",
+                      "isBackground":  true,
+                      "presentation":  {
+                                           "reveal":  "always",
+                                           "panel":  "dedicated",
+                                           "clear":  false
+                                       },
+                      "options":  {
+                                      "cwd":  "${workspaceFolder}/backend"
+                                  },
+                      "problemMatcher":  [
+
+                                         ]
+                  },
+                  {
+                      "label":  "frontend: vite dev",
+                      "type":  "shell",
+                      "command":  "node node_modules/vite/bin/vite.js --host localhost --port 8080 --strictPort",
+                      "isBackground":  true,
+                      "presentation":  {
+                                           "reveal":  "always",
+                                           "panel":  "dedicated",
+                                           "clear":  false
+                                       },
+                      "options":  {
+                                      "cwd":  "${workspaceFolder}/frontend"
+                                  },
+                      "problemMatcher":  [
+
+                                         ]
+                  },
+                  {
+                      "label":  "frontend: type check",
+                      "type":  "shell",
+                      "command":  "node node_modules/vue-tsc/bin/vue-tsc.js --build",
+                      "group":  "build",
+                      "problemMatcher":  "$tsc",
+                      "options":  {
+                                      "cwd":  "${workspaceFolder}/frontend"
+                                  }
+                  },
+                  {
+                      "label":  "frontend: unit tests",
+                      "type":  "shell",
+                      "command":  "node node_modules/vitest/vitest.mjs run",
+                      "group":  "test",
+                      "problemMatcher":  [
+
+                                         ],
+                      "options":  {
+                                      "cwd":  "${workspaceFolder}/frontend"
+                                  }
+                  }
+              ]
 }

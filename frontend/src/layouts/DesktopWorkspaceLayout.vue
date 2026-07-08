@@ -19,19 +19,32 @@ defineProps<{
         <strong class="text-ink text-15px font-800 max-xl:hidden">智能文件平台</strong>
       </div>
       <nav class="mt-6 grid gap-1.5">
-        <a
-          v-for="item in navItems"
-          :key="item.href"
-          class="flex min-h-40px items-center gap-2.5 rounded-1.5 px-3 text-14px font-650 no-underline transition-colors hover:bg-primarySoft hover:text-primary max-xl:justify-center max-xl:px-0"
-          :class="item.active ? 'bg-primarySoft text-primary' : 'text-sub'"
-          :href="item.href"
-          :aria-label="item.label"
-        >
-          <NIcon :size="18" aria-hidden="true">
-            <component :is="item.icon" />
-          </NIcon>
-          <span class="max-xl:hidden">{{ item.label }}</span>
-        </a>
+        <template v-for="item in navItems" :key="item.to ?? item.href">
+          <RouterLink
+            v-if="item.to"
+            class="flex min-h-40px items-center gap-2.5 rounded-1.5 px-3 text-14px font-650 no-underline transition-colors hover:bg-primarySoft hover:text-primary max-xl:justify-center max-xl:px-0"
+            :class="item.active ? 'bg-primarySoft text-primary' : 'text-sub'"
+            :to="item.to"
+            :aria-label="item.label"
+          >
+            <NIcon :size="18" aria-hidden="true">
+              <component :is="item.icon" />
+            </NIcon>
+            <span class="max-xl:hidden">{{ item.label }}</span>
+          </RouterLink>
+          <a
+            v-else
+            class="flex min-h-40px items-center gap-2.5 rounded-1.5 px-3 text-14px font-650 no-underline transition-colors hover:bg-primarySoft hover:text-primary max-xl:justify-center max-xl:px-0"
+            :class="item.active ? 'bg-primarySoft text-primary' : 'text-sub'"
+            :href="item.href"
+            :aria-label="item.label"
+          >
+            <NIcon :size="18" aria-hidden="true">
+              <component :is="item.icon" />
+            </NIcon>
+            <span class="max-xl:hidden">{{ item.label }}</span>
+          </a>
+        </template>
       </nav>
     </aside>
 

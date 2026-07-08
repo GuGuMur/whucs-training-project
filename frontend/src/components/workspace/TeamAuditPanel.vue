@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { AuditLogEntry, TeamSummary } from '@/client/workspace'
 
 defineProps<{
@@ -22,7 +22,13 @@ defineProps<{
       </NList>
     </NCard>
 
-    <NCard id="audit" class="min-w-0 overflow-hidden scroll-mt-24 max-md:scroll-mt-32" size="small" title="审计日志">
+    <NCard id="audit" class="min-w-0 overflow-hidden scroll-mt-24 max-md:scroll-mt-32" size="small">
+      <template #header>
+        <div class="flex items-center justify-between gap-3">
+          <span>审计日志</span>
+          <RouterLink class="text-primary text-12px font-700 no-underline" to="/permission-audit">查看全部</RouterLink>
+        </div>
+      </template>
       <NList>
         <NListItem v-for="log in auditLogs" :key="log.id">
           <NThing :title="log.actor">

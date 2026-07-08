@@ -59,16 +59,25 @@ class WorkspaceService:
         self._next_user_id = 1
         self._files = self._seed_files()
         self._audit_logs: list[AuditLogEntry] = []
+        self._seed_demo_user()
 
     def register_user(self, payload: UserCreate) -> tuple[UserPublic, str, str]:
-        if payload.username in self._users_by_username:
+        existing_by_username = self._users_by_username.get(payload.username)
+        existing_by_email = self._users_by_email.get(str(payload.email))
+        if existing_by_username:
+            if (
+                existing_by_username is existing_by_email
+                and hmac.compare_digest(existing_by_username.password_hash, self._hash_password(payload.password))
+            ):
+                user = existing_by_username.public
+                return user, self._create_token(user.id, "access"), self._create_token(user.id, "refresh")
             raise WorkspaceError(
                 409,
                 "USERNAME_EXISTS",
                 "用户名已存在",
                 {"username": payload.username},
             )
-        if str(payload.email) in self._users_by_email:
+        if existing_by_email:
             raise WorkspaceError(409, "EMAIL_EXISTS", "邮箱已存在", {"email": str(payload.email)})
 
         user = UserPublic(
@@ -357,6 +366,21 @@ class WorkspaceService:
             teams=self.list_teams(),
             audit_logs=self.list_audit_logs(),
         )
+
+    def _seed_demo_user(self) -> None:
+        payload = UserCreate(username="xiaoming", email="xiaoming@example.com", password="Str0ngPass!")
+        user = UserPublic(
+            id=self._next_user_id,
+            username=payload.username,
+            email=payload.email,
+            display_name="小明同学",
+            roles=["user"],
+        )
+        self._next_user_id += 1
+        stored = StoredUser(public=user, password_hash=self._hash_password(payload.password))
+        self._users_by_id[user.id] = stored
+        self._users_by_username[user.username] = stored
+        self._users_by_email[str(user.email)] = stored
 
     def _hash_password(self, password: str) -> str:
         digest = hashlib.pbkdf2_hmac("sha256", password.encode(), b"whu-workspace", 120_000)
