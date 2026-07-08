@@ -4,8 +4,10 @@ import { defineStore } from 'pinia'
 import {
   clearStoredWorkspaceSession,
   createAuthorizationHeader,
+  normalizeWorkspaceAccessRole,
   loadStoredWorkspaceSession,
   saveWorkspaceSession,
+  type WorkspaceAccessRole,
   type WorkspaceAuthSession,
 } from '@/auth'
 import {
@@ -18,11 +20,19 @@ import {
 import type { AuthResponse, UserCreate, UserPublic, UserUpdate } from '@/client/generated'
 
 export interface LoginCredentials {
+  accessRole?: WorkspaceAccessRole
   account: string
   password: string
 }
 
-export type RegisterCredentials = UserCreate
+export type RegisterCredentials = UserCreate & { accessRole?: WorkspaceAccessRole }
+
+export const accessRoleLabels: Record<WorkspaceAccessRole, string> = {
+  super_admin: '超级管理员',
+  admin: '管理员',
+  user: '普通用户',
+  readonly: '\u6e38\u5ba2\u767b\u9646',
+}
 
 export const useAuthStore = defineStore('auth', () => {
   const session = shallowRef<WorkspaceAuthSession | null>(loadStoredWorkspaceSession())
@@ -33,18 +43,57 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => Boolean(session.value?.accessToken))
   const displayName = computed(() => currentUser.value?.display_name ?? session.value?.displayName ?? '未登录')
   const roles = computed(() => currentUser.value?.roles ?? [])
+  const selectedAccessRole = computed(() => session.value?.accessRole ?? inferAccessRole(currentUser.value?.roles ?? []))
+  const selectedAccessRoleLabel = computed(() => accessRoleLabels[selectedAccessRole.value])
 
-  function applyAuthResponse(payload: AuthResponse) {
+  function inferAccessRole(roles: string[]): WorkspaceAccessRole {
+    if (roles.includes('super_admin')) return 'super_admin'
+    if (roles.includes('admin')) return 'admin'
+    if (roles.includes('readonly') || roles.includes('guest')) return 'readonly'
+    return 'user'
+  }
+
+  function scopeForAccessRole(accessRole: WorkspaceAccessRole) {
+    if (accessRole === 'super_admin' || accessRole === 'admin') return '系统'
+    if (accessRole === 'user') return '团队'
+    return '个人'
+  }
+
+  function applyAuthResponse(payload: AuthResponse, requestedAccessRole?: WorkspaceAccessRole) {
+    const accessRole = normalizeWorkspaceAccessRole(requestedAccessRole ?? inferAccessRole(payload.user.roles))
     const nextSession: WorkspaceAuthSession = {
+      accessRole,
       accessToken: payload.access_token,
       displayName: payload.user.display_name,
-      permissionScope: payload.user.roles.includes('admin') ? '系统' : '个人',
+      permissionScope: scopeForAccessRole(accessRole),
       refreshToken: payload.refresh_token,
       userId: String(payload.user.id),
     }
 
     session.value = nextSession
     currentUser.value = payload.user
+    errorMessage.value = ''
+    saveWorkspaceSession(nextSession)
+  }
+
+  function applyGuestSession() {
+    const guestUser: UserPublic = {
+      display_name: '游客',
+      email: 'guest@example.com',
+      id: 0,
+      roles: ['guest'],
+      username: 'guest',
+    }
+    const nextSession: WorkspaceAuthSession = {
+      accessRole: 'readonly',
+      accessToken: 'guest-demo-token',
+      displayName: '游客',
+      permissionScope: '个人',
+      userId: 'guest',
+    }
+
+    session.value = nextSession
+    currentUser.value = guestUser
     errorMessage.value = ''
     saveWorkspaceSession(nextSession)
   }
@@ -61,6 +110,17 @@ export const useAuthStore = defineStore('auth', () => {
       return false
     }
 
+    if (storedSession.accessRole === 'readonly' && storedSession.userId === 'guest') {
+      currentUser.value = {
+        display_name: '游客',
+        email: 'guest@example.com',
+        id: 0,
+        roles: ['guest'],
+        username: 'guest',
+      }
+      return true
+    }
+
     loading.value = true
     try {
       const response = await meApiV1UsersMeGet({
@@ -72,11 +132,13 @@ export const useAuthStore = defineStore('auth', () => {
         return false
       }
 
+      const accessRole = normalizeWorkspaceAccessRole(storedSession.accessRole)
       currentUser.value = response.data.user
       session.value = {
         ...storedSession,
+        accessRole,
         displayName: response.data.user.display_name,
-        permissionScope: response.data.user.roles.includes('admin') ? '系统' : storedSession.permissionScope,
+        permissionScope: scopeForAccessRole(accessRole),
         userId: String(response.data.user.id),
       }
       saveWorkspaceSession(session.value)
@@ -87,10 +149,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function loginWithPassword(credentials: LoginCredentials) {
+    const { accessRole, ...loginPayload } = credentials
     loading.value = true
     try {
       const response = await loginApiV1AuthLoginPost({
-        body: credentials,
+        body: loginPayload,
       })
 
       if (response.error || !response.data) {
@@ -98,8 +161,18 @@ export const useAuthStore = defineStore('auth', () => {
         throw response.error ?? new Error(errorMessage.value)
       }
 
-      applyAuthResponse(response.data)
+      applyAuthResponse(response.data, accessRole)
       return response.data
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function loginAsGuest() {
+    loading.value = true
+    try {
+      applyGuestSession()
+      return true
     } finally {
       loading.value = false
     }
@@ -123,7 +196,7 @@ export const useAuthStore = defineStore('auth', () => {
         return false
       }
 
-      applyAuthResponse(response.data)
+      applyAuthResponse(response.data, normalizeWorkspaceAccessRole(storedSession.accessRole))
       return response.data
     } finally {
       loading.value = false
@@ -131,10 +204,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function registerWithPassword(credentials: RegisterCredentials) {
+    const { accessRole, ...registerPayload } = credentials
     loading.value = true
     try {
       const response = await registerApiV1AuthRegisterPost({
-        body: credentials,
+        body: registerPayload,
       })
 
       if (response.error || !response.data) {
@@ -142,7 +216,7 @@ export const useAuthStore = defineStore('auth', () => {
         throw response.error ?? new Error(errorMessage.value)
       }
 
-      applyAuthResponse(response.data)
+      applyAuthResponse(response.data, accessRole)
       return response.data
     } finally {
       loading.value = false
@@ -168,11 +242,13 @@ export const useAuthStore = defineStore('auth', () => {
         throw response.error ?? new Error(errorMessage.value)
       }
 
+      const accessRole = normalizeWorkspaceAccessRole(storedSession.accessRole)
       currentUser.value = response.data.user
       session.value = {
         ...storedSession,
+        accessRole,
         displayName: response.data.user.display_name,
-        permissionScope: response.data.user.roles.includes('admin') ? '系统' : storedSession.permissionScope,
+        permissionScope: scopeForAccessRole(accessRole),
         userId: String(response.data.user.id),
       }
       errorMessage.value = ''
@@ -196,6 +272,7 @@ export const useAuthStore = defineStore('auth', () => {
     errorMessage,
     isAuthenticated,
     loading,
+    loginAsGuest,
     loginWithPassword,
     logout,
     refreshSession,
@@ -203,6 +280,8 @@ export const useAuthStore = defineStore('auth', () => {
     restoreLocalSession,
     restoreSession,
     roles,
+    selectedAccessRole,
+    selectedAccessRoleLabel,
     session,
     updateProfile,
   }

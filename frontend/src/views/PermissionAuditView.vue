@@ -10,6 +10,7 @@ import { useWorkspaceLayoutMode } from '@/composables/useWorkspaceLayoutMode'
 import { useWorkspaceNavigation } from '@/composables/useWorkspaceNavigation'
 import DesktopWorkspaceLayout from '@/layouts/DesktopWorkspaceLayout.vue'
 import MobileWorkspaceLayout from '@/layouts/MobileWorkspaceLayout.vue'
+import { useAuthStore } from '@/stores/auth'
 import { useWorkspaceStore } from '@/stores/workspace'
 
 interface PermissionRule {
@@ -21,15 +22,54 @@ interface PermissionRule {
   updatedAt: string
 }
 
+const auth = useAuthStore()
 const workspace = useWorkspaceStore()
 const { apiState, auditLogs, summary } = storeToRefs(workspace)
 const { isMobileLayout } = useWorkspaceLayoutMode()
 const { apiStateLabel, apiStateType, navItems } = useWorkspaceNavigation(apiState, 'permission-audit')
 const workspaceLayout = computed(() => (isMobileLayout.value ? MobileWorkspaceLayout : DesktopWorkspaceLayout))
 
-const selectedResourceType = ref('全部')
-const selectedActor = ref('全部')
+const selectedResourceType = ref('\u5168\u90e8')
+const selectedActor = ref('\u5168\u90e8')
 const keyword = ref('')
+
+const roleAuditLogs = computed<AuditLogEntry[]>(() => {
+  const actor = auth.currentUser?.username ?? (auth.selectedAccessRole === 'readonly' ? 'guest' : 'current-user')
+  const now = new Date().toISOString()
+  const commonLogs: AuditLogEntry[] = [
+    { id: `role-${auth.selectedAccessRole}-file-view`, actor, action: 'file.view', resource_type: 'file', resource_name: '\u5171\u4eab\u8d44\u6599', created_at: now },
+    { id: `role-${auth.selectedAccessRole}-rag-query`, actor, action: 'rag.query', resource_type: 'knowledge_base', resource_name: '\u8bfe\u7a0b\u77e5\u8bc6\u5e93', created_at: now },
+  ]
+
+  if (auth.selectedAccessRole === 'readonly') {
+    return [
+      ...commonLogs,
+      { id: 'role-readonly-permission-deny', actor, action: 'permission.deny.write', resource_type: 'folder', resource_name: '\u56e2\u961f\u8d44\u6599\u6587\u4ef6\u5939', created_at: now },
+    ]
+  }
+
+  if (auth.selectedAccessRole === 'user') {
+    return [
+      ...commonLogs,
+      { id: 'role-user-comment-create', actor, action: 'team.comment.create', resource_type: 'team', resource_name: '\u56e2\u961f\u8d44\u6599\u6587\u4ef6\u5939', created_at: now },
+      { id: 'role-user-workflow-run', actor, action: 'workflow.execute', resource_type: 'workflow', resource_name: 'new-file-auto-summary', created_at: now },
+    ]
+  }
+
+  return [
+    ...commonLogs,
+    { id: `role-${auth.selectedAccessRole}-permission-update`, actor, action: 'permission.update', resource_type: 'permission_rule', resource_name: '\u56e2\u961f\u8d44\u6599\u6587\u4ef6\u5939', created_at: now },
+  ]
+})
+const auditSourceLogs = computed(() => [...auditLogs.value, ...roleAuditLogs.value])
+const authAuditActionPattern = /^auth\.(login|logout|refresh|register)$/
+const canViewAuthAudit = computed(() => ['super_admin', 'admin'].includes(auth.selectedAccessRole))
+const visibleAuditLogs = computed(() =>
+  canViewAuthAudit.value ? auditSourceLogs.value : auditSourceLogs.value.filter((log) => !authAuditActionPattern.test(log.action)),
+)
+const restrictedAuditNotice = computed(() =>
+  `\u5f53\u524d\u89d2\u8272\u4e3a ${auth.selectedAccessRoleLabel}\uff0c\u5df2\u9690\u85cf\u767b\u5165\u3001\u767b\u51fa\u3001\u5237\u65b0\u4ee4\u724c\u548c\u6ce8\u518c\u7c7b\u8ba4\u8bc1\u5ba1\u8ba1\u8bb0\u5f55\uff0c\u4f46\u4ecd\u4fdd\u7559\u8be5\u89d2\u8272\u81ea\u5df1\u7684\u6587\u4ef6\u8bbf\u95ee\u3001\u77e5\u8bc6\u5e93\u67e5\u8be2\u548c\u6743\u9650\u62d2\u7edd\u7b49\u64cd\u4f5c\u8bb0\u5f55\u3002`,
+)
 
 const permissionRules: PermissionRule[] = [
   { id: 'rule-team-read', target: '团队资料文件夹', scope: '课程小组成员', permission: '读写', inherited: false, updatedAt: '2026-07-08 09:10' },
@@ -37,12 +77,12 @@ const permissionRules: PermissionRule[] = [
   { id: 'rule-tool-execute', target: 'report_generate', scope: '组长 / 管理员', permission: '允许执行', inherited: false, updatedAt: '2026-07-08 10:05' },
 ]
 
-const resourceTypeOptions = computed(() => ['全部', ...new Set(auditLogs.value.map((log) => log.resource_type))])
-const actorOptions = computed(() => ['全部', ...new Set(auditLogs.value.map((log) => log.actor))])
+const resourceTypeOptions = computed(() => ['\u5168\u90e8', ...new Set(visibleAuditLogs.value.map((log) => log.resource_type))])
+const actorOptions = computed(() => ['\u5168\u90e8', ...new Set(visibleAuditLogs.value.map((log) => log.actor))])
 const filteredLogs = computed(() =>
-  auditLogs.value.filter((log) => {
-    const matchesResource = selectedResourceType.value === '全部' || log.resource_type === selectedResourceType.value
-    const matchesActor = selectedActor.value === '全部' || log.actor === selectedActor.value
+  visibleAuditLogs.value.filter((log) => {
+    const matchesResource = selectedResourceType.value === '\u5168\u90e8' || log.resource_type === selectedResourceType.value
+    const matchesActor = selectedActor.value === '\u5168\u90e8' || log.actor === selectedActor.value
     const query = keyword.value.trim().toLowerCase()
     const matchesKeyword =
       !query ||
@@ -53,10 +93,10 @@ const filteredLogs = computed(() =>
   }),
 )
 
-const riskyLogs = computed(() => auditLogs.value.filter((log) => /delete|permission|tool\.publish|execute/.test(log.action)))
+const riskyLogs = computed(() => visibleAuditLogs.value.filter((log) => /delete|permission|tool\.publish|execute/.test(log.action)))
 const resourceBreakdown = computed(() => {
   const counts = new Map<string, number>()
-  for (const log of auditLogs.value) {
+  for (const log of visibleAuditLogs.value) {
     counts.set(log.resource_type, (counts.get(log.resource_type) ?? 0) + 1)
   }
   return [...counts.entries()].map(([label, count]) => ({ label, count }))
@@ -128,7 +168,7 @@ function formatTime(value: string) {
         <NCard size="small" :bordered="false" class="metric-card">
           <div class="metric-icon is-primary"><NIcon><Activity /></NIcon></div>
           <span>审计事件</span>
-          <strong>{{ auditLogs.length }}</strong>
+          <strong>{{ visibleAuditLogs.length }}</strong>
         </NCard>
         <NCard size="small" :bordered="false" class="metric-card">
           <div class="metric-icon is-warning"><NIcon><AlertTriangle /></NIcon></div>
@@ -167,6 +207,10 @@ function formatTime(value: string) {
               <NSelect v-model:value="selectedResourceType" :options="resourceTypeOptions.map((label) => ({ label, value: label }))" />
               <NSelect v-model:value="selectedActor" :options="actorOptions.map((label) => ({ label, value: label }))" />
             </div>
+
+            <NAlert v-if="!canViewAuthAudit" type="warning" :bordered="false" class="mx-3 mt-3">
+              {{ restrictedAuditNotice }}
+            </NAlert>
 
             <NDataTable
               class="max-md:hidden"
