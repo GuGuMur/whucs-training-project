@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, formDataBodySerializer, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuditLogsApiV1AuditLogsGetData, AuditLogsApiV1AuditLogsGetErrors, AuditLogsApiV1AuditLogsGetResponses, CreateAgentTaskApiV1AgentsTasksPostData, CreateAgentTaskApiV1AgentsTasksPostErrors, CreateAgentTaskApiV1AgentsTasksPostResponses, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostData, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostErrors, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses, FilesApiV1FilesGetData, FilesApiV1FilesGetErrors, FilesApiV1FilesGetResponses, FoldersApiV1FoldersTreeGetData, FoldersApiV1FoldersTreeGetErrors, FoldersApiV1FoldersTreeGetResponses, HealthHealthGetData, HealthHealthGetResponses, LoginApiV1AuthLoginPostData, LoginApiV1AuthLoginPostErrors, LoginApiV1AuthLoginPostResponses, MeApiV1UsersMeGetData, MeApiV1UsersMeGetErrors, MeApiV1UsersMeGetResponses, QaQueryApiV1QaQueryPostData, QaQueryApiV1QaQueryPostErrors, QaQueryApiV1QaQueryPostResponses, RefreshApiV1AuthRefreshPostData, RefreshApiV1AuthRefreshPostErrors, RefreshApiV1AuthRefreshPostResponses, RegisterApiV1AuthRegisterPostData, RegisterApiV1AuthRegisterPostErrors, RegisterApiV1AuthRegisterPostResponses, TeamsApiV1TeamsGetData, TeamsApiV1TeamsGetErrors, TeamsApiV1TeamsGetResponses, ToolsApiV1ToolsGetData, ToolsApiV1ToolsGetErrors, ToolsApiV1ToolsGetResponses, UpdateMeApiV1UsersMePatchData, UpdateMeApiV1UsersMePatchErrors, UpdateMeApiV1UsersMePatchResponses, UploadFileApiV1FilesUploadPostData, UploadFileApiV1FilesUploadPostErrors, UploadFileApiV1FilesUploadPostResponses, WorkflowsApiV1WorkflowsGetData, WorkflowsApiV1WorkflowsGetErrors, WorkflowsApiV1WorkflowsGetResponses, WorkspaceSnapshotApiV1WorkspaceSnapshotGetData, WorkspaceSnapshotApiV1WorkspaceSnapshotGetErrors, WorkspaceSnapshotApiV1WorkspaceSnapshotGetResponses } from './types.gen';
+import type { AuditLogsApiV1AuditLogsGetData, AuditLogsApiV1AuditLogsGetErrors, AuditLogsApiV1AuditLogsGetResponses, CopyFileApiV1FilesFileIdCopyPostData, CopyFileApiV1FilesFileIdCopyPostErrors, CopyFileApiV1FilesFileIdCopyPostResponses, CreateAgentTaskApiV1AgentsTasksPostData, CreateAgentTaskApiV1AgentsTasksPostErrors, CreateAgentTaskApiV1AgentsTasksPostResponses, CreateFolderApiV1FoldersPostData, CreateFolderApiV1FoldersPostErrors, CreateFolderApiV1FoldersPostResponses, CreateTeamApiV1TeamsPostData, CreateTeamApiV1TeamsPostErrors, CreateTeamApiV1TeamsPostResponses, CreateTeamInviteApiV1TeamsTeamIdInvitesPostData, CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors, CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses, DeleteFileApiV1FilesFileIdDeleteData, DeleteFileApiV1FilesFileIdDeleteErrors, DeleteFileApiV1FilesFileIdDeleteResponses, DeleteFolderApiV1FoldersFolderIdDeleteData, DeleteFolderApiV1FoldersFolderIdDeleteErrors, DeleteFolderApiV1FoldersFolderIdDeleteResponses, DownloadFileApiV1FilesFileIdDownloadGetData, DownloadFileApiV1FilesFileIdDownloadGetErrors, DownloadFileApiV1FilesFileIdDownloadGetResponses, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostData, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostErrors, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses, FilesApiV1FilesGetData, FilesApiV1FilesGetErrors, FilesApiV1FilesGetResponses, FileVersionsApiV1FilesFileIdVersionsGetData, FileVersionsApiV1FilesFileIdVersionsGetErrors, FileVersionsApiV1FilesFileIdVersionsGetResponses, FoldersApiV1FoldersTreeGetData, FoldersApiV1FoldersTreeGetErrors, FoldersApiV1FoldersTreeGetResponses, HealthHealthGetData, HealthHealthGetResponses, JoinTeamApiV1TeamsTeamIdMembersPostData, JoinTeamApiV1TeamsTeamIdMembersPostErrors, JoinTeamApiV1TeamsTeamIdMembersPostResponses, LoginApiV1AuthLoginPostData, LoginApiV1AuthLoginPostErrors, LoginApiV1AuthLoginPostResponses, MeApiV1UsersMeGetData, MeApiV1UsersMeGetErrors, MeApiV1UsersMeGetResponses, QaQueryApiV1QaQueryPostData, QaQueryApiV1QaQueryPostErrors, QaQueryApiV1QaQueryPostResponses, RefreshApiV1AuthRefreshPostData, RefreshApiV1AuthRefreshPostErrors, RefreshApiV1AuthRefreshPostResponses, RegisterApiV1AuthRegisterPostData, RegisterApiV1AuthRegisterPostErrors, RegisterApiV1AuthRegisterPostResponses, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteData, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostData, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses, TeamDetailApiV1TeamsTeamIdGetData, TeamDetailApiV1TeamsTeamIdGetErrors, TeamDetailApiV1TeamsTeamIdGetResponses, TeamsApiV1TeamsGetData, TeamsApiV1TeamsGetErrors, TeamsApiV1TeamsGetResponses, ToolsApiV1ToolsGetData, ToolsApiV1ToolsGetErrors, ToolsApiV1ToolsGetResponses, UpdateFileApiV1FilesFileIdPatchData, UpdateFileApiV1FilesFileIdPatchErrors, UpdateFileApiV1FilesFileIdPatchResponses, UpdateFolderApiV1FoldersFolderIdPatchData, UpdateFolderApiV1FoldersFolderIdPatchErrors, UpdateFolderApiV1FoldersFolderIdPatchResponses, UpdateMeApiV1UsersMePatchData, UpdateMeApiV1UsersMePatchErrors, UpdateMeApiV1UsersMePatchResponses, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchData, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses, UploadFileApiV1FilesUploadPostData, UploadFileApiV1FilesUploadPostErrors, UploadFileApiV1FilesUploadPostResponses, WorkflowsApiV1WorkflowsGetData, WorkflowsApiV1WorkflowsGetErrors, WorkflowsApiV1WorkflowsGetResponses, WorkspaceSnapshotApiV1WorkspaceSnapshotGetData, WorkspaceSnapshotApiV1WorkspaceSnapshotGetErrors, WorkspaceSnapshotApiV1WorkspaceSnapshotGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -90,9 +90,82 @@ export const uploadFileApiV1FilesUploadPost = <ThrowOnError extends boolean = fa
 });
 
 /**
+ * Delete File
+ */
+export const deleteFileApiV1FilesFileIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteFileApiV1FilesFileIdDeleteData, ThrowOnError>): RequestResult<DeleteFileApiV1FilesFileIdDeleteResponses, DeleteFileApiV1FilesFileIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteFileApiV1FilesFileIdDeleteResponses, DeleteFileApiV1FilesFileIdDeleteErrors, ThrowOnError>({ url: '/api/v1/files/{file_id}', ...options });
+
+/**
+ * Update File
+ */
+export const updateFileApiV1FilesFileIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateFileApiV1FilesFileIdPatchData, ThrowOnError>): RequestResult<UpdateFileApiV1FilesFileIdPatchResponses, UpdateFileApiV1FilesFileIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateFileApiV1FilesFileIdPatchResponses, UpdateFileApiV1FilesFileIdPatchErrors, ThrowOnError>({
+    url: '/api/v1/files/{file_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Copy File
+ */
+export const copyFileApiV1FilesFileIdCopyPost = <ThrowOnError extends boolean = false>(options: Options<CopyFileApiV1FilesFileIdCopyPostData, ThrowOnError>): RequestResult<CopyFileApiV1FilesFileIdCopyPostResponses, CopyFileApiV1FilesFileIdCopyPostErrors, ThrowOnError> => (options.client ?? client).post<CopyFileApiV1FilesFileIdCopyPostResponses, CopyFileApiV1FilesFileIdCopyPostErrors, ThrowOnError>({
+    url: '/api/v1/files/{file_id}/copy',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Download File
+ */
+export const downloadFileApiV1FilesFileIdDownloadGet = <ThrowOnError extends boolean = false>(options: Options<DownloadFileApiV1FilesFileIdDownloadGetData, ThrowOnError>): RequestResult<DownloadFileApiV1FilesFileIdDownloadGetResponses, DownloadFileApiV1FilesFileIdDownloadGetErrors, ThrowOnError> => (options.client ?? client).get<DownloadFileApiV1FilesFileIdDownloadGetResponses, DownloadFileApiV1FilesFileIdDownloadGetErrors, ThrowOnError>({ url: '/api/v1/files/{file_id}/download', ...options });
+
+/**
+ * File Versions
+ */
+export const fileVersionsApiV1FilesFileIdVersionsGet = <ThrowOnError extends boolean = false>(options: Options<FileVersionsApiV1FilesFileIdVersionsGetData, ThrowOnError>): RequestResult<FileVersionsApiV1FilesFileIdVersionsGetResponses, FileVersionsApiV1FilesFileIdVersionsGetErrors, ThrowOnError> => (options.client ?? client).get<FileVersionsApiV1FilesFileIdVersionsGetResponses, FileVersionsApiV1FilesFileIdVersionsGetErrors, ThrowOnError>({ url: '/api/v1/files/{file_id}/versions', ...options });
+
+/**
+ * Restore File Version
+ */
+export const restoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePost = <ThrowOnError extends boolean = false>(options: Options<RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostData, ThrowOnError>): RequestResult<RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors, ThrowOnError> => (options.client ?? client).post<RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors, ThrowOnError>({ url: '/api/v1/files/{file_id}/versions/{version_id}/restore', ...options });
+
+/**
+ * Create Folder
+ */
+export const createFolderApiV1FoldersPost = <ThrowOnError extends boolean = false>(options: Options<CreateFolderApiV1FoldersPostData, ThrowOnError>): RequestResult<CreateFolderApiV1FoldersPostResponses, CreateFolderApiV1FoldersPostErrors, ThrowOnError> => (options.client ?? client).post<CreateFolderApiV1FoldersPostResponses, CreateFolderApiV1FoldersPostErrors, ThrowOnError>({
+    url: '/api/v1/folders',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Folders
  */
 export const foldersApiV1FoldersTreeGet = <ThrowOnError extends boolean = false>(options?: Options<FoldersApiV1FoldersTreeGetData, ThrowOnError>): RequestResult<FoldersApiV1FoldersTreeGetResponses, FoldersApiV1FoldersTreeGetErrors, ThrowOnError> => (options?.client ?? client).get<FoldersApiV1FoldersTreeGetResponses, FoldersApiV1FoldersTreeGetErrors, ThrowOnError>({ url: '/api/v1/folders/tree', ...options });
+
+/**
+ * Delete Folder
+ */
+export const deleteFolderApiV1FoldersFolderIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteFolderApiV1FoldersFolderIdDeleteData, ThrowOnError>): RequestResult<DeleteFolderApiV1FoldersFolderIdDeleteResponses, DeleteFolderApiV1FoldersFolderIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteFolderApiV1FoldersFolderIdDeleteResponses, DeleteFolderApiV1FoldersFolderIdDeleteErrors, ThrowOnError>({ url: '/api/v1/folders/{folder_id}', ...options });
+
+/**
+ * Update Folder
+ */
+export const updateFolderApiV1FoldersFolderIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateFolderApiV1FoldersFolderIdPatchData, ThrowOnError>): RequestResult<UpdateFolderApiV1FoldersFolderIdPatchResponses, UpdateFolderApiV1FoldersFolderIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateFolderApiV1FoldersFolderIdPatchResponses, UpdateFolderApiV1FoldersFolderIdPatchErrors, ThrowOnError>({
+    url: '/api/v1/folders/{folder_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Qa Query
@@ -110,6 +183,64 @@ export const qaQueryApiV1QaQueryPost = <ThrowOnError extends boolean = false>(op
  * Teams
  */
 export const teamsApiV1TeamsGet = <ThrowOnError extends boolean = false>(options?: Options<TeamsApiV1TeamsGetData, ThrowOnError>): RequestResult<TeamsApiV1TeamsGetResponses, TeamsApiV1TeamsGetErrors, ThrowOnError> => (options?.client ?? client).get<TeamsApiV1TeamsGetResponses, TeamsApiV1TeamsGetErrors, ThrowOnError>({ url: '/api/v1/teams', ...options });
+
+/**
+ * Create Team
+ */
+export const createTeamApiV1TeamsPost = <ThrowOnError extends boolean = false>(options: Options<CreateTeamApiV1TeamsPostData, ThrowOnError>): RequestResult<CreateTeamApiV1TeamsPostResponses, CreateTeamApiV1TeamsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTeamApiV1TeamsPostResponses, CreateTeamApiV1TeamsPostErrors, ThrowOnError>({
+    url: '/api/v1/teams',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Team Detail
+ */
+export const teamDetailApiV1TeamsTeamIdGet = <ThrowOnError extends boolean = false>(options: Options<TeamDetailApiV1TeamsTeamIdGetData, ThrowOnError>): RequestResult<TeamDetailApiV1TeamsTeamIdGetResponses, TeamDetailApiV1TeamsTeamIdGetErrors, ThrowOnError> => (options.client ?? client).get<TeamDetailApiV1TeamsTeamIdGetResponses, TeamDetailApiV1TeamsTeamIdGetErrors, ThrowOnError>({ url: '/api/v1/teams/{team_id}', ...options });
+
+/**
+ * Create Team Invite
+ */
+export const createTeamInviteApiV1TeamsTeamIdInvitesPost = <ThrowOnError extends boolean = false>(options: Options<CreateTeamInviteApiV1TeamsTeamIdInvitesPostData, ThrowOnError>): RequestResult<CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses, CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses, CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors, ThrowOnError>({
+    url: '/api/v1/teams/{team_id}/invites',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Join Team
+ */
+export const joinTeamApiV1TeamsTeamIdMembersPost = <ThrowOnError extends boolean = false>(options: Options<JoinTeamApiV1TeamsTeamIdMembersPostData, ThrowOnError>): RequestResult<JoinTeamApiV1TeamsTeamIdMembersPostResponses, JoinTeamApiV1TeamsTeamIdMembersPostErrors, ThrowOnError> => (options.client ?? client).post<JoinTeamApiV1TeamsTeamIdMembersPostResponses, JoinTeamApiV1TeamsTeamIdMembersPostErrors, ThrowOnError>({
+    url: '/api/v1/teams/{team_id}/members',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Remove Team Member
+ */
+export const removeTeamMemberApiV1TeamsTeamIdMembersMemberIdDelete = <ThrowOnError extends boolean = false>(options: Options<RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteData, ThrowOnError>): RequestResult<RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors, ThrowOnError>({ url: '/api/v1/teams/{team_id}/members/{member_id}', ...options });
+
+/**
+ * Update Team Member
+ */
+export const updateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchData, ThrowOnError>): RequestResult<UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors, ThrowOnError>({
+    url: '/api/v1/teams/{team_id}/members/{member_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Tools

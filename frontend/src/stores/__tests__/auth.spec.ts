@@ -9,6 +9,7 @@ import {
   registerApiV1AuthRegisterPost,
   updateMeApiV1UsersMePatch,
 } from '@/client/generated'
+import type { ErrorResponse } from '@/client/generated'
 import { useAuthStore } from '../auth'
 
 vi.mock('@/client/generated', () => ({
@@ -62,6 +63,32 @@ describe('auth store', () => {
     expect(auth.currentUser?.username).toBe('xiaoming')
     expect(loadStoredWorkspaceSession()?.accessToken).toBe('access-token')
     expect(createAuthorizationHeader('access-token')).toEqual({ authorization: 'Bearer access-token' })
+  })
+
+  it('shows account lockout details from generated login errors', async () => {
+    const lockedError: ErrorResponse = {
+      code: 'ACCOUNT_LOCKED',
+      detail: {
+        failed_attempts: 5,
+        locked_until: '2026-07-08T14:30:00+08:00',
+        max_attempts: 5,
+        retry_after_seconds: 299,
+      },
+      message: '账户已被临时锁定，请稍后再试',
+    }
+
+    loginApi.mockResolvedValue({
+      data: undefined,
+      error: lockedError,
+    })
+
+    const auth = useAuthStore()
+
+    await expect(auth.loginWithPassword({ account: 'xiaoming', password: 'WrongPass!' })).rejects.toEqual(lockedError)
+
+    expect(auth.errorMessage).toBe('账户已临时锁定，请 5 分钟后再试')
+    expect(auth.isAuthenticated).toBe(false)
+    expect(loadStoredWorkspaceSession()).toBeNull()
   })
 
   it('hydrates the current user from a stored session token', async () => {

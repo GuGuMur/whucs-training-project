@@ -1,11 +1,45 @@
 import { createAuthorizationHeader } from '@/auth/workspaceAccess'
-import { workspaceSnapshotApiV1WorkspaceSnapshotGet } from '@/client/generated'
+import {
+  copyFileApiV1FilesFileIdCopyPost,
+  createFolderApiV1FoldersPost,
+  createTeamApiV1TeamsPost,
+  createTeamInviteApiV1TeamsTeamIdInvitesPost,
+  deleteFileApiV1FilesFileIdDelete,
+  deleteFolderApiV1FoldersFolderIdDelete,
+  downloadFileApiV1FilesFileIdDownloadGet,
+  filesApiV1FilesGet,
+  fileVersionsApiV1FilesFileIdVersionsGet,
+  foldersApiV1FoldersTreeGet,
+  joinTeamApiV1TeamsTeamIdMembersPost,
+  removeTeamMemberApiV1TeamsTeamIdMembersMemberIdDelete,
+  restoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePost,
+  teamDetailApiV1TeamsTeamIdGet,
+  teamsApiV1TeamsGet,
+  updateFileApiV1FilesFileIdPatch,
+  updateFolderApiV1FoldersFolderIdPatch,
+  updateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatch,
+  uploadFileApiV1FilesUploadPost,
+  workspaceSnapshotApiV1WorkspaceSnapshotGet,
+} from '@/client/generated'
 import type {
   AgentStep as GeneratedAgentStep,
   AuditLogEntry,
   Citation,
+  FileCopyRequest,
   DashboardSummary,
   FileItem,
+  FileListResponse,
+  FileUpdate,
+  FileVersionItem,
+  FileVersionListResponse,
+  FolderItem,
+  FolderTreeResponse,
+  FolderUpdate,
+  TeamDetail,
+  TeamInvitePublic,
+  TeamListResponse,
+  TeamMemberPublic,
+  TeamMemberUpdate,
   TeamSummary,
   ToolDefinition,
   WorkflowDefinition,
@@ -14,10 +48,62 @@ import type {
 
 export type AgentStep = GeneratedAgentStep & { status: NonNullable<GeneratedAgentStep['status']> }
 export type WorkspaceFile = FileItem
+export type WorkspaceFileVersion = FileVersionItem
+export type WorkspaceFileVersionListResponse = FileVersionListResponse
+export type WorkspaceFolder = FolderItem
+export type WorkspaceFolderScope = WorkspaceFolder['scope']
+export type WorkspaceFolderTreeResponse = FolderTreeResponse
+export type WorkspaceTeamDetail = TeamDetail
+export type WorkspaceTeamInvite = TeamInvitePublic
+export type WorkspaceTeamMember = TeamMemberPublic
+export type WorkspaceTeamRole = TeamMemberUpdate['role']
+
+export interface WorkspaceFileFilters {
+  fileType: string
+  query: string
+  tag: string
+}
+export interface WorkspaceFileUploadInput {
+  file: File
+  folderId: string
+  tags: string[]
+}
+export interface WorkspaceFileUpdateInput {
+  folderId?: string | null
+  name?: string | null
+  tags?: string[] | null
+}
+export interface WorkspaceFileCopyInput {
+  name?: string | null
+  tags?: string[] | null
+  targetFolderId: string
+}
+export interface WorkspaceFolderCreateInput {
+  name: string
+  parentId?: string | null
+  scope?: WorkspaceFolderScope
+}
+export interface WorkspaceFolderUpdateInput {
+  name?: string | null
+  parentId?: string | null
+}
+export interface WorkspaceFolderOption {
+  label: string
+  value: string
+}
+export interface WorkspaceTeamCreateInput {
+  description?: string | null
+  name: string
+}
+export interface WorkspaceTeamInviteInput {
+  email: string
+  role: WorkspaceTeamRole
+}
 export type {
   AuditLogEntry,
   Citation,
   DashboardSummary,
+  FileListResponse,
   TeamSummary,
   ToolDefinition,
   WorkflowDefinition,
@@ -28,6 +114,44 @@ export interface WorkspaceNarrative {
   answer: string
   citations: Citation[]
   agentSteps: AgentStep[]
+}
+
+export const demoWorkspaceFolders: FolderTreeResponse = {
+  items: [
+    {
+      id: 'personal-root',
+      name: '个人文件',
+      parent_id: null,
+      scope: 'personal',
+      permission: '个人',
+      children: [
+        {
+          id: 'folder-biology',
+          name: '生物学实验',
+          parent_id: 'personal-root',
+          scope: 'personal',
+          permission: '个人',
+          children: [],
+        },
+        {
+          id: 'folder-course',
+          name: '软件工程课程',
+          parent_id: 'personal-root',
+          scope: 'personal',
+          permission: '个人',
+          children: [],
+        },
+      ],
+    },
+    {
+      id: 'team-root',
+      name: '团队文件',
+      parent_id: null,
+      scope: 'team',
+      permission: '团队',
+      children: [],
+    },
+  ],
 }
 
 export const demoWorkspaceSnapshot: WorkspaceSnapshot = {
@@ -134,8 +258,24 @@ export const demoWorkspaceSnapshot: WorkspaceSnapshot = {
     },
   ],
   teams: [
-    { id: 'team-biology', name: '生物学实验', role: '团队管理员', member_count: 6, unread_count: 3 },
-    { id: 'team-course', name: '软件工程课程组', role: '成员', member_count: 5, unread_count: 1 },
+    {
+      description: '实验报告与观察数据协作',
+      id: 'team-biology',
+      member_count: 6,
+      name: '生物学实验',
+      role: 'admin',
+      root_folder_id: 'team-root',
+      unread_count: 3,
+    },
+    {
+      description: '需求文档、周报和课程资料',
+      id: 'team-course',
+      member_count: 5,
+      name: '软件工程课程组',
+      role: 'member',
+      root_folder_id: 'team-root',
+      unread_count: 1,
+    },
   ],
   audit_logs: [
     {
@@ -153,6 +293,102 @@ export const demoWorkspaceSnapshot: WorkspaceSnapshot = {
       resource_type: 'tool',
       resource_name: 'knowledge_qa',
       created_at: '2026-07-08T04:20:00+08:00',
+    },
+  ],
+}
+
+export const demoWorkspaceTeamDetail: WorkspaceTeamDetail = {
+  description: '实验报告与观察数据协作',
+  id: 'team-biology',
+  invites: [],
+  member_count: 3,
+  members: [
+    {
+      display_name: '小明',
+      email: 'xiaoming@example.com',
+      id: 'team-biology-member-1',
+      joined_at: '2026-07-08T08:00:00+08:00',
+      role: 'owner',
+      status: 'active',
+      team_id: 'team-biology',
+      user_id: 1,
+      username: 'xiaoming',
+    },
+    {
+      display_name: '小红',
+      email: 'xiaohong@example.com',
+      id: 'team-biology-member-2',
+      joined_at: '2026-07-08T08:10:00+08:00',
+      role: 'member',
+      status: 'active',
+      team_id: 'team-biology',
+      user_id: 2,
+      username: 'xiaohong',
+    },
+    {
+      display_name: '访客',
+      email: 'guest@example.com',
+      id: 'team-biology-member-3',
+      joined_at: '2026-07-08T08:20:00+08:00',
+      role: 'guest',
+      status: 'active',
+      team_id: 'team-biology',
+      user_id: 3,
+      username: 'guest',
+    },
+  ],
+  name: '生物学实验',
+  role: 'admin',
+  root_folder: {
+    children: [],
+    id: 'team-root',
+    name: '团队文件',
+    parent_id: null,
+    permission: '读写',
+    scope: 'team',
+    team_id: 'team-biology',
+  },
+  unread_count: 3,
+}
+
+export const demoWorkspaceFileVersions: Record<string, WorkspaceFileVersion[]> = {
+  'file-microscope': [
+    {
+      id: 'file-microscope-v1',
+      file_id: 'file-microscope',
+      version_no: 1,
+      name: '显微镜实验报告.pdf',
+      size: 2430112,
+      sha256: '8b73c9d2d4c02b4b4f0e1c7a8dbf1023f44e8d9e7a10f24b15a02d983ff42d91',
+      created_at: '2026-07-08T06:21:00+08:00',
+      created_by: 'system',
+      is_current: true,
+    },
+  ],
+  'file-requirements': [
+    {
+      id: 'file-requirements-v1',
+      file_id: 'file-requirements',
+      version_no: 1,
+      name: '需求规格说明书.md',
+      size: 96418,
+      sha256: 'fb8bd33418f0d6a73f83341f1f3bbef710c66f6a73e4c4afece8e7dfcb71b884',
+      created_at: '2026-07-07T18:10:00+08:00',
+      created_by: 'system',
+      is_current: true,
+    },
+  ],
+  'file-weekly': [
+    {
+      id: 'file-weekly-v1',
+      file_id: 'file-weekly',
+      version_no: 1,
+      name: '小组周报.docx',
+      size: 384200,
+      sha256: 'd654611a21f65bbdcad7f0c96da59e267674b0d806f65220b46fbf35d94a826b',
+      created_at: '2026-07-08T07:43:00+08:00',
+      created_by: 'system',
+      is_current: true,
     },
   ],
 }
@@ -202,4 +438,339 @@ export async function fetchWorkspaceSnapshot(token: string): Promise<WorkspaceSn
   }
 
   return response.data
+}
+
+export async function listWorkspaceTeams(token: string): Promise<TeamListResponse> {
+  const response = await teamsApiV1TeamsGet({
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function createWorkspaceTeam(
+  token: string,
+  payload: WorkspaceTeamCreateInput,
+): Promise<WorkspaceTeamDetail> {
+  const response = await createTeamApiV1TeamsPost({
+    body: {
+      description: payload.description ?? null,
+      name: payload.name,
+    },
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function loadWorkspaceTeamDetail(token: string, teamId: string): Promise<WorkspaceTeamDetail> {
+  const response = await teamDetailApiV1TeamsTeamIdGet({
+    headers: createAuthorizationHeader(token),
+    path: { team_id: teamId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function createWorkspaceTeamInvite(
+  token: string,
+  teamId: string,
+  payload: WorkspaceTeamInviteInput,
+): Promise<WorkspaceTeamInvite> {
+  const response = await createTeamInviteApiV1TeamsTeamIdInvitesPost({
+    body: {
+      email: payload.email,
+      role: payload.role,
+    },
+    headers: createAuthorizationHeader(token),
+    path: { team_id: teamId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function joinWorkspaceTeam(
+  token: string,
+  teamId: string,
+  inviteToken: string,
+): Promise<WorkspaceTeamMember> {
+  const response = await joinTeamApiV1TeamsTeamIdMembersPost({
+    body: { invite_token: inviteToken },
+    headers: createAuthorizationHeader(token),
+    path: { team_id: teamId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function updateWorkspaceTeamMember(
+  token: string,
+  teamId: string,
+  memberId: string,
+  role: WorkspaceTeamRole,
+): Promise<WorkspaceTeamMember> {
+  const response = await updateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatch({
+    body: { role },
+    headers: createAuthorizationHeader(token),
+    path: { member_id: memberId, team_id: teamId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function removeWorkspaceTeamMember(token: string, teamId: string, memberId: string): Promise<void> {
+  const response = await removeTeamMemberApiV1TeamsTeamIdMembersMemberIdDelete({
+    headers: createAuthorizationHeader(token),
+    path: { member_id: memberId, team_id: teamId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+}
+
+export async function listWorkspaceFolders(token: string): Promise<FolderTreeResponse> {
+  const response = await foldersApiV1FoldersTreeGet({
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function listWorkspaceFiles(token: string, filters: WorkspaceFileFilters): Promise<FileListResponse> {
+  const response = await filesApiV1FilesGet({
+    headers: createAuthorizationHeader(token),
+    query: {
+      file_type: filters.fileType || null,
+      query: filters.query || null,
+      tag: filters.tag || null,
+    },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function createWorkspaceFolder(
+  token: string,
+  payload: WorkspaceFolderCreateInput,
+): Promise<WorkspaceFolder> {
+  const response = await createFolderApiV1FoldersPost({
+    body: {
+      name: payload.name,
+      parent_id: payload.parentId ?? null,
+      scope: payload.scope ?? 'personal',
+    },
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function updateWorkspaceFolder(
+  token: string,
+  folderId: string,
+  payload: WorkspaceFolderUpdateInput,
+): Promise<WorkspaceFolder> {
+  const body: FolderUpdate = {}
+  if ('name' in payload) {
+    body.name = payload.name ?? null
+  }
+  if ('parentId' in payload) {
+    body.parent_id = payload.parentId ?? null
+  }
+
+  const response = await updateFolderApiV1FoldersFolderIdPatch({
+    body,
+    headers: createAuthorizationHeader(token),
+    path: { folder_id: folderId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function deleteWorkspaceFolder(token: string, folderId: string): Promise<void> {
+  const response = await deleteFolderApiV1FoldersFolderIdDelete({
+    headers: createAuthorizationHeader(token),
+    path: { folder_id: folderId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+}
+
+export async function uploadWorkspaceFile(token: string, payload: WorkspaceFileUploadInput): Promise<WorkspaceFile> {
+  const response = await uploadFileApiV1FilesUploadPost({
+    body: {
+      file: payload.file,
+      folder_id: payload.folderId,
+      tags: payload.tags.join(',') || null,
+    },
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function updateWorkspaceFile(
+  token: string,
+  fileId: string,
+  payload: WorkspaceFileUpdateInput,
+): Promise<WorkspaceFile> {
+  const body: FileUpdate = {}
+  if ('name' in payload) {
+    body.name = payload.name ?? null
+  }
+  if ('folderId' in payload) {
+    body.folder_id = payload.folderId ?? null
+  }
+  if ('tags' in payload) {
+    body.tags = payload.tags ?? null
+  }
+
+  const response = await updateFileApiV1FilesFileIdPatch({
+    body,
+    headers: createAuthorizationHeader(token),
+    path: { file_id: fileId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function copyWorkspaceFile(
+  token: string,
+  fileId: string,
+  payload: WorkspaceFileCopyInput,
+): Promise<WorkspaceFile> {
+  const body: FileCopyRequest = {
+    target_folder_id: payload.targetFolderId,
+  }
+  if ('name' in payload) {
+    body.name = payload.name ?? null
+  }
+  if ('tags' in payload) {
+    body.tags = payload.tags ?? null
+  }
+
+  const response = await copyFileApiV1FilesFileIdCopyPost({
+    body,
+    headers: createAuthorizationHeader(token),
+    path: { file_id: fileId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function downloadWorkspaceFile(token: string, fileId: string): Promise<Blob> {
+  const response = await downloadFileApiV1FilesFileIdDownloadGet({
+    headers: createAuthorizationHeader(token),
+    parseAs: 'blob',
+    path: { file_id: fileId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  if (response.data instanceof Blob) {
+    return response.data
+  }
+
+  throw new Error('文件下载响应格式不正确')
+}
+
+export async function listWorkspaceFileVersions(
+  token: string,
+  fileId: string,
+): Promise<WorkspaceFileVersionListResponse> {
+  const response = await fileVersionsApiV1FilesFileIdVersionsGet({
+    headers: createAuthorizationHeader(token),
+    path: { file_id: fileId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function restoreWorkspaceFileVersion(
+  token: string,
+  fileId: string,
+  versionId: string,
+): Promise<WorkspaceFile> {
+  const response = await restoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePost({
+    headers: createAuthorizationHeader(token),
+    path: { file_id: fileId, version_id: versionId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function deleteWorkspaceFile(token: string, fileId: string): Promise<void> {
+  const response = await deleteFileApiV1FilesFileIdDelete({
+    headers: createAuthorizationHeader(token),
+    path: { file_id: fileId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
 }

@@ -5,7 +5,7 @@ import hashlib
 import hmac
 import json
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -18,11 +18,23 @@ from app.domain.schemas import (
     AuditLogEntry,
     Citation,
     DashboardSummary,
+    FileCopyRequest,
     FileItem,
+    FileUpdate,
+    FileVersionItem,
+    FolderCreate,
     FolderItem,
+    FolderUpdate,
     QARequest,
     QAResponse,
+    TeamCreate,
+    TeamDetail,
+    TeamInviteCreate,
+    TeamInvitePublic,
     TeamSummary,
+    TeamMemberJoin,
+    TeamMemberPublic,
+    TeamMemberUpdate,
     ToolDefinition,
     UserCreate,
     UserPublic,
@@ -44,10 +56,78 @@ class WorkspaceError(Exception):
         super().__init__(message)
 
 
+LOGIN_FAILURE_LIMIT = 5
+LOGIN_LOCKOUT_DURATION = timedelta(minutes=5)
+
+
+@dataclass
+class LoginSecurityState:
+    failed_attempts: int = 0
+    locked_until: datetime | None = None
+
+
 @dataclass
 class StoredUser:
     public: UserPublic
     password_hash: str
+    security: LoginSecurityState = field(default_factory=LoginSecurityState)
+
+
+@dataclass
+class StoredFolder:
+    id: str
+    name: str
+    parent_id: str | None
+    scope: str
+    permission: str
+    team_id: str | None = None
+
+
+@dataclass
+class StoredFileVersion:
+    id: str
+    file_id: str
+    version_no: int
+    name: str
+    content: bytes
+    sha256: str
+    size: int
+    created_at: datetime
+    created_by: str
+
+
+@dataclass
+class StoredTeam:
+    id: str
+    name: str
+    description: str
+    root_folder_id: str
+    created_by: int
+    created_at: datetime
+    unread_count: int = 0
+
+
+@dataclass
+class StoredTeamMember:
+    id: str
+    team_id: str
+    user_id: int
+    role: str
+    status: str
+    joined_at: datetime
+
+
+@dataclass
+class StoredTeamInvite:
+    id: str
+    team_id: str
+    email: str
+    role: str
+    token: str
+    status: str
+    created_by: int
+    created_at: datetime
+    expires_at: datetime
 
 
 class WorkspaceService:
@@ -57,7 +137,13 @@ class WorkspaceService:
         self._users_by_username: dict[str, StoredUser] = {}
         self._users_by_email: dict[str, StoredUser] = {}
         self._next_user_id = 1
+        self._folders = self._seed_folders()
         self._files = self._seed_files()
+        self._file_contents = self._seed_file_contents()
+        self._file_versions = self._seed_file_versions()
+        self._teams = self._seed_teams()
+        self._team_members: dict[str, StoredTeamMember] = {}
+        self._team_invites: dict[str, StoredTeamInvite] = {}
         self._audit_logs: list[AuditLogEntry] = []
 
     def register_user(self, payload: UserCreate) -> tuple[UserPublic, str, str]:
@@ -88,8 +174,14 @@ class WorkspaceService:
 
     def login_user(self, account: str, password: str) -> tuple[UserPublic, str, str]:
         stored = self._users_by_username.get(account) or self._users_by_email.get(account)
+        now = datetime.now(UTC)
+        if stored:
+            self._ensure_login_not_locked(stored, now)
         if not stored or not hmac.compare_digest(stored.password_hash, self._hash_password(password)):
+            if stored:
+                self._record_failed_login(stored, now)
             raise WorkspaceError(401, "INVALID_CREDENTIALS", "用户名、邮箱或密码不正确")
+        stored.security = LoginSecurityState()
         self._record_audit(stored.public.username, "auth.login", "user", stored.public.username)
         return stored.public, self._create_token(stored.public.id, "access"), self._create_token(stored.public.id, "refresh")
 
@@ -135,20 +227,72 @@ class WorkspaceService:
         self._record_audit(stored.public.username, "user.update_profile", "user", stored.public.username)
         return stored.public
 
-    def folder_tree(self) -> list[FolderItem]:
+    def folder_tree(self, actor: UserPublic) -> list[FolderItem]:
         return [
-            FolderItem(
-                id="personal-root",
-                name="个人文件",
-                scope="personal",
-                permission="管理",
-                children=[
-                    FolderItem(id="folder-biology", name="生物学实验", parent_id="personal-root", scope="personal", permission="管理"),
-                    FolderItem(id="folder-course", name="软件工程课程", parent_id="personal-root", scope="personal", permission="管理"),
-                ],
-            ),
-            FolderItem(id="team-root", name="团队文件", scope="team", permission="读写"),
+            self._folder_item(folder, actor)
+            for folder in self._folders.values()
+            if folder.parent_id is None and self._can_read_folder(folder, actor)
         ]
+
+    def create_folder(self, payload: FolderCreate, actor: UserPublic) -> FolderItem:
+        parent_id = payload.parent_id or ("team-root" if payload.scope == "team" else "personal-root")
+        parent = self._find_folder(parent_id)
+        if parent.scope != payload.scope:
+            raise WorkspaceError(
+                409,
+                "FOLDER_SCOPE_MISMATCH",
+                "目标父文件夹与新文件夹空间不一致",
+                {"parent_id": parent_id, "scope": payload.scope},
+            )
+        self._ensure_can_write_folder(parent, actor)
+        folder = StoredFolder(
+            id=f"folder-{secrets.token_hex(4)}",
+            name=self._clean_folder_name(payload.name),
+            parent_id=parent_id,
+            scope=payload.scope,
+            permission=parent.permission,
+            team_id=parent.team_id,
+        )
+        self._folders[folder.id] = folder
+        self._record_audit(actor.username, "folder.create", "folder", folder.name)
+        return self._folder_item(folder, actor)
+
+    def update_folder(self, folder_id: str, payload: FolderUpdate, actor: UserPublic) -> FolderItem:
+        folder = self._find_folder(folder_id)
+        self._ensure_mutable_folder(folder)
+        self._ensure_can_write_folder(folder, actor)
+        old_name = folder.name
+        old_parent_id = folder.parent_id
+
+        if "name" in payload.model_fields_set and payload.name is not None:
+            folder.name = self._clean_folder_name(payload.name)
+
+        if "parent_id" in payload.model_fields_set:
+            next_parent_id = payload.parent_id or ("team-root" if folder.scope == "team" else "personal-root")
+            self._ensure_valid_folder_move(folder, next_parent_id)
+            folder.parent_id = next_parent_id
+
+        if folder.name != old_name:
+            self._record_audit(actor.username, "folder.rename", "folder", folder.name)
+        if folder.parent_id != old_parent_id:
+            self._record_audit(actor.username, "folder.move", "folder", folder.name)
+        return self._folder_item(folder, actor)
+
+    def delete_folder(self, folder_id: str, actor: UserPublic) -> None:
+        folder = self._find_folder(folder_id)
+        self._ensure_mutable_folder(folder)
+        self._ensure_can_write_folder(folder, actor)
+        child_count = sum(1 for candidate in self._folders.values() if candidate.parent_id == folder_id)
+        file_count = sum(1 for file_item in self._files if file_item.folder_id == folder_id)
+        if child_count or file_count:
+            raise WorkspaceError(
+                409,
+                "FOLDER_NOT_EMPTY",
+                "文件夹非空，不能直接删除",
+                {"folder_id": folder_id, "child_count": child_count, "file_count": file_count},
+            )
+        self._folders.pop(folder_id)
+        self._record_audit(actor.username, "folder.delete", "folder", folder.name)
 
     def list_files(self, query: str | None = None, tag: str | None = None, file_type: str | None = None) -> list[FileItem]:
         files = self._files
@@ -161,26 +305,154 @@ class WorkspaceService:
         return files
 
     async def upload_file(self, upload: UploadFile, folder_id: str, tags: str | None, actor: UserPublic) -> FileItem:
+        folder = self._find_folder(folder_id)
+        self._ensure_can_write_folder(folder, actor)
         content = await upload.read()
         digest = hashlib.sha256(content).hexdigest()
-        clean_tags = [tag.strip() for tag in (tags or "").split(",") if tag.strip()]
-        file_type = self._file_type(upload.filename or "")
+        clean_tags = self._normalize_tags((tags or "").split(","))
+        filename = self._clean_file_name(upload.filename or "未命名文件")
+        existing_file = self._find_file_by_name_in_folder(filename, folder_id)
+        if existing_file:
+            self._append_file_version(existing_file, filename, content, actor.username)
+            updated = existing_file.model_copy(
+                update={
+                    "name": filename,
+                    "type": self._file_type(filename),
+                    "size": len(content),
+                    "sha256": digest,
+                    "parse_status": "queued",
+                    "tags": clean_tags,
+                    "updated_at": datetime.now(UTC),
+                    "permission_scope": self._permission_scope_for_folder(folder),
+                }
+            )
+            self._file_contents[updated.id] = content
+            self._replace_file(updated, move_to_front=True)
+            self._record_audit(actor.username, "file.upload", "file", updated.name)
+            return updated
+
         item = FileItem(
-            id=f"file-{digest[:12]}",
-            name=upload.filename or "未命名文件",
+            id=self._new_file_id(digest),
+            name=filename,
             folder_id=folder_id,
-            type=file_type,
+            type=self._file_type(filename),
             size=len(content),
             sha256=digest,
             parse_status="queued",
             tags=clean_tags,
             updated_at=datetime.now(UTC),
-            permission_scope="个人",
+            permission_scope=self._permission_scope_for_folder(folder),
             knowledge_base_ids=[],
         )
         self._files.insert(0, item)
+        self._file_contents[item.id] = content
+        self._append_file_version(item, item.name, content, actor.username)
         self._record_audit(actor.username, "file.upload", "file", item.name)
         return item
+
+    def update_file(self, file_id: str, payload: FileUpdate, actor: UserPublic) -> FileItem:
+        file_item = self._find_file(file_id)
+        updates: dict[str, Any] = {}
+        next_name = file_item.name
+        next_folder_id = file_item.folder_id
+        next_tags = file_item.tags
+        target_folder: StoredFolder | None = None
+
+        if "name" in payload.model_fields_set and payload.name is not None:
+            next_name = self._clean_file_name(payload.name)
+            updates["name"] = next_name
+            updates["type"] = self._file_type(next_name)
+
+        if "folder_id" in payload.model_fields_set and payload.folder_id is not None:
+            target_folder = self._ensure_file_target_folder(file_item, payload.folder_id, actor)
+            next_folder_id = target_folder.id
+            updates["folder_id"] = next_folder_id
+            updates["permission_scope"] = self._permission_scope_for_folder(target_folder)
+
+        if "tags" in payload.model_fields_set and payload.tags is not None:
+            next_tags = self._normalize_tags(payload.tags)
+            updates["tags"] = next_tags
+
+        if not updates:
+            return file_item
+
+        updates["updated_at"] = datetime.now(UTC)
+        updated = file_item.model_copy(update=updates)
+        self._replace_file(updated)
+
+        if next_name != file_item.name:
+            self._record_audit(actor.username, "file.rename", "file", updated.name)
+        if next_folder_id != file_item.folder_id:
+            self._record_audit(actor.username, "file.move", "file", updated.name)
+        if next_tags != file_item.tags:
+            self._record_audit(actor.username, "file.update_tags", "file", updated.name)
+        return updated
+
+    def copy_file(self, file_id: str, payload: FileCopyRequest, actor: UserPublic) -> FileItem:
+        source = self._find_file(file_id)
+        target_folder = self._ensure_file_target_folder(source, payload.target_folder_id, actor)
+        content = self._read_file_content(file_id)
+        name = self._clean_file_name(payload.name or self._copy_file_name(source.name))
+        tags = self._normalize_tags(payload.tags) if payload.tags is not None else list(source.tags)
+        digest = hashlib.sha256(content).hexdigest()
+        copied = source.model_copy(
+            update={
+                "id": self._new_file_id(digest),
+                "name": name,
+                "folder_id": target_folder.id,
+                "type": self._file_type(name),
+                "size": len(content),
+                "sha256": digest,
+                "tags": tags,
+                "updated_at": datetime.now(UTC),
+                "permission_scope": self._permission_scope_for_folder(target_folder),
+                "knowledge_base_ids": [],
+            }
+        )
+        self._files.insert(0, copied)
+        self._file_contents[copied.id] = content
+        self._file_versions[copied.id] = [self._make_file_version(copied, copied.name, content, actor.username)]
+        self._record_audit(actor.username, "file.copy", "file", copied.name)
+        return copied
+
+    def download_file(self, file_id: str, actor: UserPublic) -> tuple[FileItem, bytes]:
+        file_item = self._find_file(file_id)
+        content = self._read_file_content(file_id)
+        self._record_audit(actor.username, "file.download", "file", file_item.name)
+        return file_item, content
+
+    def list_file_versions(self, file_id: str, _: UserPublic) -> list[FileVersionItem]:
+        self._find_file(file_id)
+        versions = self._file_versions.get(file_id, [])
+        current_version_no = max((version.version_no for version in versions), default=0)
+        return [
+            self._file_version_item(version, current_version_no)
+            for version in sorted(versions, key=lambda item: item.version_no, reverse=True)
+        ]
+
+    def restore_file_version(self, file_id: str, version_id: str, actor: UserPublic) -> FileItem:
+        file_item = self._find_file(file_id)
+        version = self._find_file_version(file_id, version_id)
+        self._append_file_version(file_item, file_item.name, version.content, actor.username)
+        restored = file_item.model_copy(
+            update={
+                "size": version.size,
+                "sha256": version.sha256,
+                "parse_status": "queued",
+                "updated_at": datetime.now(UTC),
+            }
+        )
+        self._file_contents[file_id] = version.content
+        self._replace_file(restored, move_to_front=True)
+        self._record_audit(actor.username, "file.version_restore", "file", restored.name)
+        return restored
+
+    def delete_file(self, file_id: str, actor: UserPublic) -> None:
+        file_item = self._find_file(file_id)
+        self._files = [candidate for candidate in self._files if candidate.id != file_id]
+        self._file_contents.pop(file_id, None)
+        self._file_versions.pop(file_id, None)
+        self._record_audit(actor.username, "file.delete", "file", file_item.name)
 
     def answer_question(self, payload: QARequest, actor: UserPublic) -> QAResponse:
         citation = Citation(
@@ -321,11 +593,129 @@ class WorkspaceService:
             output={"summary": summary},
         )
 
-    def list_teams(self) -> list[TeamSummary]:
-        return [
-            TeamSummary(id="team-biology", name="生物学实验", role="团队管理员", member_count=6, unread_count=3),
-            TeamSummary(id="team-course", name="软件工程课程组", role="成员", member_count=5, unread_count=1),
+    def create_team(self, payload: TeamCreate, actor: UserPublic) -> TeamDetail:
+        team_id = f"team-{secrets.token_hex(4)}"
+        root_folder_id = f"{team_id}-root"
+        team = StoredTeam(
+            id=team_id,
+            name=self._clean_team_name(payload.name),
+            description=(payload.description or "").strip(),
+            root_folder_id=root_folder_id,
+            created_by=actor.id,
+            created_at=datetime.now(UTC),
+        )
+        self._teams[team.id] = team
+        self._folders[root_folder_id] = StoredFolder(
+            id=root_folder_id,
+            name=team.name,
+            parent_id=None,
+            scope="team",
+            permission="管理",
+            team_id=team.id,
+        )
+        self._team_members[self._team_member_id(team.id, actor.id)] = StoredTeamMember(
+            id=self._team_member_id(team.id, actor.id),
+            team_id=team.id,
+            user_id=actor.id,
+            role="owner",
+            status="active",
+            joined_at=datetime.now(UTC),
+        )
+        self._record_audit(actor.username, "team.create", "team", team.name)
+        return self.get_team_detail(team.id, actor)
+
+    def list_teams(self, actor: UserPublic) -> list[TeamSummary]:
+        memberships = [
+            member
+            for member in self._team_members.values()
+            if member.user_id == actor.id and member.status == "active"
         ]
+        return [self._team_summary(self._find_team(member.team_id), member.role) for member in memberships]
+
+    def get_team_detail(self, team_id: str, actor: UserPublic) -> TeamDetail:
+        team = self._find_team(team_id)
+        membership = self._require_team_member(team_id, actor)
+        return TeamDetail(
+            id=team.id,
+            name=team.name,
+            description=team.description,
+            role=membership.role,  # type: ignore[arg-type]
+            member_count=self._active_team_member_count(team.id),
+            unread_count=team.unread_count,
+            root_folder=self._folder_item(self._find_folder(team.root_folder_id), actor),
+            members=[
+                self._team_member_public(member)
+                for member in self._team_members.values()
+                if member.team_id == team.id and member.status == "active"
+            ],
+            invites=[
+                self._team_invite_public(invite)
+                for invite in self._team_invites.values()
+                if invite.team_id == team.id and invite.status == "pending"
+            ],
+        )
+
+    def create_team_invite(self, team_id: str, payload: TeamInviteCreate, actor: UserPublic) -> TeamInvitePublic:
+        team = self._find_team(team_id)
+        self._require_team_manager(team_id, actor)
+        invite = StoredTeamInvite(
+            id=f"invite-{secrets.token_hex(4)}",
+            team_id=team.id,
+            email=payload.email,
+            role=payload.role,
+            token=secrets.token_urlsafe(18),
+            status="pending",
+            created_by=actor.id,
+            created_at=datetime.now(UTC),
+            expires_at=datetime.now(UTC) + timedelta(days=7),
+        )
+        self._team_invites[invite.id] = invite
+        self._record_audit(actor.username, "team.invite_create", "team", team.name)
+        return self._team_invite_public(invite)
+
+    def join_team(self, team_id: str, payload: TeamMemberJoin, actor: UserPublic) -> TeamMemberPublic:
+        team = self._find_team(team_id)
+        invite = self._find_invite_by_token(payload.invite_token)
+        if invite.team_id != team.id or invite.status != "pending":
+            raise WorkspaceError(404, "TEAM_INVITE_NOT_FOUND", "邀请不存在或已失效", {"team_id": team_id})
+        if invite.email != actor.email:
+            raise WorkspaceError(403, "TEAM_INVITE_EMAIL_MISMATCH", "当前账号与邀请邮箱不一致", {"team_id": team_id})
+        if invite.expires_at < datetime.now(UTC):
+            invite.status = "expired"
+            raise WorkspaceError(410, "TEAM_INVITE_EXPIRED", "邀请已过期", {"team_id": team_id})
+
+        member_id = self._team_member_id(team.id, actor.id)
+        member = StoredTeamMember(
+            id=member_id,
+            team_id=team.id,
+            user_id=actor.id,
+            role=invite.role,
+            status="active",
+            joined_at=datetime.now(UTC),
+        )
+        self._team_members[member_id] = member
+        invite.status = "accepted"
+        self._record_audit(actor.username, "team.member_join", "team", team.name)
+        return self._team_member_public(member)
+
+    def update_team_member(self, team_id: str, member_id: str, payload: TeamMemberUpdate, actor: UserPublic) -> TeamMemberPublic:
+        team = self._find_team(team_id)
+        self._require_team_manager(team_id, actor)
+        member = self._find_team_member(team_id, member_id)
+        if member.role == "owner" and member.user_id != actor.id:
+            raise WorkspaceError(409, "TEAM_OWNER_PROTECTED", "不能修改团队所有者角色", {"member_id": member_id})
+        member.role = payload.role
+        self._record_audit(actor.username, "team.member_role_update", "team", team.name)
+        return self._team_member_public(member)
+
+    def remove_team_member(self, team_id: str, member_id: str, actor: UserPublic) -> None:
+        team = self._find_team(team_id)
+        self._require_team_manager(team_id, actor)
+        member = self._find_team_member(team_id, member_id)
+        if member.role == "owner":
+            raise WorkspaceError(409, "TEAM_OWNER_PROTECTED", "不能移除团队所有者", {"member_id": member_id})
+        member.status = "removed"
+        self._record_audit(actor.username, "team.member_remove", "team", team.name)
 
     def list_audit_logs(self) -> list[AuditLogEntry]:
         seeded = [
@@ -340,23 +730,131 @@ class WorkspaceService:
         ]
         return [*self._audit_logs[-8:], *seeded]
 
-    def snapshot(self) -> WorkspaceSnapshot:
+    def snapshot(self, actor: UserPublic) -> WorkspaceSnapshot:
         files = self.list_files()
+        teams = self.list_teams(actor)
         return WorkspaceSnapshot(
             summary=DashboardSummary(
                 file_count=len(files),
                 indexed_count=sum(1 for file in files if file.parse_status == "indexed"),
                 knowledge_base_count=2,
                 running_workflows=0,
-                unread_notifications=sum(team.unread_count for team in self.list_teams()),
+                unread_notifications=sum(team.unread_count for team in teams),
                 tools_enabled=sum(1 for tool in self.list_tools() if tool.enabled),
             ),
             files=files[:5],
             tools=self.list_tools(),
             workflows=self.list_workflows(),
-            teams=self.list_teams(),
+            teams=teams,
             audit_logs=self.list_audit_logs(),
         )
+
+    def _team_summary(self, team: StoredTeam, role: str) -> TeamSummary:
+        return TeamSummary(
+            id=team.id,
+            name=team.name,
+            description=team.description,
+            role=role,
+            member_count=self._active_team_member_count(team.id),
+            unread_count=team.unread_count,
+            root_folder_id=team.root_folder_id,
+        )
+
+    def _team_member_public(self, member: StoredTeamMember) -> TeamMemberPublic:
+        stored = self._users_by_id.get(member.user_id)
+        if not stored:
+            raise WorkspaceError(404, "USER_NOT_FOUND", "用户不存在", {"user_id": member.user_id})
+        return TeamMemberPublic(
+            id=member.id,
+            team_id=member.team_id,
+            user_id=member.user_id,
+            username=stored.public.username,
+            email=stored.public.email,
+            display_name=stored.public.display_name,
+            role=member.role,  # type: ignore[arg-type]
+            status=member.status,  # type: ignore[arg-type]
+            joined_at=member.joined_at,
+        )
+
+    def _team_invite_public(self, invite: StoredTeamInvite) -> TeamInvitePublic:
+        return TeamInvitePublic(
+            id=invite.id,
+            team_id=invite.team_id,
+            email=invite.email,
+            role=invite.role,  # type: ignore[arg-type]
+            status=invite.status,  # type: ignore[arg-type]
+            token=invite.token,
+            created_at=invite.created_at,
+            expires_at=invite.expires_at,
+        )
+
+    def _active_team_member_count(self, team_id: str) -> int:
+        return sum(
+            1
+            for member in self._team_members.values()
+            if member.team_id == team_id and member.status == "active"
+        )
+
+    def _team_member_id(self, team_id: str, user_id: int) -> str:
+        return f"{team_id}-member-{user_id}"
+
+    def _find_team(self, team_id: str) -> StoredTeam:
+        team = self._teams.get(team_id)
+        if not team:
+            raise WorkspaceError(404, "TEAM_NOT_FOUND", "团队不存在或无权访问", {"team_id": team_id})
+        return team
+
+    def _find_team_member(self, team_id: str, member_id: str) -> StoredTeamMember:
+        member = self._team_members.get(member_id)
+        if not member or member.team_id != team_id or member.status != "active":
+            raise WorkspaceError(404, "TEAM_MEMBER_NOT_FOUND", "团队成员不存在", {"team_id": team_id, "member_id": member_id})
+        return member
+
+    def _find_invite_by_token(self, token: str) -> StoredTeamInvite:
+        for invite in self._team_invites.values():
+            if hmac.compare_digest(invite.token, token):
+                return invite
+        raise WorkspaceError(404, "TEAM_INVITE_NOT_FOUND", "邀请不存在或已失效")
+
+    def _team_membership(self, team_id: str | None, actor: UserPublic) -> StoredTeamMember | None:
+        if not team_id:
+            return None
+        member = self._team_members.get(self._team_member_id(team_id, actor.id))
+        if member and member.status == "active":
+            return member
+        return None
+
+    def _require_team_member(self, team_id: str, actor: UserPublic) -> StoredTeamMember:
+        membership = self._team_membership(team_id, actor)
+        if not membership:
+            raise WorkspaceError(403, "TEAM_ACCESS_DENIED", "没有访问该团队的权限", {"team_id": team_id})
+        return membership
+
+    def _require_team_manager(self, team_id: str, actor: UserPublic) -> StoredTeamMember:
+        membership = self._require_team_member(team_id, actor)
+        if membership.role not in {"owner", "admin"}:
+            raise WorkspaceError(403, "TEAM_MANAGE_FORBIDDEN", "没有管理该团队的权限", {"team_id": team_id})
+        return membership
+
+    def _can_read_folder(self, folder: StoredFolder, actor: UserPublic) -> bool:
+        if folder.scope == "personal":
+            return True
+        return self._team_membership(folder.team_id, actor) is not None
+
+    def _ensure_can_write_folder(self, folder: StoredFolder, actor: UserPublic) -> None:
+        if folder.scope == "personal":
+            return
+        membership = self._team_membership(folder.team_id, actor)
+        if not membership:
+            raise WorkspaceError(403, "TEAM_ACCESS_DENIED", "没有访问该团队文件夹的权限", {"folder_id": folder.id})
+        if membership.role == "guest":
+            raise WorkspaceError(403, "FOLDER_WRITE_FORBIDDEN", "当前角色只能查看团队文件夹", {"folder_id": folder.id})
+
+    def _clean_team_name(self, name: str) -> str:
+        cleaned = name.strip()
+        if not cleaned:
+            raise WorkspaceError(422, "TEAM_NAME_REQUIRED", "团队名称不能为空")
+        return cleaned
 
     def _hash_password(self, password: str) -> str:
         digest = hashlib.pbkdf2_hmac("sha256", password.encode(), b"whu-workspace", 120_000)
@@ -413,16 +911,234 @@ class WorkspaceService:
             )
         )
 
+    def _ensure_login_not_locked(self, stored: StoredUser, now: datetime) -> None:
+        locked_until = stored.security.locked_until
+        if not locked_until:
+            return
+        if locked_until <= now:
+            stored.security = LoginSecurityState()
+            return
+        raise WorkspaceError(423, "ACCOUNT_LOCKED", "账户已被临时锁定，请稍后再试", self._lockout_detail(stored.security, now))
+
+    def _record_failed_login(self, stored: StoredUser, now: datetime) -> None:
+        stored.security.failed_attempts += 1
+        self._record_audit(stored.public.username, "auth.login_failed", "user", stored.public.username)
+        if stored.security.failed_attempts >= LOGIN_FAILURE_LIMIT:
+            stored.security.locked_until = now + LOGIN_LOCKOUT_DURATION
+            self._record_audit(stored.public.username, "auth.account_locked", "user", stored.public.username)
+            raise WorkspaceError(423, "ACCOUNT_LOCKED", "账户已被临时锁定，请稍后再试", self._lockout_detail(stored.security, now))
+        raise WorkspaceError(
+            401,
+            "INVALID_CREDENTIALS",
+            "用户名、邮箱或密码不正确",
+            {
+                "failed_attempts": stored.security.failed_attempts,
+                "max_attempts": LOGIN_FAILURE_LIMIT,
+                "remaining_attempts": LOGIN_FAILURE_LIMIT - stored.security.failed_attempts,
+            },
+        )
+
+    def _lockout_detail(self, state: LoginSecurityState, now: datetime) -> dict[str, Any]:
+        locked_until = state.locked_until or now
+        retry_after_seconds = max(0, int((locked_until - now).total_seconds()))
+        return {
+            "failed_attempts": state.failed_attempts,
+            "locked_until": locked_until.isoformat(),
+            "max_attempts": LOGIN_FAILURE_LIMIT,
+            "retry_after_seconds": retry_after_seconds,
+        }
+
     def _find_file(self, file_id: str) -> FileItem:
         for file_item in self._files:
             if file_item.id == file_id:
                 return file_item
         raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
 
+    def _read_file_content(self, file_id: str) -> bytes:
+        content = self._file_contents.get(file_id)
+        if content is None:
+            raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
+        return content
+
+    def _find_file_by_name_in_folder(self, name: str, folder_id: str) -> FileItem | None:
+        for file_item in self._files:
+            if file_item.folder_id == folder_id and file_item.name == name:
+                return file_item
+        return None
+
+    def _replace_file(self, file_item: FileItem, move_to_front: bool = False) -> None:
+        remaining = [candidate for candidate in self._files if candidate.id != file_item.id]
+        if move_to_front:
+            self._files = [file_item, *remaining]
+            return
+        self._files = [file_item if candidate.id == file_item.id else candidate for candidate in self._files]
+
+    def _ensure_file_target_folder(self, file_item: FileItem, target_folder_id: str, actor: UserPublic) -> StoredFolder:
+        target_folder = self._find_folder(target_folder_id)
+        source_scope = self._file_scope(file_item)
+        if target_folder.scope != source_scope:
+            raise WorkspaceError(
+                409,
+                "FILE_SCOPE_MISMATCH",
+                "不能跨个人空间和团队空间移动或复制文件",
+                {"file_id": file_item.id, "target_folder_id": target_folder_id},
+            )
+        self._ensure_can_write_folder(target_folder, actor)
+        return target_folder
+
+    def _file_scope(self, file_item: FileItem) -> str:
+        folder = self._folders.get(file_item.folder_id)
+        if folder:
+            return folder.scope
+        return "team" if file_item.permission_scope == "团队" else "personal"
+
+    def _find_folder(self, folder_id: str) -> StoredFolder:
+        folder = self._folders.get(folder_id)
+        if not folder:
+            raise WorkspaceError(404, "FOLDER_NOT_FOUND", "文件夹不存在或无权访问", {"folder_id": folder_id})
+        return folder
+
+    def _folder_item(self, folder: StoredFolder, actor: UserPublic) -> FolderItem:
+        return FolderItem(
+            id=folder.id,
+            name=folder.name,
+            parent_id=folder.parent_id,
+            scope=folder.scope,  # type: ignore[arg-type]
+            permission=folder.permission,
+            team_id=folder.team_id,
+            children=[
+                self._folder_item(child, actor)
+                for child in self._folders.values()
+                if child.parent_id == folder.id and self._can_read_folder(child, actor)
+            ],
+        )
+
+    def _ensure_mutable_folder(self, folder: StoredFolder) -> None:
+        if folder.parent_id is None:
+            raise WorkspaceError(
+                409,
+                "FOLDER_ROOT_PROTECTED",
+                "根文件夹不能重命名、移动或删除",
+                {"folder_id": folder.id},
+            )
+
+    def _ensure_valid_folder_move(self, folder: StoredFolder, parent_id: str) -> None:
+        parent = self._find_folder(parent_id)
+        if parent.scope != folder.scope:
+            raise WorkspaceError(
+                409,
+                "FOLDER_SCOPE_MISMATCH",
+                "不能跨个人空间和团队空间移动文件夹",
+                {"folder_id": folder.id, "parent_id": parent_id},
+            )
+        if parent.id == folder.id or self._is_descendant(parent.id, folder.id):
+            raise WorkspaceError(
+                409,
+                "FOLDER_CYCLE",
+                "不能把文件夹移动到自己或子文件夹下",
+                {"folder_id": folder.id, "parent_id": parent_id},
+            )
+
+    def _is_descendant(self, candidate_id: str, ancestor_id: str) -> bool:
+        current = self._folders.get(candidate_id)
+        while current and current.parent_id:
+            if current.parent_id == ancestor_id:
+                return True
+            current = self._folders.get(current.parent_id)
+        return False
+
+    def _clean_folder_name(self, name: str) -> str:
+        cleaned = name.strip()
+        if not cleaned:
+            raise WorkspaceError(422, "FOLDER_NAME_REQUIRED", "文件夹名称不能为空")
+        return cleaned
+
+    def _clean_file_name(self, name: str) -> str:
+        cleaned = name.strip()
+        if not cleaned:
+            raise WorkspaceError(422, "FILE_NAME_REQUIRED", "文件名不能为空")
+        if "/" in cleaned or "\\" in cleaned:
+            raise WorkspaceError(422, "FILE_NAME_INVALID", "文件名不能包含路径分隔符", {"name": name})
+        return cleaned
+
+    def _normalize_tags(self, tags: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for tag in tags:
+            cleaned = tag.strip()
+            if cleaned and cleaned not in normalized:
+                normalized.append(cleaned)
+        return normalized
+
+    def _permission_scope_for_folder(self, folder: StoredFolder) -> str:
+        return "团队" if folder.scope == "team" else "个人"
+
+    def _copy_file_name(self, filename: str) -> str:
+        if "." not in filename:
+            return f"{filename} 副本"
+        stem, suffix = filename.rsplit(".", 1)
+        return f"{stem} 副本.{suffix}"
+
     def _file_type(self, filename: str) -> str:
         suffix = filename.rsplit(".", 1)[-1].lower() if "." in filename else "unknown"
         return {"md": "markdown", "txt": "text", "pdf": "pdf", "docx": "docx", "pptx": "pptx", "csv": "csv"}.get(
             suffix, suffix
+        )
+
+    def _new_file_id(self, digest: str) -> str:
+        existing_ids = {file_item.id for file_item in self._files}
+        base_id = f"file-{digest[:12]}"
+        candidate = base_id
+        index = 2
+        while candidate in existing_ids:
+            candidate = f"{base_id}-{index}"
+            index += 1
+        return candidate
+
+    def _append_file_version(self, file_item: FileItem, name: str, content: bytes, actor: str) -> StoredFileVersion:
+        version = self._make_file_version(file_item, name, content, actor)
+        self._file_versions.setdefault(file_item.id, []).append(version)
+        self._record_audit(actor, "file.version_create", "file", file_item.name)
+        return version
+
+    def _make_file_version(self, file_item: FileItem, name: str, content: bytes, actor: str) -> StoredFileVersion:
+        existing_versions = self._file_versions.get(file_item.id, [])
+        version_no = max((version.version_no for version in existing_versions), default=0) + 1
+        digest = hashlib.sha256(content).hexdigest()
+        return StoredFileVersion(
+            id=f"{file_item.id}-v{version_no}-{secrets.token_hex(3)}",
+            file_id=file_item.id,
+            version_no=version_no,
+            name=name,
+            content=content,
+            sha256=digest,
+            size=len(content),
+            created_at=datetime.now(UTC),
+            created_by=actor,
+        )
+
+    def _find_file_version(self, file_id: str, version_id: str) -> StoredFileVersion:
+        self._find_file(file_id)
+        for version in self._file_versions.get(file_id, []):
+            if version.id == version_id:
+                return version
+        raise WorkspaceError(
+            404,
+            "FILE_VERSION_NOT_FOUND",
+            "文件版本不存在或无权访问",
+            {"file_id": file_id, "version_id": version_id},
+        )
+
+    def _file_version_item(self, version: StoredFileVersion, current_version_no: int) -> FileVersionItem:
+        return FileVersionItem(
+            id=version.id,
+            file_id=version.file_id,
+            version_no=version.version_no,
+            name=version.name,
+            size=version.size,
+            sha256=version.sha256,
+            created_at=version.created_at,
+            created_by=version.created_by,
+            is_current=version.version_no == current_version_no,
         )
 
     def _seed_files(self) -> list[FileItem]:
@@ -468,6 +1184,61 @@ class WorkspaceService:
                 knowledge_base_ids=[],
             ),
         ]
+
+    def _seed_folders(self) -> dict[str, StoredFolder]:
+        folders = [
+            StoredFolder(id="personal-root", name="个人文件", parent_id=None, scope="personal", permission="管理"),
+            StoredFolder(id="folder-biology", name="生物学实验", parent_id="personal-root", scope="personal", permission="管理"),
+            StoredFolder(id="folder-course", name="软件工程课程", parent_id="personal-root", scope="personal", permission="管理"),
+            StoredFolder(
+                id="team-root",
+                name="团队文件",
+                parent_id=None,
+                scope="team",
+                permission="读写",
+                team_id="team-demo",
+            ),
+        ]
+        return {folder.id: folder for folder in folders}
+
+    def _seed_teams(self) -> dict[str, StoredTeam]:
+        return {
+            "team-demo": StoredTeam(
+                id="team-demo",
+                name="团队文件",
+                description="演示团队空间",
+                root_folder_id="team-root",
+                created_by=0,
+                created_at=datetime.now(UTC),
+                unread_count=0,
+            )
+        }
+
+    def _seed_file_contents(self) -> dict[str, bytes]:
+        return {
+            "file-microscope": "显微镜实验报告.pdf\n显微镜实验包含取样、制片、观察和结果记录。".encode(),
+            "file-requirements": "需求规格说明书.md\n系统需要支持文件管理、知识库问答和团队协作。".encode(),
+            "file-weekly": "小组周报.docx\n本周完成文件解析、RAG 问答和工作流联调。".encode(),
+        }
+
+    def _seed_file_versions(self) -> dict[str, list[StoredFileVersion]]:
+        versions: dict[str, list[StoredFileVersion]] = {}
+        for file_item in self._files:
+            content = self._file_contents[file_item.id]
+            versions[file_item.id] = [
+                StoredFileVersion(
+                    id=f"{file_item.id}-v1",
+                    file_id=file_item.id,
+                    version_no=1,
+                    name=file_item.name,
+                    content=content,
+                    sha256=file_item.sha256,
+                    size=file_item.size,
+                    created_at=file_item.updated_at,
+                    created_by="system",
+                )
+            ]
+        return versions
 
 
 workspace_service = WorkspaceService()

@@ -233,6 +233,44 @@ export type DashboardSummary = {
 };
 
 /**
+ * ErrorResponse
+ */
+export type ErrorResponse = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Detail
+     */
+    detail?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
+ * FileCopyRequest
+ */
+export type FileCopyRequest = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Tags
+     */
+    tags?: Array<string> | null;
+    /**
+     * Target Folder Id
+     */
+    target_folder_id: string;
+};
+
+/**
  * FileItem
  */
 export type FileItem = {
@@ -297,6 +335,94 @@ export type FileListResponse = {
 };
 
 /**
+ * FileUpdate
+ */
+export type FileUpdate = {
+    /**
+     * Folder Id
+     */
+    folder_id?: string | null;
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Tags
+     */
+    tags?: Array<string> | null;
+};
+
+/**
+ * FileVersionItem
+ */
+export type FileVersionItem = {
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Created By
+     */
+    created_by: string;
+    /**
+     * File Id
+     */
+    file_id: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Is Current
+     */
+    is_current: boolean;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Sha256
+     */
+    sha256: string;
+    /**
+     * Size
+     */
+    size: number;
+    /**
+     * Version No
+     */
+    version_no: number;
+};
+
+/**
+ * FileVersionListResponse
+ */
+export type FileVersionListResponse = {
+    /**
+     * Items
+     */
+    items: Array<FileVersionItem>;
+};
+
+/**
+ * FolderCreate
+ */
+export type FolderCreate = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Parent Id
+     */
+    parent_id?: string | null;
+    /**
+     * Scope
+     */
+    scope?: 'personal' | 'team';
+};
+
+/**
  * FolderItem
  */
 export type FolderItem = {
@@ -324,6 +450,10 @@ export type FolderItem = {
      * Scope
      */
     scope: 'personal' | 'team';
+    /**
+     * Team Id
+     */
+    team_id?: string | null;
 };
 
 /**
@@ -334,6 +464,20 @@ export type FolderTreeResponse = {
      * Items
      */
     items: Array<FolderItem>;
+};
+
+/**
+ * FolderUpdate
+ */
+export type FolderUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Parent Id
+     */
+    parent_id?: string | null;
 };
 
 /**
@@ -419,6 +563,111 @@ export type RefreshTokenRequest = {
 };
 
 /**
+ * TeamCreate
+ */
+export type TeamCreate = {
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * TeamDetail
+ */
+export type TeamDetail = {
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Invites
+     */
+    invites: Array<TeamInvitePublic>;
+    /**
+     * Member Count
+     */
+    member_count: number;
+    /**
+     * Members
+     */
+    members: Array<TeamMemberPublic>;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Role
+     */
+    role: 'owner' | 'admin' | 'member' | 'guest';
+    root_folder: FolderItem;
+    /**
+     * Unread Count
+     */
+    unread_count: number;
+};
+
+/**
+ * TeamInviteCreate
+ */
+export type TeamInviteCreate = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Role
+     */
+    role?: 'owner' | 'admin' | 'member' | 'guest';
+};
+
+/**
+ * TeamInvitePublic
+ */
+export type TeamInvitePublic = {
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Role
+     */
+    role: 'owner' | 'admin' | 'member' | 'guest';
+    /**
+     * Status
+     */
+    status: 'pending' | 'accepted' | 'revoked' | 'expired';
+    /**
+     * Team Id
+     */
+    team_id: string;
+    /**
+     * Token
+     */
+    token: string;
+};
+
+/**
  * TeamListResponse
  */
 export type TeamListResponse = {
@@ -429,9 +678,75 @@ export type TeamListResponse = {
 };
 
 /**
+ * TeamMemberJoin
+ */
+export type TeamMemberJoin = {
+    /**
+     * Invite Token
+     */
+    invite_token: string;
+};
+
+/**
+ * TeamMemberPublic
+ */
+export type TeamMemberPublic = {
+    /**
+     * Display Name
+     */
+    display_name: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Joined At
+     */
+    joined_at: string;
+    /**
+     * Role
+     */
+    role: 'owner' | 'admin' | 'member' | 'guest';
+    /**
+     * Status
+     */
+    status: 'active' | 'invited' | 'removed';
+    /**
+     * Team Id
+     */
+    team_id: string;
+    /**
+     * User Id
+     */
+    user_id: number;
+    /**
+     * Username
+     */
+    username: string;
+};
+
+/**
+ * TeamMemberUpdate
+ */
+export type TeamMemberUpdate = {
+    /**
+     * Role
+     */
+    role: 'owner' | 'admin' | 'member' | 'guest';
+};
+
+/**
  * TeamSummary
  */
 export type TeamSummary = {
+    /**
+     * Description
+     */
+    description?: string;
     /**
      * Id
      */
@@ -448,6 +763,10 @@ export type TeamSummary = {
      * Role
      */
     role: string;
+    /**
+     * Root Folder Id
+     */
+    root_folder_id?: string | null;
     /**
      * Unread Count
      */
@@ -810,9 +1129,17 @@ export type LoginApiV1AuthLoginPostData = {
 
 export type LoginApiV1AuthLoginPostErrors = {
     /**
+     * Invalid credentials
+     */
+    401: ErrorResponse;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
+    /**
+     * Account temporarily locked
+     */
+    423: ErrorResponse;
 };
 
 export type LoginApiV1AuthLoginPostError = LoginApiV1AuthLoginPostErrors[keyof LoginApiV1AuthLoginPostErrors];
@@ -951,6 +1278,255 @@ export type UploadFileApiV1FilesUploadPostResponses = {
 
 export type UploadFileApiV1FilesUploadPostResponse = UploadFileApiV1FilesUploadPostResponses[keyof UploadFileApiV1FilesUploadPostResponses];
 
+export type DeleteFileApiV1FilesFileIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/{file_id}';
+};
+
+export type DeleteFileApiV1FilesFileIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteFileApiV1FilesFileIdDeleteError = DeleteFileApiV1FilesFileIdDeleteErrors[keyof DeleteFileApiV1FilesFileIdDeleteErrors];
+
+export type DeleteFileApiV1FilesFileIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteFileApiV1FilesFileIdDeleteResponse = DeleteFileApiV1FilesFileIdDeleteResponses[keyof DeleteFileApiV1FilesFileIdDeleteResponses];
+
+export type UpdateFileApiV1FilesFileIdPatchData = {
+    body: FileUpdate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/{file_id}';
+};
+
+export type UpdateFileApiV1FilesFileIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateFileApiV1FilesFileIdPatchError = UpdateFileApiV1FilesFileIdPatchErrors[keyof UpdateFileApiV1FilesFileIdPatchErrors];
+
+export type UpdateFileApiV1FilesFileIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: FileItem;
+};
+
+export type UpdateFileApiV1FilesFileIdPatchResponse = UpdateFileApiV1FilesFileIdPatchResponses[keyof UpdateFileApiV1FilesFileIdPatchResponses];
+
+export type CopyFileApiV1FilesFileIdCopyPostData = {
+    body: FileCopyRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/{file_id}/copy';
+};
+
+export type CopyFileApiV1FilesFileIdCopyPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CopyFileApiV1FilesFileIdCopyPostError = CopyFileApiV1FilesFileIdCopyPostErrors[keyof CopyFileApiV1FilesFileIdCopyPostErrors];
+
+export type CopyFileApiV1FilesFileIdCopyPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: FileItem;
+};
+
+export type CopyFileApiV1FilesFileIdCopyPostResponse = CopyFileApiV1FilesFileIdCopyPostResponses[keyof CopyFileApiV1FilesFileIdCopyPostResponses];
+
+export type DownloadFileApiV1FilesFileIdDownloadGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/{file_id}/download';
+};
+
+export type DownloadFileApiV1FilesFileIdDownloadGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DownloadFileApiV1FilesFileIdDownloadGetError = DownloadFileApiV1FilesFileIdDownloadGetErrors[keyof DownloadFileApiV1FilesFileIdDownloadGetErrors];
+
+export type DownloadFileApiV1FilesFileIdDownloadGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type FileVersionsApiV1FilesFileIdVersionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/{file_id}/versions';
+};
+
+export type FileVersionsApiV1FilesFileIdVersionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FileVersionsApiV1FilesFileIdVersionsGetError = FileVersionsApiV1FilesFileIdVersionsGetErrors[keyof FileVersionsApiV1FilesFileIdVersionsGetErrors];
+
+export type FileVersionsApiV1FilesFileIdVersionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: FileVersionListResponse;
+};
+
+export type FileVersionsApiV1FilesFileIdVersionsGetResponse = FileVersionsApiV1FilesFileIdVersionsGetResponses[keyof FileVersionsApiV1FilesFileIdVersionsGetResponses];
+
+export type RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+        /**
+         * Version Id
+         */
+        version_id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/{file_id}/versions/{version_id}/restore';
+};
+
+export type RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostError = RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors[keyof RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors];
+
+export type RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: FileItem;
+};
+
+export type RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponse = RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses[keyof RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses];
+
+export type CreateFolderApiV1FoldersPostData = {
+    body: FolderCreate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/folders';
+};
+
+export type CreateFolderApiV1FoldersPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateFolderApiV1FoldersPostError = CreateFolderApiV1FoldersPostErrors[keyof CreateFolderApiV1FoldersPostErrors];
+
+export type CreateFolderApiV1FoldersPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: FolderItem;
+};
+
+export type CreateFolderApiV1FoldersPostResponse = CreateFolderApiV1FoldersPostResponses[keyof CreateFolderApiV1FoldersPostResponses];
+
 export type FoldersApiV1FoldersTreeGetData = {
     body?: never;
     headers?: {
@@ -981,6 +1557,78 @@ export type FoldersApiV1FoldersTreeGetResponses = {
 };
 
 export type FoldersApiV1FoldersTreeGetResponse = FoldersApiV1FoldersTreeGetResponses[keyof FoldersApiV1FoldersTreeGetResponses];
+
+export type DeleteFolderApiV1FoldersFolderIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Folder Id
+         */
+        folder_id: string;
+    };
+    query?: never;
+    url: '/api/v1/folders/{folder_id}';
+};
+
+export type DeleteFolderApiV1FoldersFolderIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteFolderApiV1FoldersFolderIdDeleteError = DeleteFolderApiV1FoldersFolderIdDeleteErrors[keyof DeleteFolderApiV1FoldersFolderIdDeleteErrors];
+
+export type DeleteFolderApiV1FoldersFolderIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteFolderApiV1FoldersFolderIdDeleteResponse = DeleteFolderApiV1FoldersFolderIdDeleteResponses[keyof DeleteFolderApiV1FoldersFolderIdDeleteResponses];
+
+export type UpdateFolderApiV1FoldersFolderIdPatchData = {
+    body: FolderUpdate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Folder Id
+         */
+        folder_id: string;
+    };
+    query?: never;
+    url: '/api/v1/folders/{folder_id}';
+};
+
+export type UpdateFolderApiV1FoldersFolderIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateFolderApiV1FoldersFolderIdPatchError = UpdateFolderApiV1FoldersFolderIdPatchErrors[keyof UpdateFolderApiV1FoldersFolderIdPatchErrors];
+
+export type UpdateFolderApiV1FoldersFolderIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: FolderItem;
+};
+
+export type UpdateFolderApiV1FoldersFolderIdPatchResponse = UpdateFolderApiV1FoldersFolderIdPatchResponses[keyof UpdateFolderApiV1FoldersFolderIdPatchResponses];
 
 export type QaQueryApiV1QaQueryPostData = {
     body: QaRequest;
@@ -1043,6 +1691,225 @@ export type TeamsApiV1TeamsGetResponses = {
 };
 
 export type TeamsApiV1TeamsGetResponse = TeamsApiV1TeamsGetResponses[keyof TeamsApiV1TeamsGetResponses];
+
+export type CreateTeamApiV1TeamsPostData = {
+    body: TeamCreate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/teams';
+};
+
+export type CreateTeamApiV1TeamsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateTeamApiV1TeamsPostError = CreateTeamApiV1TeamsPostErrors[keyof CreateTeamApiV1TeamsPostErrors];
+
+export type CreateTeamApiV1TeamsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: TeamDetail;
+};
+
+export type CreateTeamApiV1TeamsPostResponse = CreateTeamApiV1TeamsPostResponses[keyof CreateTeamApiV1TeamsPostResponses];
+
+export type TeamDetailApiV1TeamsTeamIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Team Id
+         */
+        team_id: string;
+    };
+    query?: never;
+    url: '/api/v1/teams/{team_id}';
+};
+
+export type TeamDetailApiV1TeamsTeamIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TeamDetailApiV1TeamsTeamIdGetError = TeamDetailApiV1TeamsTeamIdGetErrors[keyof TeamDetailApiV1TeamsTeamIdGetErrors];
+
+export type TeamDetailApiV1TeamsTeamIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: TeamDetail;
+};
+
+export type TeamDetailApiV1TeamsTeamIdGetResponse = TeamDetailApiV1TeamsTeamIdGetResponses[keyof TeamDetailApiV1TeamsTeamIdGetResponses];
+
+export type CreateTeamInviteApiV1TeamsTeamIdInvitesPostData = {
+    body: TeamInviteCreate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Team Id
+         */
+        team_id: string;
+    };
+    query?: never;
+    url: '/api/v1/teams/{team_id}/invites';
+};
+
+export type CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateTeamInviteApiV1TeamsTeamIdInvitesPostError = CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors[keyof CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors];
+
+export type CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: TeamInvitePublic;
+};
+
+export type CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponse = CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses[keyof CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses];
+
+export type JoinTeamApiV1TeamsTeamIdMembersPostData = {
+    body: TeamMemberJoin;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Team Id
+         */
+        team_id: string;
+    };
+    query?: never;
+    url: '/api/v1/teams/{team_id}/members';
+};
+
+export type JoinTeamApiV1TeamsTeamIdMembersPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type JoinTeamApiV1TeamsTeamIdMembersPostError = JoinTeamApiV1TeamsTeamIdMembersPostErrors[keyof JoinTeamApiV1TeamsTeamIdMembersPostErrors];
+
+export type JoinTeamApiV1TeamsTeamIdMembersPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: TeamMemberPublic;
+};
+
+export type JoinTeamApiV1TeamsTeamIdMembersPostResponse = JoinTeamApiV1TeamsTeamIdMembersPostResponses[keyof JoinTeamApiV1TeamsTeamIdMembersPostResponses];
+
+export type RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Team Id
+         */
+        team_id: string;
+        /**
+         * Member Id
+         */
+        member_id: string;
+    };
+    query?: never;
+    url: '/api/v1/teams/{team_id}/members/{member_id}';
+};
+
+export type RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteError = RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors[keyof RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors];
+
+export type RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponse = RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses[keyof RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses];
+
+export type UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchData = {
+    body: TeamMemberUpdate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Team Id
+         */
+        team_id: string;
+        /**
+         * Member Id
+         */
+        member_id: string;
+    };
+    query?: never;
+    url: '/api/v1/teams/{team_id}/members/{member_id}';
+};
+
+export type UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchError = UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors[keyof UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors];
+
+export type UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: TeamMemberPublic;
+};
+
+export type UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponse = UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses[keyof UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses];
 
 export type ToolsApiV1ToolsGetData = {
     body?: never;
