@@ -1,0 +1,9 @@
+*.aux
+*.log
+*.toc
+*.out
+*.pdf
+**/*_closed.*
+*.synctex.gz
+build/
+tools/plantuml.jar
