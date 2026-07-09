@@ -1,17 +1,17 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-09T08:42:06.257Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-09T08:44:18.147Z
 > Files: 88 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
 - `CLAUDE.md` — OpenWolf (~57 tok)
 - `DESIGN.md` — Open Design 项目设计系统，定义智能文件管理平台的视觉风格、组件、布局和响应式规则 (~1500 tok)
-- `findings.md` — Persistent planning findings for the intelligent file workspace platform goal (~550 tok)
+- `findings.md` — Findings & Decisions (~2726 tok)
 - `OPEN_DESIGN.md` — Open Design 使用说明，记录导入本项目、MCP 命令和推荐 prompt (~300 tok)
-- `progress.md` — Persistent session progress log for the intelligent file workspace platform goal (~350 tok)
+- `progress.md` — Progress Log (~17824 tok)
 - `README.md` — Project documentation (~0 tok)
-- `task_plan.md` — Persistent phased task plan for the intelligent file workspace platform goal (~650 tok)
+- `task_plan.md` — Task Plan: Intelligent File Workspace Platform (~6318 tok)
 
 ## .claude/
 
