@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
-    "openapi:export": "cd ../backend && uv run --no-project --with fastapi --with python-multipart -- python -m app.openapi_export ../frontend/src/client/openapi/workspace.openapi.json",
+    "openapi:export": "cd ../backend && uv run --no-project --with fastapi --with python-multipart -- python3 -m app.openapi_export ../frontend/src/client/openapi/workspace.openapi.json",
     "openapi:generate": "openapi-ts",
     "generate:client": "run-s openapi:export openapi:generate",
     "test:unit": "vitest",

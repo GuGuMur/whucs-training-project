@@ -396,6 +396,232 @@
             "related_bugs": [],
             "occurrences": 1,
             "last_seen": "2026-07-08T11:07:00+08:00"
+        },
+        {
+            "id": "bug-025",
+            "timestamp": "2026-07-08T13:59:42+08:00",
+            "error_message": "Frontend architecture test failed because `vite.config.ts` did not contain the expected `'/api'` proxy target string for `http://127.0.0.1:8000`.",
+            "file": "frontend/vite.config.ts",
+            "root_cause": "The local development proxy used double-quoted `\"/api\"` and targeted `http://localhost:8000`, while the architecture contract requires the FastAPI loopback target `http://127.0.0.1:8000`.",
+            "fix": "Changed the Vite proxy key to `'/api'`, set `target: 'http://127.0.0.1:8000'`, and reran the architecture test plus full frontend/backend verification.",
+            "tags": [
+                "vite",
+                "proxy",
+                "frontend-architecture",
+                "tdd-red"
+            ],
+            "related_bugs": [],
+            "occurrences": 1,
+            "last_seen": "2026-07-08T13:59:42+08:00"
+        },
+        {
+            "id": "bug-026",
+            "timestamp": "2026-07-08T14:01:24+08:00",
+            "error_message": "/usr/bin/bash: 行 1: /api: 没有那个文件或目录",
+            "file": "shell command",
+            "root_cause": "A ripgrep search pattern containing Markdown backticks was wrapped in double quotes, so bash treated the backticked `/api` text as command substitution.",
+            "fix": "Re-ran the search with a single-quoted pattern so backticks stayed literal.",
+            "tags": [
+                "shell",
+                "quoting",
+                "ripgrep"
+            ],
+            "related_bugs": [],
+            "occurrences": 1,
+            "last_seen": "2026-07-08T14:01:24+08:00"
+        },
+        {
+            "id": "bug-027",
+            "timestamp": "2026-07-08T14:10:00+08:00",
+            "error_message": "Backend lockout TDD tests failed with `KeyError: 'failed_attempts'` after wrong-password login responses.",
+            "file": "backend/app/services/workspace.py",
+            "root_cause": "The auth service returned generic invalid-credential errors and did not record per-user failed login counts or temporary lockout state for FR-U05.",
+            "fix": "Added `LoginSecurityState`, a 5-attempt/5-minute in-memory lockout policy, structured `failed_attempts`/`retry_after_seconds` details, success reset, and `auth.login_failed`/`auth.account_locked` audit events.",
+            "tags": [
+                "backend",
+                "auth",
+                "lockout",
+                "tdd-red"
+            ],
+            "related_bugs": [],
+            "occurrences": 1,
+            "last_seen": "2026-07-08T14:10:00+08:00"
+        },
+        {
+            "id": "bug-028",
+            "timestamp": "2026-07-08T14:12:00+08:00",
+            "error_message": "OpenAPI export test failed with `KeyError: '401'` for `/api/v1/auth/login` responses.",
+            "file": "backend/app/api/routes.py",
+            "root_cause": "The runtime emitted structured auth errors, but the login route did not declare 401 or 423 `ErrorResponse` schemas in OpenAPI metadata.",
+            "fix": "Added login route `responses` metadata for 401 invalid credentials and 423 account lockout, then regenerated the frontend OpenAPI client.",
+            "tags": [
+                "backend",
+                "openapi",
+                "auth",
+                "generated-client"
+            ],
+            "related_bugs": [],
+            "occurrences": 1,
+            "last_seen": "2026-07-08T14:12:00+08:00"
+        },
+        {
+            "id": "bug-029",
+            "timestamp": "2026-07-08T14:11:00+08:00",
+            "error_message": "Frontend auth store test expected `账户已临时锁定，请 5 分钟后再试` but received `账号或密码不正确`.",
+            "file": "frontend/src/stores/auth.ts",
+            "root_cause": "The generated-client-backed login action treated all login errors as generic invalid credentials and ignored the backend `ACCOUNT_LOCKED` code.",
+            "fix": "Added runtime error narrowing and login error message mapping for `ACCOUNT_LOCKED` and remaining-attempt details, with a typed `ErrorResponse` store test.",
+            "tags": [
+                "frontend",
+                "pinia",
+                "auth",
+                "lockout",
+                "tdd-red"
+            ],
+            "related_bugs": [],
+            "occurrences": 1,
+            "last_seen": "2026-07-08T14:11:00+08:00"
+        },
+        {
+            "id": "bug-030",
+            "timestamp": "2026-07-08T14:23:00+08:00",
+            "error_message": "File lifecycle backend tests expected download/delete endpoints but received 404 for `/api/v1/files/{file_id}/download` and `DELETE /api/v1/files/{file_id}`.",
+            "file": "backend/app/api/routes.py",
+            "root_cause": "The backend file API only supported listing/filtering/upload, and the service did not store uploaded bytes for later download or delete file metadata/content.",
+            "fix": "Added in-memory `_file_contents`, `download_file()`, `delete_file()`, FastAPI download/delete routes, UTF-8 attachment headers, and file audit events.",
+            "tags": [
+                "backend",
+                "files",
+                "download",
+                "delete",
+                "tdd-red"
+            ],
+            "related_bugs": [],
+            "occurrences": 1,
+            "last_seen": "2026-07-08T14:23:00+08:00"
+        },
+        {
+            "id": "bug-031",
+            "timestamp": "2026-07-08T14:24:00+08:00",
+            "error_message": "Frontend file-action tests failed because `downloadWorkspaceFile` and `deleteWorkspaceFile` were not defined and FileWorkbench had no row action buttons.",
+            "file": "frontend/src/components/workspace/FileWorkbench.vue",
+            "root_cause": "The OpenAPI client had generated download/delete functions, but the hand-written workspace adapter, Pinia store, and FileWorkbench presenter had not exposed file actions.",
+            "fix": "Added generated-client adapter functions, workspace store `downloadFile()`/`deleteFile()` actions with per-file loading state, and Naive UI row controls that emit download/delete events.",
+            "tags": [
+                "frontend",
+                "vue",
+                "pinia",
+                "files",
+                "tdd-red"
+            ],
+            "related_bugs": [],
+            "occurrences": 1,
+            "last_seen": "2026-07-08T14:24:00+08:00"
+        },
+        {
+            "id": "bug-032",
+            "timestamp": "2026-07-08T14:27:00+08:00",
+            "error_message": "`pnpm build` failed with `TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'` in `frontend/src/stores/workspace.ts`.",
+            "file": "frontend/src/stores/workspace.ts",
+            "root_cause": "`resolveAccessToken(token?, required = true)` used a boolean parameter to express optional and required return contracts, so TypeScript could not narrow the action token to `string`.",
+            "fix": "Split the helper into `resolveOptionalAccessToken()` for workspace loading and `requireAccessToken()` for generated SDK file actions.",
+            "tags": [
+                "frontend",
+                "typescript",
+                "pinia",
+                "build"
+            ],
+            "related_bugs": [],
+            "occurrences": 1,
+            "last_seen": "2026-07-08T14:27:00+08:00"
+        },
+        {
+            "id": "bug-033",
+            "timestamp": "2026-07-08T14:31:00+08:00",
+            "error_message": "File search/upload component failed to compile because `withDefaults(defineProps())` referenced a local `emptyFilters` constant.",
+            "file": "frontend/src/components/workspace/FileWorkbench.vue",
+            "root_cause": "Vue hoists the `defineProps` macro, so default values inside `withDefaults()` cannot reference local constants declared in the SFC setup scope.",
+            "fix": "Inlined the default filters object in the `withDefaults()` callback so the SFC compiler can hoist props safely.",
+            "tags": [
+                "frontend",
+                "vue",
+                "sfc",
+                "typescript"
+            ],
+            "related_bugs": [],
+            "occurrences": 1,
+            "last_seen": "2026-07-08T14:31:00+08:00"
+        },
+        {
+            "id": "bug-034",
+            "timestamp": "2026-07-08T14:32:00+08:00",
+            "error_message": "Type check rejected `demoWorkspaceSnapshot.files[0]` in workspace store tests as possibly undefined.",
+            "file": "frontend/src/stores/__tests__/workspace.spec.ts",
+            "root_cause": "Array index access does not prove a fixture item exists under strict TypeScript settings, so the value remained `FileItem | undefined`.",
+            "fix": "Added a fixture helper that finds the demo file by id and throws if it is absent before passing the value into typed test mocks.",
+            "tags": [
+                "frontend",
+                "typescript",
+                "vitest",
+                "fixtures"
+            ],
+            "related_bugs": [],
+            "occurrences": 1,
+            "last_seen": "2026-07-08T14:32:00+08:00"
+        },
+        {
+            "id": "bug-035",
+            "timestamp": "2026-07-08T15:02:00+08:00",
+            "error_message": "Folder CRUD backend tests expected `/api/v1/folders` endpoints and OpenAPI paths, but requests returned 404 and the schema lacked folder paths.",
+            "file": "backend/app/api/routes.py",
+            "root_cause": "FR-F02 folder create/tree/move/delete contracts were not implemented in the backend route, schema, or service layers.",
+            "fix": "Added `FolderCreate` and `FolderUpdate` schemas, folder CRUD routes, in-memory folder tree mutation methods, root/non-empty/cycle/scope validation, folder audit events, and OpenAPI export assertions.",
+            "tags": [
+                "backend",
+                "folders",
+                "openapi",
+                "tdd-red"
+            ],
+            "related_bugs": [],
+            "occurrences": 1,
+            "last_seen": "2026-07-08T15:02:00+08:00"
+        },
+        {
+            "id": "bug-036",
+            "timestamp": "2026-07-08T15:07:00+08:00",
+            "error_message": "Frontend folder tests failed because `listWorkspaceFolders` was not defined and `FolderTreePanel.vue` did not exist.",
+            "file": "frontend/src/components/workspace/FolderTreePanel.vue",
+            "root_cause": "The generated client exposed folder SDK functions after regeneration, but the hand-written workspace adapter, Pinia store, and presenter components had not wired folder CRUD into the frontend architecture.",
+            "fix": "Added folder adapters in `src/client/workspace.ts`, Pinia folder state/actions/options in `stores/workspace.ts`, dynamic upload folder options, `FolderTreePanel.vue`, and FileWorkbench/WorkspaceView event wiring.",
+            "tags": [
+                "frontend",
+                "vue",
+                "pinia",
+                "folders",
+                "tdd-red"
+            ],
+            "related_bugs": [],
+            "occurrences": 1,
+            "last_seen": "2026-07-08T15:07:00+08:00"
+        },
+        {
+            "id": "bug-037",
+            "timestamp": "2026-07-08T15:54:00+08:00",
+            "error_message": "FileWorkbench lifecycle test failed because `[data-testid=\"manage-file-file-microscope\"]` was missing.",
+            "file": "frontend/src/components/workspace/FileWorkbench.vue",
+            "root_cause": "The generated lifecycle SDK adapters and Pinia actions existed, but the presenter layer had not exposed a manage-file row action or lifecycle detail panel for update/copy/version operations.",
+            "fix": "Added `FileLifecyclePanel.vue`, desktop and mobile `manage-file-*` buttons, typed FileWorkbench lifecycle emits, and WorkspaceView handlers that call the workspace store actions.",
+            "tags": [
+                "frontend",
+                "vue",
+                "pinia",
+                "files",
+                "versions",
+                "tdd-red"
+            ],
+            "related_bugs": [],
+            "occurrences": 1,
+            "last_seen": "2026-07-08T15:54:00+08:00"
         }
     ]
 }

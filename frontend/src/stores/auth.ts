@@ -34,6 +34,48 @@ export const accessRoleLabels: Record<WorkspaceAccessRole, string> = {
   readonly: '\u6e38\u5ba2\u767b\u9646',
 }
 
+interface WorkspaceApiError {
+  code?: string
+  detail?: Record<string, unknown>
+  message?: string
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function toWorkspaceApiError(error: unknown): WorkspaceApiError | null {
+  if (!isRecord(error)) {
+    return null
+  }
+
+  return {
+    code: typeof error.code === 'string' ? error.code : undefined,
+    detail: isRecord(error.detail) ? error.detail : undefined,
+    message: typeof error.message === 'string' ? error.message : undefined,
+  }
+}
+
+function loginErrorMessage(error: unknown) {
+  const apiError = toWorkspaceApiError(error)
+  if (apiError?.code === 'ACCOUNT_LOCKED') {
+    const retryAfterSeconds = apiError.detail?.retry_after_seconds
+    if (typeof retryAfterSeconds === 'number' && retryAfterSeconds > 0) {
+      return `账户已临时锁定，请 ${Math.ceil(retryAfterSeconds / 60)} 分钟后再试`
+    }
+    return apiError.message ?? '账户已临时锁定，请稍后再试'
+  }
+
+  if (apiError?.code === 'INVALID_CREDENTIALS') {
+    const remainingAttempts = apiError.detail?.remaining_attempts
+    if (typeof remainingAttempts === 'number' && remainingAttempts > 0) {
+      return `账号或密码不正确，还可尝试 ${remainingAttempts} 次`
+    }
+  }
+
+  return '账号或密码不正确'
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const session = shallowRef<WorkspaceAuthSession | null>(loadStoredWorkspaceSession())
   const currentUser = shallowRef<UserPublic | null>(null)
@@ -158,7 +200,7 @@ export const useAuthStore = defineStore('auth', () => {
       })
 
       if (response.error || !response.data) {
-        errorMessage.value = '账号或密码不正确'
+        errorMessage.value = loginErrorMessage(response.error)
         throw response.error ?? new Error(errorMessage.value)
       }
 
