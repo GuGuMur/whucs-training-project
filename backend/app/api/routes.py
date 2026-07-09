@@ -1,15 +1,9 @@
 from __future__ import annotations
 
-<<<<<<< HEAD
 from urllib.parse import quote
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Header, Response, UploadFile, status
-=======
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, File, Form, Header, UploadFile, status
->>>>>>> permission-backend
 
 from app.domain.schemas import (
     AgentTaskRequest,
@@ -17,7 +11,6 @@ from app.domain.schemas import (
     AuthResponse,
     AuditLogResponse,
     CurrentUserResponse,
-<<<<<<< HEAD
     ErrorResponse,
     FileCopyRequest,
     FileItem,
@@ -28,16 +21,20 @@ from app.domain.schemas import (
     FolderItem,
     FolderTreeResponse,
     FolderUpdate,
-=======
-    FileItem,
-    FileListResponse,
-    FolderTreeResponse,
->>>>>>> permission-backend
+    KnowledgeBaseCreate,
+    KnowledgeBaseListResponse,
+    KnowledgeBasePublic,
+    KnowledgeBaseUpdate,
+    KnowledgeDocumentCreate,
+    KnowledgeDocumentListResponse,
+    KnowledgeDocumentPublic,
     LoginRequest,
+    PermissionRuleCreate,
+    PermissionRuleListResponse,
+    PermissionRulePublic,
     QARequest,
     QAResponse,
     RefreshTokenRequest,
-<<<<<<< HEAD
     TeamCreate,
     TeamDetail,
     TeamInviteCreate,
@@ -46,29 +43,27 @@ from app.domain.schemas import (
     TeamMemberJoin,
     TeamMemberPublic,
     TeamMemberUpdate,
-=======
-    TeamListResponse,
->>>>>>> permission-backend
     ToolListResponse,
     UserCreate,
     UserPublic,
     UserUpdate,
+    WorkflowCreate,
+    WorkflowDefinition,
     WorkflowExecutionRequest,
     WorkflowExecutionResponse,
     WorkflowListResponse,
+    WorkflowUpdate,
+    WorkflowValidationResponse,
     WorkspaceSnapshot,
 )
 from app.services.workspace import workspace_service
 
 
 api_router = APIRouter(prefix="/api/v1")
-<<<<<<< HEAD
 auth_login_error_responses = {
     401: {"model": ErrorResponse, "description": "Invalid credentials"},
     423: {"model": ErrorResponse, "description": "Account temporarily locked"},
 }
-=======
->>>>>>> permission-backend
 
 
 def current_user(authorization: Annotated[str | None, Header()] = None) -> UserPublic:
@@ -81,11 +76,7 @@ def register(payload: UserCreate) -> AuthResponse:
     return AuthResponse(access_token=access_token, refresh_token=refresh_token, expires_in=1800, user=user)
 
 
-<<<<<<< HEAD
 @api_router.post("/auth/login", response_model=AuthResponse, responses=auth_login_error_responses)
-=======
-@api_router.post("/auth/login", response_model=AuthResponse)
->>>>>>> permission-backend
 def login(payload: LoginRequest) -> AuthResponse:
     user, access_token, refresh_token = workspace_service.login_user(payload.account, payload.password)
     return AuthResponse(access_token=access_token, refresh_token=refresh_token, expires_in=1800, user=user)
@@ -108,7 +99,6 @@ def update_me(payload: UserUpdate, user: Annotated[UserPublic, Depends(current_u
 
 
 @api_router.get("/folders/tree", response_model=FolderTreeResponse)
-<<<<<<< HEAD
 def folders(user: Annotated[UserPublic, Depends(current_user)]) -> FolderTreeResponse:
     return FolderTreeResponse(items=workspace_service.folder_tree(user))
 
@@ -131,20 +121,16 @@ def update_folder(
 def delete_folder(folder_id: str, user: Annotated[UserPublic, Depends(current_user)]) -> Response:
     workspace_service.delete_folder(folder_id, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-=======
-def folders(_: Annotated[UserPublic, Depends(current_user)]) -> FolderTreeResponse:
-    return FolderTreeResponse(items=workspace_service.folder_tree())
->>>>>>> permission-backend
 
 
 @api_router.get("/files", response_model=FileListResponse)
 def files(
-    _: Annotated[UserPublic, Depends(current_user)],
+    user: Annotated[UserPublic, Depends(current_user)],
     query: str | None = None,
     tag: str | None = None,
     file_type: str | None = None,
 ) -> FileListResponse:
-    items = workspace_service.list_files(query=query, tag=tag, file_type=file_type)
+    items = workspace_service.list_files(user, query=query, tag=tag, file_type=file_type)
     return FileListResponse(items=items, total=len(items))
 
 
@@ -158,7 +144,6 @@ async def upload_file(
     return await workspace_service.upload_file(file, folder_id, tags, user)
 
 
-<<<<<<< HEAD
 @api_router.patch("/files/{file_id}", response_model=FileItem)
 def update_file(
     file_id: str,
@@ -208,8 +193,49 @@ def delete_file(file_id: str, user: Annotated[UserPublic, Depends(current_user)]
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-=======
->>>>>>> permission-backend
+@api_router.get("/knowledge-bases", response_model=KnowledgeBaseListResponse)
+def knowledge_bases(user: Annotated[UserPublic, Depends(current_user)]) -> KnowledgeBaseListResponse:
+    return KnowledgeBaseListResponse(items=workspace_service.list_knowledge_bases(user))
+
+
+@api_router.post("/knowledge-bases", response_model=KnowledgeBasePublic, status_code=status.HTTP_201_CREATED)
+def create_knowledge_base(
+    payload: KnowledgeBaseCreate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> KnowledgeBasePublic:
+    return workspace_service.create_knowledge_base(payload, user)
+
+
+@api_router.patch("/knowledge-bases/{kb_id}", response_model=KnowledgeBasePublic)
+def update_knowledge_base(
+    kb_id: str,
+    payload: KnowledgeBaseUpdate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> KnowledgeBasePublic:
+    return workspace_service.update_knowledge_base(kb_id, payload, user)
+
+
+@api_router.get("/knowledge-bases/{kb_id}/documents", response_model=KnowledgeDocumentListResponse)
+def knowledge_documents(
+    kb_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> KnowledgeDocumentListResponse:
+    return KnowledgeDocumentListResponse(items=workspace_service.list_knowledge_documents(kb_id, user))
+
+
+@api_router.post(
+    "/knowledge-bases/{kb_id}/documents",
+    response_model=KnowledgeDocumentPublic,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_knowledge_document(
+    kb_id: str,
+    payload: KnowledgeDocumentCreate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> KnowledgeDocumentPublic:
+    return workspace_service.add_knowledge_document(kb_id, payload, user)
+
+
 @api_router.post("/qa/query", response_model=QAResponse)
 def qa_query(payload: QARequest, user: Annotated[UserPublic, Depends(current_user)]) -> QAResponse:
     return workspace_service.answer_question(payload, user)
@@ -233,6 +259,39 @@ def workflows(_: Annotated[UserPublic, Depends(current_user)]) -> WorkflowListRe
     return WorkflowListResponse(items=workspace_service.list_workflows())
 
 
+@api_router.post("/workflows", response_model=WorkflowDefinition, status_code=status.HTTP_201_CREATED)
+def create_workflow(
+    payload: WorkflowCreate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> WorkflowDefinition:
+    return workspace_service.create_workflow(payload, user)
+
+
+@api_router.patch("/workflows/{workflow_id}", response_model=WorkflowDefinition)
+def update_workflow(
+    workflow_id: str,
+    payload: WorkflowUpdate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> WorkflowDefinition:
+    return workspace_service.update_workflow(workflow_id, payload, user)
+
+
+@api_router.post("/workflows/{workflow_id}/validate", response_model=WorkflowValidationResponse)
+def validate_workflow(
+    workflow_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> WorkflowValidationResponse:
+    return workspace_service.validate_workflow(workflow_id, user)
+
+
+@api_router.post("/workflows/{workflow_id}/publish", response_model=WorkflowDefinition)
+def publish_workflow(
+    workflow_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> WorkflowDefinition:
+    return workspace_service.publish_workflow(workflow_id, user)
+
+
 @api_router.post(
     "/workflows/{workflow_id}/executions",
     response_model=WorkflowExecutionResponse,
@@ -246,7 +305,6 @@ def execute_workflow(
     return workspace_service.execute_workflow(workflow_id, payload, user)
 
 
-<<<<<<< HEAD
 @api_router.post("/teams", response_model=TeamDetail, status_code=status.HTTP_201_CREATED)
 def create_team(payload: TeamCreate, user: Annotated[UserPublic, Depends(current_user)]) -> TeamDetail:
     return workspace_service.create_team(payload, user)
@@ -298,11 +356,25 @@ def remove_team_member(
 ) -> Response:
     workspace_service.remove_team_member(team_id, member_id, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-=======
-@api_router.get("/teams", response_model=TeamListResponse)
-def teams(_: Annotated[UserPublic, Depends(current_user)]) -> TeamListResponse:
-    return TeamListResponse(items=workspace_service.list_teams())
->>>>>>> permission-backend
+
+
+@api_router.get("/permissions/rules", response_model=PermissionRuleListResponse)
+def permission_rules(user: Annotated[UserPublic, Depends(current_user)]) -> PermissionRuleListResponse:
+    return PermissionRuleListResponse(items=workspace_service.list_permission_rules(user))
+
+
+@api_router.post("/permissions/rules", response_model=PermissionRulePublic, status_code=status.HTTP_201_CREATED)
+def create_permission_rule(
+    payload: PermissionRuleCreate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> PermissionRulePublic:
+    return workspace_service.create_permission_rule(payload, user)
+
+
+@api_router.delete("/permissions/rules/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_permission_rule(rule_id: str, user: Annotated[UserPublic, Depends(current_user)]) -> Response:
+    workspace_service.delete_permission_rule(rule_id, user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @api_router.get("/audit-logs", response_model=AuditLogResponse)
@@ -311,10 +383,5 @@ def audit_logs(_: Annotated[UserPublic, Depends(current_user)]) -> AuditLogRespo
 
 
 @api_router.get("/workspace/snapshot", response_model=WorkspaceSnapshot)
-<<<<<<< HEAD
 def workspace_snapshot(user: Annotated[UserPublic, Depends(current_user)]) -> WorkspaceSnapshot:
     return workspace_service.snapshot(user)
-=======
-def workspace_snapshot(_: Annotated[UserPublic, Depends(current_user)]) -> WorkspaceSnapshot:
-    return workspace_service.snapshot()
->>>>>>> permission-backend

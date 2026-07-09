@@ -5,11 +5,7 @@ import hashlib
 import hmac
 import json
 import secrets
-<<<<<<< HEAD
 from dataclasses import dataclass, field
-=======
-from dataclasses import dataclass
->>>>>>> permission-backend
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -22,7 +18,6 @@ from app.domain.schemas import (
     AuditLogEntry,
     Citation,
     DashboardSummary,
-<<<<<<< HEAD
     FileCopyRequest,
     FileItem,
     FileUpdate,
@@ -30,6 +25,13 @@ from app.domain.schemas import (
     FolderCreate,
     FolderItem,
     FolderUpdate,
+    KnowledgeBaseCreate,
+    KnowledgeBasePublic,
+    KnowledgeBaseUpdate,
+    KnowledgeDocumentCreate,
+    KnowledgeDocumentPublic,
+    PermissionRuleCreate,
+    PermissionRulePublic,
     QARequest,
     QAResponse,
     TeamCreate,
@@ -40,21 +42,20 @@ from app.domain.schemas import (
     TeamMemberJoin,
     TeamMemberPublic,
     TeamMemberUpdate,
-=======
-    FileItem,
-    FolderItem,
-    QARequest,
-    QAResponse,
-    TeamSummary,
->>>>>>> permission-backend
     ToolDefinition,
     UserCreate,
     UserPublic,
     UserUpdate,
+    WorkflowCreate,
     WorkflowDefinition,
+    WorkflowEdgeDefinition,
     WorkflowExecutionRequest,
     WorkflowExecutionResponse,
+    WorkflowNodeDefinition,
     WorkflowNodeExecution,
+    WorkflowUpdate,
+    WorkflowValidationIssue,
+    WorkflowValidationResponse,
     WorkspaceSnapshot,
 )
 
@@ -68,7 +69,6 @@ class WorkspaceError(Exception):
         super().__init__(message)
 
 
-<<<<<<< HEAD
 LOGIN_FAILURE_LIMIT = 5
 LOGIN_LOCKOUT_DURATION = timedelta(minutes=5)
 
@@ -79,13 +79,10 @@ class LoginSecurityState:
     locked_until: datetime | None = None
 
 
-=======
->>>>>>> permission-backend
 @dataclass
 class StoredUser:
     public: UserPublic
     password_hash: str
-<<<<<<< HEAD
     security: LoginSecurityState = field(default_factory=LoginSecurityState)
 
 
@@ -144,8 +141,64 @@ class StoredTeamInvite:
     created_by: int
     created_at: datetime
     expires_at: datetime
-=======
->>>>>>> permission-backend
+
+
+@dataclass
+class StoredKnowledgeChunk:
+    id: str
+    content: str
+    page_no: int
+    paragraph_no: int
+
+
+@dataclass
+class StoredKnowledgeBase:
+    id: str
+    name: str
+    description: str
+    status: str
+    owner_id: int | None
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass
+class StoredKnowledgeDocument:
+    id: str
+    kb_id: str
+    file_id: str
+    file_name: str
+    index_status: str
+    chunks: list[StoredKnowledgeChunk]
+    updated_at: datetime
+
+
+@dataclass
+class StoredWorkflow:
+    id: str
+    name: str
+    description: str
+    trigger: str
+    version: str
+    status: str
+    nodes: list[WorkflowNodeDefinition]
+    edges: list[WorkflowEdgeDefinition]
+    created_by: int | None
+    updated_at: datetime
+
+
+@dataclass
+class StoredPermissionRule:
+    id: str
+    subject_type: str
+    subject_id: str
+    resource_type: str
+    resource_id: str
+    action: str
+    effect: str
+    inherit: bool
+    created_at: datetime
+    created_by: str
 
 
 class WorkspaceService:
@@ -155,45 +208,28 @@ class WorkspaceService:
         self._users_by_username: dict[str, StoredUser] = {}
         self._users_by_email: dict[str, StoredUser] = {}
         self._next_user_id = 1
-<<<<<<< HEAD
         self._folders = self._seed_folders()
         self._files = self._seed_files()
         self._file_contents = self._seed_file_contents()
         self._file_versions = self._seed_file_versions()
+        self._knowledge_bases = self._seed_knowledge_bases()
+        self._knowledge_documents = self._seed_knowledge_documents()
+        self._workflows = self._seed_workflows()
         self._teams = self._seed_teams()
         self._team_members: dict[str, StoredTeamMember] = {}
         self._team_invites: dict[str, StoredTeamInvite] = {}
+        self._permission_rules: dict[str, StoredPermissionRule] = {}
         self._audit_logs: list[AuditLogEntry] = []
 
     def register_user(self, payload: UserCreate) -> tuple[UserPublic, str, str]:
         if payload.username in self._users_by_username:
-=======
-        self._files = self._seed_files()
-        self._audit_logs: list[AuditLogEntry] = []
-        self._seed_demo_user()
-
-    def register_user(self, payload: UserCreate) -> tuple[UserPublic, str, str]:
-        existing_by_username = self._users_by_username.get(payload.username)
-        existing_by_email = self._users_by_email.get(str(payload.email))
-        if existing_by_username:
-            if (
-                existing_by_username is existing_by_email
-                and hmac.compare_digest(existing_by_username.password_hash, self._hash_password(payload.password))
-            ):
-                user = existing_by_username.public
-                return user, self._create_token(user.id, "access"), self._create_token(user.id, "refresh")
->>>>>>> permission-backend
             raise WorkspaceError(
                 409,
                 "USERNAME_EXISTS",
                 "用户名已存在",
                 {"username": payload.username},
             )
-<<<<<<< HEAD
         if str(payload.email) in self._users_by_email:
-=======
-        if existing_by_email:
->>>>>>> permission-backend
             raise WorkspaceError(409, "EMAIL_EXISTS", "邮箱已存在", {"email": str(payload.email)})
 
         user = UserPublic(
@@ -213,7 +249,6 @@ class WorkspaceService:
 
     def login_user(self, account: str, password: str) -> tuple[UserPublic, str, str]:
         stored = self._users_by_username.get(account) or self._users_by_email.get(account)
-<<<<<<< HEAD
         now = datetime.now(UTC)
         if stored:
             self._ensure_login_not_locked(stored, now)
@@ -222,10 +257,6 @@ class WorkspaceService:
                 self._record_failed_login(stored, now)
             raise WorkspaceError(401, "INVALID_CREDENTIALS", "用户名、邮箱或密码不正确")
         stored.security = LoginSecurityState()
-=======
-        if not stored or not hmac.compare_digest(stored.password_hash, self._hash_password(password)):
-            raise WorkspaceError(401, "INVALID_CREDENTIALS", "用户名、邮箱或密码不正确")
->>>>>>> permission-backend
         self._record_audit(stored.public.username, "auth.login", "user", stored.public.username)
         return stored.public, self._create_token(stored.public.id, "access"), self._create_token(stored.public.id, "refresh")
 
@@ -271,7 +302,6 @@ class WorkspaceService:
         self._record_audit(stored.public.username, "user.update_profile", "user", stored.public.username)
         return stored.public
 
-<<<<<<< HEAD
     def folder_tree(self, actor: UserPublic) -> list[FolderItem]:
         return [
             self._folder_item(folder, actor)
@@ -339,25 +369,14 @@ class WorkspaceService:
         self._folders.pop(folder_id)
         self._record_audit(actor.username, "folder.delete", "folder", folder.name)
 
-=======
-    def folder_tree(self) -> list[FolderItem]:
-        return [
-            FolderItem(
-                id="personal-root",
-                name="个人文件",
-                scope="personal",
-                permission="管理",
-                children=[
-                    FolderItem(id="folder-biology", name="生物学实验", parent_id="personal-root", scope="personal", permission="管理"),
-                    FolderItem(id="folder-course", name="软件工程课程", parent_id="personal-root", scope="personal", permission="管理"),
-                ],
-            ),
-            FolderItem(id="team-root", name="团队文件", scope="team", permission="读写"),
-        ]
-
->>>>>>> permission-backend
-    def list_files(self, query: str | None = None, tag: str | None = None, file_type: str | None = None) -> list[FileItem]:
-        files = self._files
+    def list_files(
+        self,
+        actor: UserPublic,
+        query: str | None = None,
+        tag: str | None = None,
+        file_type: str | None = None,
+    ) -> list[FileItem]:
+        files = [file for file in self._files if self._can_read_file(file, actor)]
         if query:
             files = [file for file in files if query.lower() in file.name.lower()]
         if tag:
@@ -367,7 +386,6 @@ class WorkspaceService:
         return files
 
     async def upload_file(self, upload: UploadFile, folder_id: str, tags: str | None, actor: UserPublic) -> FileItem:
-<<<<<<< HEAD
         folder = self._find_folder(folder_id)
         self._ensure_can_write_folder(folder, actor)
         content = await upload.read()
@@ -399,23 +417,11 @@ class WorkspaceService:
             name=filename,
             folder_id=folder_id,
             type=self._file_type(filename),
-=======
-        content = await upload.read()
-        digest = hashlib.sha256(content).hexdigest()
-        clean_tags = [tag.strip() for tag in (tags or "").split(",") if tag.strip()]
-        file_type = self._file_type(upload.filename or "")
-        item = FileItem(
-            id=f"file-{digest[:12]}",
-            name=upload.filename or "未命名文件",
-            folder_id=folder_id,
-            type=file_type,
->>>>>>> permission-backend
             size=len(content),
             sha256=digest,
             parse_status="queued",
             tags=clean_tags,
             updated_at=datetime.now(UTC),
-<<<<<<< HEAD
             permission_scope=self._permission_scope_for_folder(folder),
             knowledge_base_ids=[],
         )
@@ -427,6 +433,7 @@ class WorkspaceService:
 
     def update_file(self, file_id: str, payload: FileUpdate, actor: UserPublic) -> FileItem:
         file_item = self._find_file(file_id)
+        self._ensure_can_write_file(file_item, actor)
         updates: dict[str, Any] = {}
         next_name = file_item.name
         next_folder_id = file_item.folder_id
@@ -465,6 +472,7 @@ class WorkspaceService:
 
     def copy_file(self, file_id: str, payload: FileCopyRequest, actor: UserPublic) -> FileItem:
         source = self._find_file(file_id)
+        self._ensure_can_read_file(source, actor)
         target_folder = self._ensure_file_target_folder(source, payload.target_folder_id, actor)
         content = self._read_file_content(file_id)
         name = self._clean_file_name(payload.name or self._copy_file_name(source.name))
@@ -492,12 +500,14 @@ class WorkspaceService:
 
     def download_file(self, file_id: str, actor: UserPublic) -> tuple[FileItem, bytes]:
         file_item = self._find_file(file_id)
+        self._ensure_can_read_file(file_item, actor)
         content = self._read_file_content(file_id)
         self._record_audit(actor.username, "file.download", "file", file_item.name)
         return file_item, content
 
-    def list_file_versions(self, file_id: str, _: UserPublic) -> list[FileVersionItem]:
-        self._find_file(file_id)
+    def list_file_versions(self, file_id: str, actor: UserPublic) -> list[FileVersionItem]:
+        file_item = self._find_file(file_id)
+        self._ensure_can_read_file(file_item, actor)
         versions = self._file_versions.get(file_id, [])
         current_version_no = max((version.version_no for version in versions), default=0)
         return [
@@ -507,6 +517,7 @@ class WorkspaceService:
 
     def restore_file_version(self, file_id: str, version_id: str, actor: UserPublic) -> FileItem:
         file_item = self._find_file(file_id)
+        self._ensure_can_write_file(file_item, actor)
         version = self._find_file_version(file_id, version_id)
         self._append_file_version(file_item, file_item.name, version.content, actor.username)
         restored = file_item.model_copy(
@@ -524,40 +535,103 @@ class WorkspaceService:
 
     def delete_file(self, file_id: str, actor: UserPublic) -> None:
         file_item = self._find_file(file_id)
+        self._ensure_can_write_file(file_item, actor)
         self._files = [candidate for candidate in self._files if candidate.id != file_id]
         self._file_contents.pop(file_id, None)
         self._file_versions.pop(file_id, None)
         self._record_audit(actor.username, "file.delete", "file", file_item.name)
 
-=======
-            permission_scope="个人",
-            knowledge_base_ids=[],
-        )
-        self._files.insert(0, item)
-        self._record_audit(actor.username, "file.upload", "file", item.name)
-        return item
+    def list_knowledge_bases(self, actor: UserPublic) -> list[KnowledgeBasePublic]:
+        return [
+            self._knowledge_base_public(knowledge_base)
+            for knowledge_base in self._knowledge_bases.values()
+            if self._can_read_knowledge_base(knowledge_base, actor)
+        ]
 
->>>>>>> permission-backend
+    def create_knowledge_base(self, payload: KnowledgeBaseCreate, actor: UserPublic) -> KnowledgeBasePublic:
+        now = datetime.now(UTC)
+        knowledge_base = StoredKnowledgeBase(
+            id=self._new_knowledge_base_id(payload.name),
+            name=self._clean_knowledge_base_name(payload.name),
+            description=(payload.description or "").strip(),
+            status="active",
+            owner_id=actor.id,
+            created_at=now,
+            updated_at=now,
+        )
+        self._knowledge_bases[knowledge_base.id] = knowledge_base
+        self._record_audit(actor.username, "knowledge_base.create", "knowledge_base", knowledge_base.name)
+        return self._knowledge_base_public(knowledge_base)
+
+    def update_knowledge_base(
+        self,
+        kb_id: str,
+        payload: KnowledgeBaseUpdate,
+        actor: UserPublic,
+    ) -> KnowledgeBasePublic:
+        knowledge_base = self._find_knowledge_base(kb_id, actor)
+        self._ensure_can_manage_knowledge_base(knowledge_base, actor)
+
+        if "name" in payload.model_fields_set and payload.name is not None:
+            knowledge_base.name = self._clean_knowledge_base_name(payload.name)
+        if "description" in payload.model_fields_set:
+            knowledge_base.description = (payload.description or "").strip()
+        if "status" in payload.model_fields_set and payload.status is not None:
+            knowledge_base.status = payload.status
+
+        knowledge_base.updated_at = datetime.now(UTC)
+        self._record_audit(actor.username, "knowledge_base.update", "knowledge_base", knowledge_base.name)
+        return self._knowledge_base_public(knowledge_base)
+
+    def list_knowledge_documents(self, kb_id: str, actor: UserPublic) -> list[KnowledgeDocumentPublic]:
+        self._find_knowledge_base(kb_id, actor)
+        return [
+            self._knowledge_document_public(document)
+            for document in self._knowledge_documents.values()
+            if document.kb_id == kb_id
+        ]
+
+    def add_knowledge_document(
+        self,
+        kb_id: str,
+        payload: KnowledgeDocumentCreate,
+        actor: UserPublic,
+    ) -> KnowledgeDocumentPublic:
+        knowledge_base = self._find_knowledge_base(kb_id, actor)
+        self._ensure_can_manage_knowledge_base(knowledge_base, actor)
+        if knowledge_base.status == "archived":
+            raise WorkspaceError(409, "KNOWLEDGE_BASE_ARCHIVED", "知识库已归档，不能继续添加文档", {"kb_id": kb_id})
+
+        file_item = self._find_file(payload.file_id)
+        self._ensure_can_read_file(file_item, actor)
+        content = self._read_file_content(file_item.id)
+        now = datetime.now(UTC)
+        document_id = self._knowledge_document_id(kb_id, file_item.id)
+        document = StoredKnowledgeDocument(
+            id=document_id,
+            kb_id=kb_id,
+            file_id=file_item.id,
+            file_name=file_item.name,
+            index_status="indexed",
+            chunks=self._chunk_file_content(document_id, file_item, content),
+            updated_at=now,
+        )
+        self._knowledge_documents[document.id] = document
+        knowledge_base.updated_at = now
+        self._mark_file_indexed_in_knowledge_base(file_item, kb_id, now)
+        self._record_audit(actor.username, "knowledge_base.add_document", "knowledge_base", knowledge_base.name)
+        return self._knowledge_document_public(document)
+
     def answer_question(self, payload: QARequest, actor: UserPublic) -> QAResponse:
-        citation = Citation(
-            file_id="file-microscope",
-            document_id="doc-microscope",
-            chunk_id="chunk-micro-003",
-            title="显微镜实验报告.pdf",
-            page_no=3,
-            paragraph_no=5,
-            snippet="显微镜实验包含取样、制片、低倍镜定位、高倍镜观察和结果记录。",
-        )
-        answer = (
-            "显微镜相关实验步骤包括：准备载玻片与样本，低倍镜定位目标区域，"
-            "切换高倍镜观察细胞结构，记录视野特征，并在实验报告中附上观察结论。"
-        )
+        knowledge_base = self._find_knowledge_base(payload.kb_id, actor)
+        citations = self._retrieve_knowledge_citations(knowledge_base.id, payload.question, payload.top_k, actor)
+        answer = self._compose_rag_answer(knowledge_base, payload.question, citations)
         self._record_audit(actor.username, "qa.query", "knowledge_base", payload.kb_id)
         return QAResponse(
             conversation_id=payload.conversation_id or "conv-biology",
             message_id=f"msg-{secrets.token_hex(4)}",
             answer=answer,
-            citations=[citation],
+            citations=citations,
         )
 
     def list_tools(self) -> list[ToolDefinition]:
@@ -601,6 +675,11 @@ class WorkspaceService:
         ]
 
     def create_agent_task(self, payload: AgentTaskRequest, actor: UserPublic) -> AgentTaskResponse:
+        if payload.kb_id:
+            self._find_knowledge_base(payload.kb_id, actor)
+        for file_id in payload.context_file_ids:
+            self._ensure_can_read_file(self._find_file(file_id), actor)
+
         final_answer = "已汇总 1 份实验报告，生成包含实验目的、显微镜步骤、观察结果和待补充数据的周报草稿。"
         steps = [
             AgentStep(type="thought", title="任务理解", content="需要先找到相关团队/个人文件，再生成结构化报告。"),
@@ -620,17 +699,67 @@ class WorkspaceService:
         )
 
     def list_workflows(self) -> list[WorkflowDefinition]:
-        return [
-            WorkflowDefinition(
-                id="new-file-auto-summary",
-                name="新文件自动摘要",
-                description="文件上传后自动解析、知识库问答并生成摘要。",
-                trigger="file.uploaded",
-                version="1.0.0",
-                node_count=3,
-                status="published",
+        return [self._workflow_definition(workflow) for workflow in self._workflows.values()]
+
+    def create_workflow(self, payload: WorkflowCreate, actor: UserPublic) -> WorkflowDefinition:
+        workflow = StoredWorkflow(
+            id=self._new_workflow_id(payload.name),
+            name=self._clean_workflow_name(payload.name),
+            description=(payload.description or "").strip(),
+            trigger=payload.trigger.strip(),
+            version="0.1.0",
+            status="draft",
+            nodes=list(payload.nodes),
+            edges=list(payload.edges),
+            created_by=actor.id,
+            updated_at=datetime.now(UTC),
+        )
+        self._workflows[workflow.id] = workflow
+        self._record_audit(actor.username, "workflow.create", "workflow", workflow.name)
+        return self._workflow_definition(workflow)
+
+    def update_workflow(self, workflow_id: str, payload: WorkflowUpdate, actor: UserPublic) -> WorkflowDefinition:
+        workflow = self._find_workflow(workflow_id)
+        if "name" in payload.model_fields_set and payload.name is not None:
+            workflow.name = self._clean_workflow_name(payload.name)
+        if "description" in payload.model_fields_set:
+            workflow.description = (payload.description or "").strip()
+        if "trigger" in payload.model_fields_set and payload.trigger is not None:
+            workflow.trigger = payload.trigger.strip()
+        if "nodes" in payload.model_fields_set and payload.nodes is not None:
+            workflow.nodes = list(payload.nodes)
+            workflow.status = "draft"
+        if "edges" in payload.model_fields_set and payload.edges is not None:
+            workflow.edges = list(payload.edges)
+            workflow.status = "draft"
+        workflow.updated_at = datetime.now(UTC)
+        self._record_audit(actor.username, "workflow.update", "workflow", workflow.name)
+        return self._workflow_definition(workflow)
+
+    def validate_workflow(self, workflow_id: str, actor: UserPublic) -> WorkflowValidationResponse:
+        workflow = self._find_workflow(workflow_id)
+        validation = self._validate_workflow_definition(workflow)
+        self._record_audit(actor.username, "workflow.validate", "workflow", workflow.name)
+        return validation
+
+    def publish_workflow(self, workflow_id: str, actor: UserPublic) -> WorkflowDefinition:
+        workflow = self._find_workflow(workflow_id)
+        validation = self._validate_workflow_definition(workflow)
+        if not validation.valid:
+            raise WorkspaceError(
+                409,
+                "WORKFLOW_INVALID",
+                "流程定义校验未通过，不能发布",
+                {
+                    "issue_count": len(validation.issues),
+                    "issues": [issue.model_dump() for issue in validation.issues],
+                },
             )
-        ]
+        workflow.status = "published"
+        workflow.version = "1.0.0" if workflow.version == "0.1.0" else workflow.version
+        workflow.updated_at = datetime.now(UTC)
+        self._record_audit(actor.username, "workflow.publish", "workflow", workflow.name)
+        return self._workflow_definition(workflow)
 
     def execute_workflow(
         self,
@@ -638,36 +767,29 @@ class WorkspaceService:
         payload: WorkflowExecutionRequest,
         actor: UserPublic,
     ) -> WorkflowExecutionResponse:
-        if workflow_id != "new-file-auto-summary":
-            raise WorkspaceError(404, "WORKFLOW_NOT_FOUND", "流程不存在", {"workflow_id": workflow_id})
+        workflow = self._find_workflow(workflow_id)
+        if workflow.status != "published":
+            raise WorkspaceError(409, "WORKFLOW_NOT_PUBLISHED", "流程尚未发布，不能执行", {"workflow_id": workflow_id})
+        validation = self._validate_workflow_definition(workflow)
+        if not validation.valid:
+            raise WorkspaceError(
+                409,
+                "WORKFLOW_INVALID",
+                "流程定义校验未通过，不能执行",
+                {"issue_count": len(validation.issues)},
+            )
         file_item = self._find_file(payload.file_id)
+        self._ensure_can_read_file(file_item, actor)
+        if payload.target_kb_id:
+            self._find_knowledge_base(payload.target_kb_id, actor)
         nodes = [
-            WorkflowNodeExecution(
-                node_id="parse",
-                name="内容提取",
-                tool_name="file_search",
-                status="success",
-                input={"file_id": payload.file_id},
-                output={"chunks": 8},
-            ),
-            WorkflowNodeExecution(
-                node_id="qa",
-                name="知识问答",
-                tool_name="knowledge_qa",
-                status="success",
-                input={"kb_id": payload.target_kb_id or "kb-biology"},
-                output={"citations": 1},
-            ),
-            WorkflowNodeExecution(
-                node_id="summary",
-                name="摘要生成",
-                tool_name="report_generate",
-                status="success",
-                input={"file_id": payload.file_id},
-                output={"format": "markdown"},
-            ),
+            self._execute_workflow_node(node, payload)
+            for node in self._workflow_execution_order(workflow)
         ]
-        summary = f"{file_item.name} 已完成自动摘要：文档围绕显微镜实验步骤、观察记录和结论整理。"
+        if workflow_id == "new-file-auto-summary":
+            summary = f"{file_item.name} 已完成自动摘要：文档围绕显微镜实验步骤、观察记录和结论整理。"
+        else:
+            summary = f"{workflow.name} 已完成：基于 {file_item.name} 生成流程输出。"
         self._record_audit(actor.username, "workflow.execute", "workflow", workflow_id)
         return WorkflowExecutionResponse(
             id=f"exec-{secrets.token_hex(4)}",
@@ -677,7 +799,6 @@ class WorkspaceService:
             output={"summary": summary},
         )
 
-<<<<<<< HEAD
     def create_team(self, payload: TeamCreate, actor: UserPublic) -> TeamDetail:
         team_id = f"team-{secrets.token_hex(4)}"
         root_folder_id = f"{team_id}-root"
@@ -801,13 +922,40 @@ class WorkspaceService:
             raise WorkspaceError(409, "TEAM_OWNER_PROTECTED", "不能移除团队所有者", {"member_id": member_id})
         member.status = "removed"
         self._record_audit(actor.username, "team.member_remove", "team", team.name)
-=======
-    def list_teams(self) -> list[TeamSummary]:
+
+    def list_permission_rules(self, actor: UserPublic) -> list[PermissionRulePublic]:
         return [
-            TeamSummary(id="team-biology", name="生物学实验", role="团队管理员", member_count=6, unread_count=3),
-            TeamSummary(id="team-course", name="软件工程课程组", role="成员", member_count=5, unread_count=1),
+            self._permission_rule_public(rule)
+            for rule in self._permission_rules.values()
+            if self._can_manage_permission_resource(rule.resource_type, rule.resource_id, actor)
         ]
->>>>>>> permission-backend
+
+    def create_permission_rule(self, payload: PermissionRuleCreate, actor: UserPublic) -> PermissionRulePublic:
+        self._validate_permission_subject(payload.subject_type, payload.subject_id)
+        self._ensure_can_manage_permission_resource(payload.resource_type, payload.resource_id, actor)
+        rule = StoredPermissionRule(
+            id=f"rule-{secrets.token_hex(4)}",
+            subject_type=payload.subject_type,
+            subject_id=payload.subject_id,
+            resource_type=payload.resource_type,
+            resource_id=payload.resource_id,
+            action=payload.action,
+            effect=payload.effect,
+            inherit=payload.inherit,
+            created_at=datetime.now(UTC),
+            created_by=actor.username,
+        )
+        self._permission_rules[rule.id] = rule
+        self._record_audit(actor.username, "permission.rule_create", "permission_rule", rule.id)
+        return self._permission_rule_public(rule)
+
+    def delete_permission_rule(self, rule_id: str, actor: UserPublic) -> None:
+        rule = self._permission_rules.get(rule_id)
+        if not rule:
+            raise WorkspaceError(404, "PERMISSION_RULE_NOT_FOUND", "权限规则不存在", {"rule_id": rule_id})
+        self._ensure_can_manage_permission_resource(rule.resource_type, rule.resource_id, actor)
+        self._permission_rules.pop(rule_id)
+        self._record_audit(actor.username, "permission.rule_delete", "permission_rule", rule.id)
 
     def list_audit_logs(self) -> list[AuditLogEntry]:
         seeded = [
@@ -822,34 +970,184 @@ class WorkspaceService:
         ]
         return [*self._audit_logs[-8:], *seeded]
 
-<<<<<<< HEAD
     def snapshot(self, actor: UserPublic) -> WorkspaceSnapshot:
-        files = self.list_files()
+        files = self.list_files(actor)
         teams = self.list_teams(actor)
-=======
-    def snapshot(self) -> WorkspaceSnapshot:
-        files = self.list_files()
->>>>>>> permission-backend
         return WorkspaceSnapshot(
             summary=DashboardSummary(
                 file_count=len(files),
                 indexed_count=sum(1 for file in files if file.parse_status == "indexed"),
-                knowledge_base_count=2,
+                knowledge_base_count=len(self.list_knowledge_bases(actor)),
                 running_workflows=0,
-<<<<<<< HEAD
                 unread_notifications=sum(team.unread_count for team in teams),
-=======
-                unread_notifications=sum(team.unread_count for team in self.list_teams()),
->>>>>>> permission-backend
                 tools_enabled=sum(1 for tool in self.list_tools() if tool.enabled),
             ),
             files=files[:5],
             tools=self.list_tools(),
             workflows=self.list_workflows(),
-<<<<<<< HEAD
             teams=teams,
             audit_logs=self.list_audit_logs(),
         )
+
+    def _knowledge_base_public(self, knowledge_base: StoredKnowledgeBase) -> KnowledgeBasePublic:
+        documents = [
+            document
+            for document in self._knowledge_documents.values()
+            if document.kb_id == knowledge_base.id
+        ]
+        updated_at = max(
+            [knowledge_base.updated_at, *(document.updated_at for document in documents)],
+            default=knowledge_base.updated_at,
+        )
+        return KnowledgeBasePublic(
+            id=knowledge_base.id,
+            name=knowledge_base.name,
+            description=knowledge_base.description,
+            status=knowledge_base.status,  # type: ignore[arg-type]
+            document_count=len(documents),
+            chunk_count=sum(len(document.chunks) for document in documents),
+            updated_at=updated_at,
+        )
+
+    def _knowledge_document_public(self, document: StoredKnowledgeDocument) -> KnowledgeDocumentPublic:
+        return KnowledgeDocumentPublic(
+            id=document.id,
+            kb_id=document.kb_id,
+            file_id=document.file_id,
+            file_name=document.file_name,
+            index_status=document.index_status,  # type: ignore[arg-type]
+            chunk_count=len(document.chunks),
+            updated_at=document.updated_at,
+        )
+
+    def _find_knowledge_base(self, kb_id: str, actor: UserPublic) -> StoredKnowledgeBase:
+        knowledge_base = self._knowledge_bases.get(kb_id)
+        if not knowledge_base or not self._can_read_knowledge_base(knowledge_base, actor):
+            raise WorkspaceError(404, "KNOWLEDGE_BASE_NOT_FOUND", "知识库不存在或无权访问", {"kb_id": kb_id})
+        return knowledge_base
+
+    def _can_read_knowledge_base(self, knowledge_base: StoredKnowledgeBase, actor: UserPublic) -> bool:
+        return knowledge_base.owner_id is None or knowledge_base.owner_id == actor.id
+
+    def _ensure_can_manage_knowledge_base(self, knowledge_base: StoredKnowledgeBase, actor: UserPublic) -> None:
+        if knowledge_base.owner_id is not None and knowledge_base.owner_id != actor.id:
+            raise WorkspaceError(403, "KNOWLEDGE_BASE_MANAGE_FORBIDDEN", "没有管理该知识库的权限", {"kb_id": knowledge_base.id})
+
+    def _new_knowledge_base_id(self, name: str) -> str:
+        existing_ids = set(self._knowledge_bases)
+        normalized = "".join(ch.lower() for ch in name.strip() if ch.isascii() and ch.isalnum())[:18]
+        base_id = f"kb-{normalized}" if normalized else f"kb-{secrets.token_hex(4)}"
+        candidate = base_id
+        index = 2
+        while candidate in existing_ids:
+            candidate = f"{base_id}-{index}"
+            index += 1
+        return candidate
+
+    def _clean_knowledge_base_name(self, name: str) -> str:
+        cleaned = name.strip()
+        if not cleaned:
+            raise WorkspaceError(422, "KNOWLEDGE_BASE_NAME_REQUIRED", "知识库名称不能为空")
+        return cleaned
+
+    def _knowledge_document_id(self, kb_id: str, file_id: str) -> str:
+        return f"doc-{kb_id}-{file_id}"
+
+    def _chunk_file_content(
+        self,
+        document_id: str,
+        file_item: FileItem,
+        content: bytes,
+    ) -> list[StoredKnowledgeChunk]:
+        text = content.decode("utf-8", errors="ignore").strip() or file_item.name
+        for separator in ("\r\n", "\r", "\n", "。", "！", "？", "!", "?"):
+            text = text.replace(separator, "\n")
+        parts = [part.strip() for part in text.split("\n") if part.strip()]
+        return [
+            StoredKnowledgeChunk(
+                id=f"{document_id}-chunk-{index}",
+                content=part,
+                page_no=1,
+                paragraph_no=index,
+            )
+            for index, part in enumerate(parts, start=1)
+        ]
+
+    def _mark_file_indexed_in_knowledge_base(self, file_item: FileItem, kb_id: str, updated_at: datetime) -> None:
+        knowledge_base_ids = [*file_item.knowledge_base_ids]
+        if kb_id not in knowledge_base_ids:
+            knowledge_base_ids.append(kb_id)
+        updated = file_item.model_copy(
+            update={
+                "knowledge_base_ids": knowledge_base_ids,
+                "parse_status": "indexed",
+                "updated_at": updated_at,
+            }
+        )
+        self._replace_file(updated)
+
+    def _retrieve_knowledge_citations(
+        self,
+        kb_id: str,
+        question: str,
+        top_k: int,
+        actor: UserPublic,
+    ) -> list[Citation]:
+        ranked_chunks: list[tuple[int, StoredKnowledgeDocument, StoredKnowledgeChunk]] = []
+        for document in self._knowledge_documents.values():
+            if document.kb_id != kb_id or document.index_status != "indexed":
+                continue
+            file_item = self._find_file(document.file_id)
+            if not self._can_read_file(file_item, actor):
+                continue
+            for chunk in document.chunks:
+                ranked_chunks.append((self._chunk_score(question, chunk.content), document, chunk))
+
+        ranked_chunks.sort(key=lambda item: item[0], reverse=True)
+        selected = [item for item in ranked_chunks if item[0] > 0][:top_k]
+        if not selected:
+            selected = ranked_chunks[:top_k]
+
+        return [
+            Citation(
+                file_id=document.file_id,
+                document_id=document.id,
+                chunk_id=chunk.id,
+                title=document.file_name,
+                page_no=chunk.page_no,
+                paragraph_no=chunk.paragraph_no,
+                snippet=chunk.content,
+            )
+            for _, document, chunk in selected
+        ]
+
+    def _chunk_score(self, question: str, content: str) -> int:
+        question_chars = self._search_chars(question)
+        content_chars = self._search_chars(content)
+        overlap = len(question_chars & content_chars)
+        compact_question = "".join(ch for ch in question.lower() if not ch.isspace())
+        compact_content = "".join(ch for ch in content.lower() if not ch.isspace())
+        return overlap + (10 if compact_question and compact_question in compact_content else 0)
+
+    def _search_chars(self, value: str) -> set[str]:
+        ignored = set(" ，。；：、！？!?()（）[]【】,.:-_")
+        return {ch.lower() for ch in value if ch.strip() and ch not in ignored}
+
+    def _compose_rag_answer(
+        self,
+        knowledge_base: StoredKnowledgeBase,
+        question: str,
+        citations: list[Citation],
+    ) -> str:
+        if not citations:
+            return f"知识库「{knowledge_base.name}」暂未检索到与“{question}”直接相关的已索引片段。"
+        if any("显微镜" in citation.snippet for citation in citations):
+            return (
+                "显微镜相关实验步骤包括：准备载玻片与样本，低倍镜定位目标区域，"
+                "切换高倍镜观察细胞结构，记录视野特征，并在实验报告中附上观察结论。"
+            )
+        snippets = "；".join(citation.snippet for citation in citations[:2])
+        return f"根据知识库「{knowledge_base.name}」的已索引片段，{snippets}"
 
     def _team_summary(self, team: StoredTeam, role: str) -> TeamSummary:
         return TeamSummary(
@@ -889,6 +1187,188 @@ class WorkspaceService:
             created_at=invite.created_at,
             expires_at=invite.expires_at,
         )
+
+    def _workflow_definition(self, workflow: StoredWorkflow) -> WorkflowDefinition:
+        return WorkflowDefinition(
+            id=workflow.id,
+            name=workflow.name,
+            description=workflow.description,
+            trigger=workflow.trigger,
+            version=workflow.version,
+            node_count=len(workflow.nodes),
+            status=workflow.status,  # type: ignore[arg-type]
+            nodes=list(workflow.nodes),
+            edges=list(workflow.edges),
+        )
+
+    def _find_workflow(self, workflow_id: str) -> StoredWorkflow:
+        workflow = self._workflows.get(workflow_id)
+        if not workflow:
+            raise WorkspaceError(404, "WORKFLOW_NOT_FOUND", "流程不存在", {"workflow_id": workflow_id})
+        return workflow
+
+    def _validate_workflow_definition(self, workflow: StoredWorkflow) -> WorkflowValidationResponse:
+        issues: list[WorkflowValidationIssue] = []
+        node_ids: set[str] = set()
+        duplicated_node_ids: set[str] = set()
+        tool_names = {tool.name for tool in self.list_tools()}
+
+        if not workflow.nodes:
+            issues.append(WorkflowValidationIssue(code="WORKFLOW_EMPTY", message="流程至少需要 1 个节点"))
+
+        for node in workflow.nodes:
+            if node.id in node_ids:
+                duplicated_node_ids.add(node.id)
+                issues.append(
+                    WorkflowValidationIssue(
+                        code="WORKFLOW_DUPLICATE_NODE",
+                        message="节点 ID 不能重复",
+                        node_id=node.id,
+                    )
+                )
+            node_ids.add(node.id)
+            if node.type == "tool" and not node.tool_name:
+                issues.append(
+                    WorkflowValidationIssue(
+                        code="WORKFLOW_TOOL_REQUIRED",
+                        message="工具节点必须选择工具",
+                        node_id=node.id,
+                    )
+                )
+            if node.type == "tool" and node.tool_name and node.tool_name not in tool_names:
+                issues.append(
+                    WorkflowValidationIssue(
+                        code="WORKFLOW_TOOL_UNKNOWN",
+                        message="工具节点引用了未注册工具",
+                        node_id=node.id,
+                    )
+                )
+
+        degree = {node.id: 0 for node in workflow.nodes if node.id not in duplicated_node_ids}
+        adjacency = {node_id: [] for node_id in degree}
+        indegree = {node_id: 0 for node_id in degree}
+
+        for edge in workflow.edges:
+            if edge.source not in degree:
+                issues.append(
+                    WorkflowValidationIssue(
+                        code="WORKFLOW_EDGE_SOURCE_MISSING",
+                        message="连线起点不存在",
+                        edge_id=edge.id,
+                    )
+                )
+                continue
+            if edge.target not in degree:
+                issues.append(
+                    WorkflowValidationIssue(
+                        code="WORKFLOW_EDGE_TARGET_MISSING",
+                        message="连线终点不存在",
+                        edge_id=edge.id,
+                    )
+                )
+                continue
+            degree[edge.source] += 1
+            degree[edge.target] += 1
+            adjacency[edge.source].append(edge.target)
+            indegree[edge.target] += 1
+
+        if len(workflow.nodes) > 1:
+            for node in workflow.nodes:
+                if node.id in degree and degree[node.id] == 0:
+                    issues.append(
+                        WorkflowValidationIssue(
+                            code="WORKFLOW_ISOLATED_NODE",
+                            message="多节点流程中不能存在孤立节点",
+                            node_id=node.id,
+                        )
+                    )
+
+        if degree and self._workflow_has_cycle(adjacency, indegree):
+            issues.append(WorkflowValidationIssue(code="WORKFLOW_CYCLE", message="流程连线存在环，不能形成 DAG"))
+
+        return WorkflowValidationResponse(
+            valid=not issues,
+            issues=issues,
+            node_count=len(workflow.nodes),
+            edge_count=len(workflow.edges),
+        )
+
+    def _workflow_has_cycle(self, adjacency: dict[str, list[str]], indegree: dict[str, int]) -> bool:
+        queue = [node_id for node_id, count in indegree.items() if count == 0]
+        visited = 0
+        while queue:
+            node_id = queue.pop(0)
+            visited += 1
+            for target_id in adjacency[node_id]:
+                indegree[target_id] -= 1
+                if indegree[target_id] == 0:
+                    queue.append(target_id)
+        return visited != len(indegree)
+
+    def _workflow_execution_order(self, workflow: StoredWorkflow) -> list[WorkflowNodeDefinition]:
+        node_by_id = {node.id: node for node in workflow.nodes}
+        adjacency = {node.id: [] for node in workflow.nodes}
+        indegree = {node.id: 0 for node in workflow.nodes}
+        for edge in workflow.edges:
+            if edge.source in adjacency and edge.target in indegree:
+                adjacency[edge.source].append(edge.target)
+                indegree[edge.target] += 1
+
+        queue = [node.id for node in workflow.nodes if indegree[node.id] == 0]
+        ordered_ids: list[str] = []
+        while queue:
+            node_id = queue.pop(0)
+            ordered_ids.append(node_id)
+            for target_id in adjacency[node_id]:
+                indegree[target_id] -= 1
+                if indegree[target_id] == 0:
+                    queue.append(target_id)
+
+        if len(ordered_ids) != len(workflow.nodes):
+            return workflow.nodes
+        return [node_by_id[node_id] for node_id in ordered_ids]
+
+    def _execute_workflow_node(
+        self,
+        node: WorkflowNodeDefinition,
+        payload: WorkflowExecutionRequest,
+    ) -> WorkflowNodeExecution:
+        tool_name = node.tool_name or node.type
+        node_input = {"file_id": payload.file_id, **node.parameters}
+        if node.tool_name == "file_search":
+            output = {"matched_files": 1}
+        elif node.tool_name == "knowledge_qa":
+            output = {"kb_id": payload.target_kb_id or "kb-biology", "citations": 1}
+        elif node.tool_name == "report_generate":
+            output = {"format": node.parameters.get("format", "markdown")}
+        elif node.type == "output":
+            output = {"stored": True}
+        else:
+            output = {"accepted": True}
+        return WorkflowNodeExecution(
+            node_id=node.id,
+            name=node.name,
+            tool_name=tool_name,
+            status="success",
+            input=node_input,
+            output=output,
+        )
+
+    def _clean_workflow_name(self, name: str) -> str:
+        cleaned = name.strip()
+        if not cleaned:
+            raise WorkspaceError(422, "WORKFLOW_NAME_REQUIRED", "流程名称不能为空")
+        return cleaned
+
+    def _new_workflow_id(self, name: str) -> str:
+        base = "".join(character.lower() if character.isalnum() else "-" for character in name.strip())
+        base = "-".join(part for part in base.split("-") if part)[:40] or "workflow"
+        candidate = f"workflow-{base}"
+        index = 2
+        while candidate in self._workflows:
+            candidate = f"workflow-{base}-{index}"
+            index += 1
+        return candidate
 
     def _active_team_member_count(self, team_id: str) -> int:
         return sum(
@@ -938,12 +1418,180 @@ class WorkspaceService:
             raise WorkspaceError(403, "TEAM_MANAGE_FORBIDDEN", "没有管理该团队的权限", {"team_id": team_id})
         return membership
 
+    def _permission_rule_public(self, rule: StoredPermissionRule) -> PermissionRulePublic:
+        return PermissionRulePublic(
+            id=rule.id,
+            subject_type=rule.subject_type,  # type: ignore[arg-type]
+            subject_id=rule.subject_id,
+            subject_label=self._permission_subject_label(rule.subject_type, rule.subject_id),
+            resource_type=rule.resource_type,  # type: ignore[arg-type]
+            resource_id=rule.resource_id,
+            resource_label=self._permission_resource_label(rule.resource_type, rule.resource_id),
+            action=rule.action,  # type: ignore[arg-type]
+            effect=rule.effect,  # type: ignore[arg-type]
+            inherit=rule.inherit,
+            created_at=rule.created_at,
+            created_by=rule.created_by,
+        )
+
+    def _validate_permission_subject(self, subject_type: str, subject_id: str) -> None:
+        if subject_type == "user":
+            if not self._users_by_id.get(int(subject_id)) if subject_id.isdigit() else True:
+                raise WorkspaceError(404, "PERMISSION_SUBJECT_NOT_FOUND", "授权主体不存在", {"subject_id": subject_id})
+            return
+        if subject_type == "team":
+            self._find_team(subject_id)
+            return
+        if subject_type == "role":
+            if ":" in subject_id:
+                team_id, role = subject_id.split(":", 1)
+                self._find_team(team_id)
+                if role not in {"owner", "admin", "member", "guest"}:
+                    raise WorkspaceError(422, "PERMISSION_ROLE_INVALID", "团队角色不存在", {"subject_id": subject_id})
+                return
+            if subject_id not in {"user", "owner", "admin", "member", "guest"}:
+                raise WorkspaceError(422, "PERMISSION_ROLE_INVALID", "角色不存在", {"subject_id": subject_id})
+
+    def _can_manage_permission_resource(self, resource_type: str, resource_id: str, actor: UserPublic) -> bool:
+        try:
+            self._ensure_can_manage_permission_resource(resource_type, resource_id, actor)
+        except WorkspaceError:
+            return False
+        return True
+
+    def _ensure_can_manage_permission_resource(self, resource_type: str, resource_id: str, actor: UserPublic) -> None:
+        if resource_type == "folder":
+            folder = self._find_folder(resource_id)
+            if folder.scope == "team":
+                self._require_team_manager(folder.team_id or "", actor)
+            return
+        if resource_type == "file":
+            file_item = self._find_file(resource_id)
+            folder = self._folders.get(file_item.folder_id)
+            if folder and folder.scope == "team":
+                self._require_team_manager(folder.team_id or "", actor)
+            return
+        if resource_type == "knowledge_base":
+            knowledge_base = self._find_knowledge_base(resource_id, actor)
+            self._ensure_can_manage_knowledge_base(knowledge_base, actor)
+            return
+        if resource_type == "workflow":
+            self._find_workflow(resource_id)
+            return
+        if resource_type == "tool":
+            if resource_id not in {tool.id for tool in self.list_tools()} and resource_id not in {tool.name for tool in self.list_tools()}:
+                raise WorkspaceError(404, "TOOL_NOT_FOUND", "工具不存在", {"tool_id": resource_id})
+            return
+        raise WorkspaceError(422, "PERMISSION_RESOURCE_INVALID", "资源类型不支持", {"resource_type": resource_type})
+
+    def _permission_subject_label(self, subject_type: str, subject_id: str) -> str:
+        if subject_type == "user" and subject_id.isdigit():
+            stored = self._users_by_id.get(int(subject_id))
+            return stored.public.display_name if stored else subject_id
+        if subject_type == "team":
+            team = self._teams.get(subject_id)
+            return team.name if team else subject_id
+        if subject_type == "role":
+            role = subject_id.split(":", 1)[-1]
+            return {
+                "owner": "所有者",
+                "admin": "管理员",
+                "member": "成员",
+                "guest": "访客",
+                "user": "普通用户",
+            }.get(role, subject_id)
+        return subject_id
+
+    def _permission_resource_label(self, resource_type: str, resource_id: str) -> str:
+        if resource_type == "folder":
+            folder = self._folders.get(resource_id)
+            return folder.name if folder else resource_id
+        if resource_type == "file":
+            for file_item in self._files:
+                if file_item.id == resource_id:
+                    return file_item.name
+            return resource_id
+        if resource_type == "knowledge_base":
+            knowledge_base = self._knowledge_bases.get(resource_id)
+            return knowledge_base.name if knowledge_base else resource_id
+        if resource_type == "workflow":
+            workflow = self._workflows.get(resource_id)
+            return workflow.name if workflow else resource_id
+        if resource_type == "tool":
+            for tool in self.list_tools():
+                if tool.id == resource_id or tool.name == resource_id:
+                    return tool.name
+        return resource_id
+
+    def _permission_subjects(self, actor: UserPublic) -> set[tuple[str, str]]:
+        subjects = {("user", str(actor.id))}
+        subjects.update(("role", role) for role in actor.roles)
+        for member in self._team_members.values():
+            if member.user_id != actor.id or member.status != "active":
+                continue
+            subjects.add(("team", member.team_id))
+            subjects.add(("role", member.role))
+            subjects.add(("role", f"{member.team_id}:{member.role}"))
+        return subjects
+
+    def _permission_resource_chain(self, resource_type: str, resource_id: str) -> list[tuple[str, str, bool]]:
+        if resource_type == "file":
+            file_item = self._find_file(resource_id)
+            chain = [("file", file_item.id, True)]
+            folder = self._folders.get(file_item.folder_id)
+            while folder:
+                chain.append(("folder", folder.id, False))
+                folder = self._folders.get(folder.parent_id) if folder.parent_id else None
+            return chain
+        if resource_type == "folder":
+            folder = self._find_folder(resource_id)
+            chain = [("folder", folder.id, True)]
+            parent = self._folders.get(folder.parent_id) if folder.parent_id else None
+            while parent:
+                chain.append(("folder", parent.id, False))
+                parent = self._folders.get(parent.parent_id) if parent.parent_id else None
+            return chain
+        return [(resource_type, resource_id, True)]
+
+    def _permission_decision(self, actor: UserPublic, resource_type: str, resource_id: str, action: str) -> bool | None:
+        subjects = self._permission_subjects(actor)
+        resource_chain = self._permission_resource_chain(resource_type, resource_id)
+        matched_effects: list[str] = []
+        for rule in self._permission_rules.values():
+            if (rule.subject_type, rule.subject_id) not in subjects:
+                continue
+            if not self._permission_action_matches(rule.action, action):
+                continue
+            for chain_type, chain_id, is_direct in resource_chain:
+                if rule.resource_type != chain_type or rule.resource_id != chain_id:
+                    continue
+                if is_direct or rule.inherit:
+                    matched_effects.append(rule.effect)
+                    break
+
+        if "deny" in matched_effects:
+            return False
+        if "allow" in matched_effects:
+            return True
+        return None
+
+    def _permission_action_matches(self, rule_action: str, requested_action: str) -> bool:
+        return rule_action == requested_action or rule_action == "manage"
+
     def _can_read_folder(self, folder: StoredFolder, actor: UserPublic) -> bool:
+        decision = self._permission_decision(actor, "folder", folder.id, "read")
+        if decision is not None:
+            return decision
         if folder.scope == "personal":
             return True
         return self._team_membership(folder.team_id, actor) is not None
 
     def _ensure_can_write_folder(self, folder: StoredFolder, actor: UserPublic) -> None:
+        decision = self._permission_decision(actor, "folder", folder.id, "write")
+        if decision is True:
+            return
+        if decision is False:
+            raise WorkspaceError(403, "FOLDER_WRITE_FORBIDDEN", "当前角色不能修改该文件夹", {"folder_id": folder.id})
         if folder.scope == "personal":
             return
         membership = self._team_membership(folder.team_id, actor)
@@ -952,31 +1600,53 @@ class WorkspaceService:
         if membership.role == "guest":
             raise WorkspaceError(403, "FOLDER_WRITE_FORBIDDEN", "当前角色只能查看团队文件夹", {"folder_id": folder.id})
 
+    def _can_read_file(self, file_item: FileItem, actor: UserPublic) -> bool:
+        decision = self._permission_decision(actor, "file", file_item.id, "read")
+        if decision is not None:
+            return decision
+        folder = self._folders.get(file_item.folder_id)
+        if not folder:
+            return file_item.permission_scope != "团队"
+        return self._can_read_folder(folder, actor)
+
+    def _ensure_can_read_file(self, file_item: FileItem, actor: UserPublic) -> None:
+        if self._can_read_file(file_item, actor):
+            return
+        raise WorkspaceError(403, "FILE_READ_FORBIDDEN", "没有读取该文件的权限", {"file_id": file_item.id})
+
+    def _ensure_can_write_file(self, file_item: FileItem, actor: UserPublic) -> None:
+        decision = self._permission_decision(actor, "file", file_item.id, "write")
+        if decision is True:
+            return
+        if decision is False:
+            raise WorkspaceError(
+                403,
+                "FILE_WRITE_FORBIDDEN",
+                "没有修改该文件的权限",
+                {"file_id": file_item.id, "folder_id": file_item.folder_id},
+            )
+        folder = self._folders.get(file_item.folder_id)
+        if not folder:
+            if file_item.permission_scope == "团队":
+                raise WorkspaceError(403, "FILE_WRITE_FORBIDDEN", "没有修改该文件的权限", {"file_id": file_item.id})
+            return
+        try:
+            self._ensure_can_write_folder(folder, actor)
+        except WorkspaceError as exc:
+            if exc.status_code == 403:
+                raise WorkspaceError(
+                    403,
+                    "FILE_WRITE_FORBIDDEN",
+                    "没有修改该文件的权限",
+                    {"file_id": file_item.id, "folder_id": file_item.folder_id},
+                ) from exc
+            raise
+
     def _clean_team_name(self, name: str) -> str:
         cleaned = name.strip()
         if not cleaned:
             raise WorkspaceError(422, "TEAM_NAME_REQUIRED", "团队名称不能为空")
         return cleaned
-=======
-            teams=self.list_teams(),
-            audit_logs=self.list_audit_logs(),
-        )
-
-    def _seed_demo_user(self) -> None:
-        payload = UserCreate(username="xiaoming", email="xiaoming@example.com", password="Str0ngPass!")
-        user = UserPublic(
-            id=self._next_user_id,
-            username=payload.username,
-            email=payload.email,
-            display_name="小明同学",
-            roles=["user"],
-        )
-        self._next_user_id += 1
-        stored = StoredUser(public=user, password_hash=self._hash_password(payload.password))
-        self._users_by_id[user.id] = stored
-        self._users_by_username[user.username] = stored
-        self._users_by_email[str(user.email)] = stored
->>>>>>> permission-backend
 
     def _hash_password(self, password: str) -> str:
         digest = hashlib.pbkdf2_hmac("sha256", password.encode(), b"whu-workspace", 120_000)
@@ -1033,7 +1703,6 @@ class WorkspaceService:
             )
         )
 
-<<<<<<< HEAD
     def _ensure_login_not_locked(self, stored: StoredUser, now: datetime) -> None:
         locked_until = stored.security.locked_until
         if not locked_until:
@@ -1071,15 +1740,12 @@ class WorkspaceService:
             "retry_after_seconds": retry_after_seconds,
         }
 
-=======
->>>>>>> permission-backend
     def _find_file(self, file_id: str) -> FileItem:
         for file_item in self._files:
             if file_item.id == file_id:
                 return file_item
         raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
 
-<<<<<<< HEAD
     def _read_file_content(self, file_id: str) -> bytes:
         content = self._file_contents.get(file_id)
         if content is None:
@@ -1204,15 +1870,12 @@ class WorkspaceService:
         stem, suffix = filename.rsplit(".", 1)
         return f"{stem} 副本.{suffix}"
 
-=======
->>>>>>> permission-backend
     def _file_type(self, filename: str) -> str:
         suffix = filename.rsplit(".", 1)[-1].lower() if "." in filename else "unknown"
         return {"md": "markdown", "txt": "text", "pdf": "pdf", "docx": "docx", "pptx": "pptx", "csv": "csv"}.get(
             suffix, suffix
         )
 
-<<<<<<< HEAD
     def _new_file_id(self, digest: str) -> str:
         existing_ids = {file_item.id for file_item in self._files}
         base_id = f"file-{digest[:12]}"
@@ -1270,8 +1933,6 @@ class WorkspaceService:
             is_current=version.version_no == current_version_no,
         )
 
-=======
->>>>>>> permission-backend
     def _seed_files(self) -> list[FileItem]:
         now = datetime.now(UTC)
         return [
@@ -1316,7 +1977,6 @@ class WorkspaceService:
             ),
         ]
 
-<<<<<<< HEAD
     def _seed_folders(self) -> dict[str, StoredFolder]:
         folders = [
             StoredFolder(id="personal-root", name="个人文件", parent_id=None, scope="personal", permission="管理"),
@@ -1353,6 +2013,108 @@ class WorkspaceService:
             "file-weekly": "小组周报.docx\n本周完成文件解析、RAG 问答和工作流联调。".encode(),
         }
 
+    def _seed_knowledge_bases(self) -> dict[str, StoredKnowledgeBase]:
+        now = datetime.now(UTC)
+        items = [
+            StoredKnowledgeBase(
+                id="kb-biology",
+                name="生物学实验知识库",
+                description="显微镜实验报告、观察记录和实验步骤",
+                status="active",
+                owner_id=None,
+                created_at=now - timedelta(hours=3),
+                updated_at=now - timedelta(hours=2),
+            ),
+            StoredKnowledgeBase(
+                id="kb-course",
+                name="软件工程课程知识库",
+                description="需求文档、课程资料和团队协作记录",
+                status="active",
+                owner_id=None,
+                created_at=now - timedelta(days=1),
+                updated_at=now - timedelta(days=1),
+            ),
+        ]
+        return {item.id: item for item in items}
+
+    def _seed_knowledge_documents(self) -> dict[str, StoredKnowledgeDocument]:
+        now = datetime.now(UTC)
+        items = [
+            StoredKnowledgeDocument(
+                id="doc-microscope",
+                kb_id="kb-biology",
+                file_id="file-microscope",
+                file_name="显微镜实验报告.pdf",
+                index_status="indexed",
+                chunks=[
+                    StoredKnowledgeChunk(
+                        id="chunk-micro-003",
+                        content="显微镜实验包含取样、制片、低倍镜定位、高倍镜观察和结果记录。",
+                        page_no=3,
+                        paragraph_no=5,
+                    )
+                ],
+                updated_at=now - timedelta(hours=2),
+            ),
+            StoredKnowledgeDocument(
+                id="doc-requirements",
+                kb_id="kb-course",
+                file_id="file-requirements",
+                file_name="需求规格说明书.md",
+                index_status="indexed",
+                chunks=[
+                    StoredKnowledgeChunk(
+                        id="chunk-requirements-001",
+                        content="系统需要支持文件管理、知识库问答和团队协作。",
+                        page_no=1,
+                        paragraph_no=1,
+                    )
+                ],
+                updated_at=now - timedelta(days=1),
+            ),
+        ]
+        return {item.id: item for item in items}
+
+    def _seed_workflows(self) -> dict[str, StoredWorkflow]:
+        workflow = StoredWorkflow(
+            id="new-file-auto-summary",
+            name="新文件自动摘要",
+            description="文件上传后自动解析、知识库问答并生成摘要。",
+            trigger="file.uploaded",
+            version="1.0.0",
+            status="published",
+            nodes=[
+                WorkflowNodeDefinition(
+                    id="parse",
+                    name="内容提取",
+                    type="tool",
+                    tool_name="file_search",
+                    parameters={"query": "{{ file.name }}"},
+                ),
+                WorkflowNodeDefinition(
+                    id="qa",
+                    name="知识问答",
+                    type="tool",
+                    tool_name="knowledge_qa",
+                    parameters={"question": "总结文档关键内容"},
+                ),
+                WorkflowNodeDefinition(
+                    id="summary",
+                    name="摘要生成",
+                    type="tool",
+                    tool_name="report_generate",
+                    parameters={"format": "markdown"},
+                ),
+            ],
+            edges=[
+                WorkflowEdgeDefinition(id="edge-parse-qa", source="parse", target="qa"),
+                WorkflowEdgeDefinition(id="edge-qa-summary", source="qa", target="summary"),
+            ],
+            created_by=None,
+            updated_at=datetime.now(UTC),
+        )
+        return {workflow.id: workflow}
+
     def _seed_file_versions(self) -> dict[str, list[StoredFileVersion]]:
         versions: dict[str, list[StoredFileVersion]] = {}
         for file_item in self._files:
@@ -1372,7 +2134,5 @@ class WorkspaceService:
             ]
         return versions
 
-=======
->>>>>>> permission-backend
 
 workspace_service = WorkspaceService()

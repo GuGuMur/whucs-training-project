@@ -491,6 +491,136 @@ export type HttpValidationError = {
 };
 
 /**
+ * KnowledgeBaseCreate
+ */
+export type KnowledgeBaseCreate = {
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * KnowledgeBaseListResponse
+ */
+export type KnowledgeBaseListResponse = {
+    /**
+     * Items
+     */
+    items: Array<KnowledgeBasePublic>;
+};
+
+/**
+ * KnowledgeBasePublic
+ */
+export type KnowledgeBasePublic = {
+    /**
+     * Chunk Count
+     */
+    chunk_count: number;
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Document Count
+     */
+    document_count: number;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Status
+     */
+    status: 'active' | 'archived';
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
+ * KnowledgeBaseUpdate
+ */
+export type KnowledgeBaseUpdate = {
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Status
+     */
+    status?: 'active' | 'archived' | null;
+};
+
+/**
+ * KnowledgeDocumentCreate
+ */
+export type KnowledgeDocumentCreate = {
+    /**
+     * File Id
+     */
+    file_id: string;
+};
+
+/**
+ * KnowledgeDocumentListResponse
+ */
+export type KnowledgeDocumentListResponse = {
+    /**
+     * Items
+     */
+    items: Array<KnowledgeDocumentPublic>;
+};
+
+/**
+ * KnowledgeDocumentPublic
+ */
+export type KnowledgeDocumentPublic = {
+    /**
+     * Chunk Count
+     */
+    chunk_count: number;
+    /**
+     * File Id
+     */
+    file_id: string;
+    /**
+     * File Name
+     */
+    file_name: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Index Status
+     */
+    index_status: 'queued' | 'indexing' | 'indexed' | 'failed';
+    /**
+     * Kb Id
+     */
+    kb_id: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
  * LoginRequest
  */
 export type LoginRequest = {
@@ -502,6 +632,104 @@ export type LoginRequest = {
      * Password
      */
     password: string;
+};
+
+/**
+ * PermissionRuleCreate
+ */
+export type PermissionRuleCreate = {
+    /**
+     * Action
+     */
+    action: 'read' | 'write' | 'delete' | 'manage' | 'execute';
+    /**
+     * Effect
+     */
+    effect: 'allow' | 'deny';
+    /**
+     * Inherit
+     */
+    inherit?: boolean;
+    /**
+     * Resource Id
+     */
+    resource_id: string;
+    /**
+     * Resource Type
+     */
+    resource_type: 'file' | 'folder' | 'knowledge_base' | 'tool' | 'workflow';
+    /**
+     * Subject Id
+     */
+    subject_id: string;
+    /**
+     * Subject Type
+     */
+    subject_type: 'user' | 'team' | 'role';
+};
+
+/**
+ * PermissionRuleListResponse
+ */
+export type PermissionRuleListResponse = {
+    /**
+     * Items
+     */
+    items: Array<PermissionRulePublic>;
+};
+
+/**
+ * PermissionRulePublic
+ */
+export type PermissionRulePublic = {
+    /**
+     * Action
+     */
+    action: 'read' | 'write' | 'delete' | 'manage' | 'execute';
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Created By
+     */
+    created_by: string;
+    /**
+     * Effect
+     */
+    effect: 'allow' | 'deny';
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Inherit
+     */
+    inherit: boolean;
+    /**
+     * Resource Id
+     */
+    resource_id: string;
+    /**
+     * Resource Label
+     */
+    resource_label: string;
+    /**
+     * Resource Type
+     */
+    resource_type: 'file' | 'folder' | 'knowledge_base' | 'tool' | 'workflow';
+    /**
+     * Subject Id
+     */
+    subject_id: string;
+    /**
+     * Subject Label
+     */
+    subject_label: string;
+    /**
+     * Subject Type
+     */
+    subject_type: 'user' | 'team' | 'role';
 };
 
 /**
@@ -912,6 +1140,32 @@ export type ValidationError = {
 };
 
 /**
+ * WorkflowCreate
+ */
+export type WorkflowCreate = {
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Edges
+     */
+    edges?: Array<WorkflowEdgeDefinition>;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Nodes
+     */
+    nodes?: Array<WorkflowNodeDefinition>;
+    /**
+     * Trigger
+     */
+    trigger?: string;
+};
+
+/**
  * WorkflowDefinition
  */
 export type WorkflowDefinition = {
@@ -919,6 +1173,10 @@ export type WorkflowDefinition = {
      * Description
      */
     description: string;
+    /**
+     * Edges
+     */
+    edges?: Array<WorkflowEdgeDefinition>;
     /**
      * Id
      */
@@ -932,6 +1190,10 @@ export type WorkflowDefinition = {
      */
     node_count: number;
     /**
+     * Nodes
+     */
+    nodes?: Array<WorkflowNodeDefinition>;
+    /**
      * Status
      */
     status: 'draft' | 'published';
@@ -943,6 +1205,32 @@ export type WorkflowDefinition = {
      * Version
      */
     version: string;
+};
+
+/**
+ * WorkflowEdgeDefinition
+ */
+export type WorkflowEdgeDefinition = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Source Handle
+     */
+    source_handle?: string | null;
+    /**
+     * Target
+     */
+    target: string;
+    /**
+     * Target Handle
+     */
+    target_handle?: string | null;
 };
 
 /**
@@ -998,6 +1286,40 @@ export type WorkflowListResponse = {
 };
 
 /**
+ * WorkflowNodeDefinition
+ */
+export type WorkflowNodeDefinition = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Parameters
+     */
+    parameters?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Position
+     */
+    position?: {
+        [key: string]: number;
+    };
+    /**
+     * Tool Name
+     */
+    tool_name?: string | null;
+    /**
+     * Type
+     */
+    type: 'trigger' | 'tool' | 'condition' | 'loop' | 'aggregate' | 'output';
+};
+
+/**
  * WorkflowNodeExecution
  */
 export type WorkflowNodeExecution = {
@@ -1029,6 +1351,76 @@ export type WorkflowNodeExecution = {
      * Tool Name
      */
     tool_name: string;
+};
+
+/**
+ * WorkflowUpdate
+ */
+export type WorkflowUpdate = {
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Edges
+     */
+    edges?: Array<WorkflowEdgeDefinition> | null;
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Nodes
+     */
+    nodes?: Array<WorkflowNodeDefinition> | null;
+    /**
+     * Trigger
+     */
+    trigger?: string | null;
+};
+
+/**
+ * WorkflowValidationIssue
+ */
+export type WorkflowValidationIssue = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Edge Id
+     */
+    edge_id?: string | null;
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Node Id
+     */
+    node_id?: string | null;
+};
+
+/**
+ * WorkflowValidationResponse
+ */
+export type WorkflowValidationResponse = {
+    /**
+     * Edge Count
+     */
+    edge_count: number;
+    /**
+     * Issues
+     */
+    issues: Array<WorkflowValidationIssue>;
+    /**
+     * Node Count
+     */
+    node_count: number;
+    /**
+     * Valid
+     */
+    valid: boolean;
 };
 
 /**
@@ -1630,6 +2022,274 @@ export type UpdateFolderApiV1FoldersFolderIdPatchResponses = {
 
 export type UpdateFolderApiV1FoldersFolderIdPatchResponse = UpdateFolderApiV1FoldersFolderIdPatchResponses[keyof UpdateFolderApiV1FoldersFolderIdPatchResponses];
 
+export type KnowledgeBasesApiV1KnowledgeBasesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/knowledge-bases';
+};
+
+export type KnowledgeBasesApiV1KnowledgeBasesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type KnowledgeBasesApiV1KnowledgeBasesGetError = KnowledgeBasesApiV1KnowledgeBasesGetErrors[keyof KnowledgeBasesApiV1KnowledgeBasesGetErrors];
+
+export type KnowledgeBasesApiV1KnowledgeBasesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: KnowledgeBaseListResponse;
+};
+
+export type KnowledgeBasesApiV1KnowledgeBasesGetResponse = KnowledgeBasesApiV1KnowledgeBasesGetResponses[keyof KnowledgeBasesApiV1KnowledgeBasesGetResponses];
+
+export type CreateKnowledgeBaseApiV1KnowledgeBasesPostData = {
+    body: KnowledgeBaseCreate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/knowledge-bases';
+};
+
+export type CreateKnowledgeBaseApiV1KnowledgeBasesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateKnowledgeBaseApiV1KnowledgeBasesPostError = CreateKnowledgeBaseApiV1KnowledgeBasesPostErrors[keyof CreateKnowledgeBaseApiV1KnowledgeBasesPostErrors];
+
+export type CreateKnowledgeBaseApiV1KnowledgeBasesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: KnowledgeBasePublic;
+};
+
+export type CreateKnowledgeBaseApiV1KnowledgeBasesPostResponse = CreateKnowledgeBaseApiV1KnowledgeBasesPostResponses[keyof CreateKnowledgeBaseApiV1KnowledgeBasesPostResponses];
+
+export type UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchData = {
+    body: KnowledgeBaseUpdate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Kb Id
+         */
+        kb_id: string;
+    };
+    query?: never;
+    url: '/api/v1/knowledge-bases/{kb_id}';
+};
+
+export type UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchError = UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchErrors[keyof UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchErrors];
+
+export type UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: KnowledgeBasePublic;
+};
+
+export type UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponse = UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponses[keyof UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponses];
+
+export type KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Kb Id
+         */
+        kb_id: string;
+    };
+    query?: never;
+    url: '/api/v1/knowledge-bases/{kb_id}/documents';
+};
+
+export type KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetError = KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetErrors[keyof KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetErrors];
+
+export type KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: KnowledgeDocumentListResponse;
+};
+
+export type KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponse = KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponses[keyof KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponses];
+
+export type AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostData = {
+    body: KnowledgeDocumentCreate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Kb Id
+         */
+        kb_id: string;
+    };
+    query?: never;
+    url: '/api/v1/knowledge-bases/{kb_id}/documents';
+};
+
+export type AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostError = AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostErrors[keyof AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostErrors];
+
+export type AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: KnowledgeDocumentPublic;
+};
+
+export type AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponse = AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses[keyof AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses];
+
+export type PermissionRulesApiV1PermissionsRulesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/permissions/rules';
+};
+
+export type PermissionRulesApiV1PermissionsRulesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PermissionRulesApiV1PermissionsRulesGetError = PermissionRulesApiV1PermissionsRulesGetErrors[keyof PermissionRulesApiV1PermissionsRulesGetErrors];
+
+export type PermissionRulesApiV1PermissionsRulesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PermissionRuleListResponse;
+};
+
+export type PermissionRulesApiV1PermissionsRulesGetResponse = PermissionRulesApiV1PermissionsRulesGetResponses[keyof PermissionRulesApiV1PermissionsRulesGetResponses];
+
+export type CreatePermissionRuleApiV1PermissionsRulesPostData = {
+    body: PermissionRuleCreate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/permissions/rules';
+};
+
+export type CreatePermissionRuleApiV1PermissionsRulesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreatePermissionRuleApiV1PermissionsRulesPostError = CreatePermissionRuleApiV1PermissionsRulesPostErrors[keyof CreatePermissionRuleApiV1PermissionsRulesPostErrors];
+
+export type CreatePermissionRuleApiV1PermissionsRulesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: PermissionRulePublic;
+};
+
+export type CreatePermissionRuleApiV1PermissionsRulesPostResponse = CreatePermissionRuleApiV1PermissionsRulesPostResponses[keyof CreatePermissionRuleApiV1PermissionsRulesPostResponses];
+
+export type DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Rule Id
+         */
+        rule_id: string;
+    };
+    query?: never;
+    url: '/api/v1/permissions/rules/{rule_id}';
+};
+
+export type DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteError = DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteErrors[keyof DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteErrors];
+
+export type DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponse = DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponses[keyof DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponses];
+
 export type QaQueryApiV1QaQueryPostData = {
     body: QaRequest;
     headers?: {
@@ -2035,6 +2695,73 @@ export type WorkflowsApiV1WorkflowsGetResponses = {
 
 export type WorkflowsApiV1WorkflowsGetResponse = WorkflowsApiV1WorkflowsGetResponses[keyof WorkflowsApiV1WorkflowsGetResponses];
 
+export type CreateWorkflowApiV1WorkflowsPostData = {
+    body: WorkflowCreate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/workflows';
+};
+
+export type CreateWorkflowApiV1WorkflowsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateWorkflowApiV1WorkflowsPostError = CreateWorkflowApiV1WorkflowsPostErrors[keyof CreateWorkflowApiV1WorkflowsPostErrors];
+
+export type CreateWorkflowApiV1WorkflowsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: WorkflowDefinition;
+};
+
+export type CreateWorkflowApiV1WorkflowsPostResponse = CreateWorkflowApiV1WorkflowsPostResponses[keyof CreateWorkflowApiV1WorkflowsPostResponses];
+
+export type UpdateWorkflowApiV1WorkflowsWorkflowIdPatchData = {
+    body: WorkflowUpdate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/v1/workflows/{workflow_id}';
+};
+
+export type UpdateWorkflowApiV1WorkflowsWorkflowIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateWorkflowApiV1WorkflowsWorkflowIdPatchError = UpdateWorkflowApiV1WorkflowsWorkflowIdPatchErrors[keyof UpdateWorkflowApiV1WorkflowsWorkflowIdPatchErrors];
+
+export type UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowDefinition;
+};
+
+export type UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponse = UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponses[keyof UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponses];
+
 export type ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostData = {
     body: WorkflowExecutionRequest;
     headers?: {
@@ -2070,6 +2797,78 @@ export type ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses = {
 };
 
 export type ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponse = ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses[keyof ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses];
+
+export type PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/v1/workflows/{workflow_id}/publish';
+};
+
+export type PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostError = PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostErrors[keyof PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostErrors];
+
+export type PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowDefinition;
+};
+
+export type PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponse = PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponses[keyof PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponses];
+
+export type ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/v1/workflows/{workflow_id}/validate';
+};
+
+export type ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostError = ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostErrors[keyof ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostErrors];
+
+export type ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowValidationResponse;
+};
+
+export type ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponse = ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponses[keyof ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponses];
 
 export type WorkspaceSnapshotApiV1WorkspaceSnapshotGetData = {
     body?: never;

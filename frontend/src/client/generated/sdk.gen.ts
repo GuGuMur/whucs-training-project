@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, formDataBodySerializer, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuditLogsApiV1AuditLogsGetData, AuditLogsApiV1AuditLogsGetErrors, AuditLogsApiV1AuditLogsGetResponses, CopyFileApiV1FilesFileIdCopyPostData, CopyFileApiV1FilesFileIdCopyPostErrors, CopyFileApiV1FilesFileIdCopyPostResponses, CreateAgentTaskApiV1AgentsTasksPostData, CreateAgentTaskApiV1AgentsTasksPostErrors, CreateAgentTaskApiV1AgentsTasksPostResponses, CreateFolderApiV1FoldersPostData, CreateFolderApiV1FoldersPostErrors, CreateFolderApiV1FoldersPostResponses, CreateTeamApiV1TeamsPostData, CreateTeamApiV1TeamsPostErrors, CreateTeamApiV1TeamsPostResponses, CreateTeamInviteApiV1TeamsTeamIdInvitesPostData, CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors, CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses, DeleteFileApiV1FilesFileIdDeleteData, DeleteFileApiV1FilesFileIdDeleteErrors, DeleteFileApiV1FilesFileIdDeleteResponses, DeleteFolderApiV1FoldersFolderIdDeleteData, DeleteFolderApiV1FoldersFolderIdDeleteErrors, DeleteFolderApiV1FoldersFolderIdDeleteResponses, DownloadFileApiV1FilesFileIdDownloadGetData, DownloadFileApiV1FilesFileIdDownloadGetErrors, DownloadFileApiV1FilesFileIdDownloadGetResponses, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostData, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostErrors, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses, FilesApiV1FilesGetData, FilesApiV1FilesGetErrors, FilesApiV1FilesGetResponses, FileVersionsApiV1FilesFileIdVersionsGetData, FileVersionsApiV1FilesFileIdVersionsGetErrors, FileVersionsApiV1FilesFileIdVersionsGetResponses, FoldersApiV1FoldersTreeGetData, FoldersApiV1FoldersTreeGetErrors, FoldersApiV1FoldersTreeGetResponses, HealthHealthGetData, HealthHealthGetResponses, JoinTeamApiV1TeamsTeamIdMembersPostData, JoinTeamApiV1TeamsTeamIdMembersPostErrors, JoinTeamApiV1TeamsTeamIdMembersPostResponses, LoginApiV1AuthLoginPostData, LoginApiV1AuthLoginPostErrors, LoginApiV1AuthLoginPostResponses, MeApiV1UsersMeGetData, MeApiV1UsersMeGetErrors, MeApiV1UsersMeGetResponses, QaQueryApiV1QaQueryPostData, QaQueryApiV1QaQueryPostErrors, QaQueryApiV1QaQueryPostResponses, RefreshApiV1AuthRefreshPostData, RefreshApiV1AuthRefreshPostErrors, RefreshApiV1AuthRefreshPostResponses, RegisterApiV1AuthRegisterPostData, RegisterApiV1AuthRegisterPostErrors, RegisterApiV1AuthRegisterPostResponses, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteData, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostData, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses, TeamDetailApiV1TeamsTeamIdGetData, TeamDetailApiV1TeamsTeamIdGetErrors, TeamDetailApiV1TeamsTeamIdGetResponses, TeamsApiV1TeamsGetData, TeamsApiV1TeamsGetErrors, TeamsApiV1TeamsGetResponses, ToolsApiV1ToolsGetData, ToolsApiV1ToolsGetErrors, ToolsApiV1ToolsGetResponses, UpdateFileApiV1FilesFileIdPatchData, UpdateFileApiV1FilesFileIdPatchErrors, UpdateFileApiV1FilesFileIdPatchResponses, UpdateFolderApiV1FoldersFolderIdPatchData, UpdateFolderApiV1FoldersFolderIdPatchErrors, UpdateFolderApiV1FoldersFolderIdPatchResponses, UpdateMeApiV1UsersMePatchData, UpdateMeApiV1UsersMePatchErrors, UpdateMeApiV1UsersMePatchResponses, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchData, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses, UploadFileApiV1FilesUploadPostData, UploadFileApiV1FilesUploadPostErrors, UploadFileApiV1FilesUploadPostResponses, WorkflowsApiV1WorkflowsGetData, WorkflowsApiV1WorkflowsGetErrors, WorkflowsApiV1WorkflowsGetResponses, WorkspaceSnapshotApiV1WorkspaceSnapshotGetData, WorkspaceSnapshotApiV1WorkspaceSnapshotGetErrors, WorkspaceSnapshotApiV1WorkspaceSnapshotGetResponses } from './types.gen';
+import type { AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostData, AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostErrors, AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses, AuditLogsApiV1AuditLogsGetData, AuditLogsApiV1AuditLogsGetErrors, AuditLogsApiV1AuditLogsGetResponses, CopyFileApiV1FilesFileIdCopyPostData, CopyFileApiV1FilesFileIdCopyPostErrors, CopyFileApiV1FilesFileIdCopyPostResponses, CreateAgentTaskApiV1AgentsTasksPostData, CreateAgentTaskApiV1AgentsTasksPostErrors, CreateAgentTaskApiV1AgentsTasksPostResponses, CreateFolderApiV1FoldersPostData, CreateFolderApiV1FoldersPostErrors, CreateFolderApiV1FoldersPostResponses, CreateKnowledgeBaseApiV1KnowledgeBasesPostData, CreateKnowledgeBaseApiV1KnowledgeBasesPostErrors, CreateKnowledgeBaseApiV1KnowledgeBasesPostResponses, CreatePermissionRuleApiV1PermissionsRulesPostData, CreatePermissionRuleApiV1PermissionsRulesPostErrors, CreatePermissionRuleApiV1PermissionsRulesPostResponses, CreateTeamApiV1TeamsPostData, CreateTeamApiV1TeamsPostErrors, CreateTeamApiV1TeamsPostResponses, CreateTeamInviteApiV1TeamsTeamIdInvitesPostData, CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors, CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses, CreateWorkflowApiV1WorkflowsPostData, CreateWorkflowApiV1WorkflowsPostErrors, CreateWorkflowApiV1WorkflowsPostResponses, DeleteFileApiV1FilesFileIdDeleteData, DeleteFileApiV1FilesFileIdDeleteErrors, DeleteFileApiV1FilesFileIdDeleteResponses, DeleteFolderApiV1FoldersFolderIdDeleteData, DeleteFolderApiV1FoldersFolderIdDeleteErrors, DeleteFolderApiV1FoldersFolderIdDeleteResponses, DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteData, DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteErrors, DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponses, DownloadFileApiV1FilesFileIdDownloadGetData, DownloadFileApiV1FilesFileIdDownloadGetErrors, DownloadFileApiV1FilesFileIdDownloadGetResponses, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostData, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostErrors, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses, FilesApiV1FilesGetData, FilesApiV1FilesGetErrors, FilesApiV1FilesGetResponses, FileVersionsApiV1FilesFileIdVersionsGetData, FileVersionsApiV1FilesFileIdVersionsGetErrors, FileVersionsApiV1FilesFileIdVersionsGetResponses, FoldersApiV1FoldersTreeGetData, FoldersApiV1FoldersTreeGetErrors, FoldersApiV1FoldersTreeGetResponses, HealthHealthGetData, HealthHealthGetResponses, JoinTeamApiV1TeamsTeamIdMembersPostData, JoinTeamApiV1TeamsTeamIdMembersPostErrors, JoinTeamApiV1TeamsTeamIdMembersPostResponses, KnowledgeBasesApiV1KnowledgeBasesGetData, KnowledgeBasesApiV1KnowledgeBasesGetErrors, KnowledgeBasesApiV1KnowledgeBasesGetResponses, KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetData, KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetErrors, KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponses, LoginApiV1AuthLoginPostData, LoginApiV1AuthLoginPostErrors, LoginApiV1AuthLoginPostResponses, MeApiV1UsersMeGetData, MeApiV1UsersMeGetErrors, MeApiV1UsersMeGetResponses, PermissionRulesApiV1PermissionsRulesGetData, PermissionRulesApiV1PermissionsRulesGetErrors, PermissionRulesApiV1PermissionsRulesGetResponses, PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostData, PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostErrors, PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponses, QaQueryApiV1QaQueryPostData, QaQueryApiV1QaQueryPostErrors, QaQueryApiV1QaQueryPostResponses, RefreshApiV1AuthRefreshPostData, RefreshApiV1AuthRefreshPostErrors, RefreshApiV1AuthRefreshPostResponses, RegisterApiV1AuthRegisterPostData, RegisterApiV1AuthRegisterPostErrors, RegisterApiV1AuthRegisterPostResponses, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteData, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostData, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses, TeamDetailApiV1TeamsTeamIdGetData, TeamDetailApiV1TeamsTeamIdGetErrors, TeamDetailApiV1TeamsTeamIdGetResponses, TeamsApiV1TeamsGetData, TeamsApiV1TeamsGetErrors, TeamsApiV1TeamsGetResponses, ToolsApiV1ToolsGetData, ToolsApiV1ToolsGetErrors, ToolsApiV1ToolsGetResponses, UpdateFileApiV1FilesFileIdPatchData, UpdateFileApiV1FilesFileIdPatchErrors, UpdateFileApiV1FilesFileIdPatchResponses, UpdateFolderApiV1FoldersFolderIdPatchData, UpdateFolderApiV1FoldersFolderIdPatchErrors, UpdateFolderApiV1FoldersFolderIdPatchResponses, UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchData, UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchErrors, UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponses, UpdateMeApiV1UsersMePatchData, UpdateMeApiV1UsersMePatchErrors, UpdateMeApiV1UsersMePatchResponses, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchData, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses, UpdateWorkflowApiV1WorkflowsWorkflowIdPatchData, UpdateWorkflowApiV1WorkflowsWorkflowIdPatchErrors, UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponses, UploadFileApiV1FilesUploadPostData, UploadFileApiV1FilesUploadPostErrors, UploadFileApiV1FilesUploadPostResponses, ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostData, ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostErrors, ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponses, WorkflowsApiV1WorkflowsGetData, WorkflowsApiV1WorkflowsGetErrors, WorkflowsApiV1WorkflowsGetResponses, WorkspaceSnapshotApiV1WorkspaceSnapshotGetData, WorkspaceSnapshotApiV1WorkspaceSnapshotGetErrors, WorkspaceSnapshotApiV1WorkspaceSnapshotGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -168,6 +168,74 @@ export const updateFolderApiV1FoldersFolderIdPatch = <ThrowOnError extends boole
 });
 
 /**
+ * Knowledge Bases
+ */
+export const knowledgeBasesApiV1KnowledgeBasesGet = <ThrowOnError extends boolean = false>(options?: Options<KnowledgeBasesApiV1KnowledgeBasesGetData, ThrowOnError>): RequestResult<KnowledgeBasesApiV1KnowledgeBasesGetResponses, KnowledgeBasesApiV1KnowledgeBasesGetErrors, ThrowOnError> => (options?.client ?? client).get<KnowledgeBasesApiV1KnowledgeBasesGetResponses, KnowledgeBasesApiV1KnowledgeBasesGetErrors, ThrowOnError>({ url: '/api/v1/knowledge-bases', ...options });
+
+/**
+ * Create Knowledge Base
+ */
+export const createKnowledgeBaseApiV1KnowledgeBasesPost = <ThrowOnError extends boolean = false>(options: Options<CreateKnowledgeBaseApiV1KnowledgeBasesPostData, ThrowOnError>): RequestResult<CreateKnowledgeBaseApiV1KnowledgeBasesPostResponses, CreateKnowledgeBaseApiV1KnowledgeBasesPostErrors, ThrowOnError> => (options.client ?? client).post<CreateKnowledgeBaseApiV1KnowledgeBasesPostResponses, CreateKnowledgeBaseApiV1KnowledgeBasesPostErrors, ThrowOnError>({
+    url: '/api/v1/knowledge-bases',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Update Knowledge Base
+ */
+export const updateKnowledgeBaseApiV1KnowledgeBasesKbIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchData, ThrowOnError>): RequestResult<UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponses, UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponses, UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchErrors, ThrowOnError>({
+    url: '/api/v1/knowledge-bases/{kb_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Knowledge Documents
+ */
+export const knowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGet = <ThrowOnError extends boolean = false>(options: Options<KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetData, ThrowOnError>): RequestResult<KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponses, KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetErrors, ThrowOnError> => (options.client ?? client).get<KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponses, KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetErrors, ThrowOnError>({ url: '/api/v1/knowledge-bases/{kb_id}/documents', ...options });
+
+/**
+ * Add Knowledge Document
+ */
+export const addKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPost = <ThrowOnError extends boolean = false>(options: Options<AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostData, ThrowOnError>): RequestResult<AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses, AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostErrors, ThrowOnError> => (options.client ?? client).post<AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses, AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostErrors, ThrowOnError>({
+    url: '/api/v1/knowledge-bases/{kb_id}/documents',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Permission Rules
+ */
+export const permissionRulesApiV1PermissionsRulesGet = <ThrowOnError extends boolean = false>(options?: Options<PermissionRulesApiV1PermissionsRulesGetData, ThrowOnError>): RequestResult<PermissionRulesApiV1PermissionsRulesGetResponses, PermissionRulesApiV1PermissionsRulesGetErrors, ThrowOnError> => (options?.client ?? client).get<PermissionRulesApiV1PermissionsRulesGetResponses, PermissionRulesApiV1PermissionsRulesGetErrors, ThrowOnError>({ url: '/api/v1/permissions/rules', ...options });
+
+/**
+ * Create Permission Rule
+ */
+export const createPermissionRuleApiV1PermissionsRulesPost = <ThrowOnError extends boolean = false>(options: Options<CreatePermissionRuleApiV1PermissionsRulesPostData, ThrowOnError>): RequestResult<CreatePermissionRuleApiV1PermissionsRulesPostResponses, CreatePermissionRuleApiV1PermissionsRulesPostErrors, ThrowOnError> => (options.client ?? client).post<CreatePermissionRuleApiV1PermissionsRulesPostResponses, CreatePermissionRuleApiV1PermissionsRulesPostErrors, ThrowOnError>({
+    url: '/api/v1/permissions/rules',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Permission Rule
+ */
+export const deletePermissionRuleApiV1PermissionsRulesRuleIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteData, ThrowOnError>): RequestResult<DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponses, DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponses, DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteErrors, ThrowOnError>({ url: '/api/v1/permissions/rules/{rule_id}', ...options });
+
+/**
  * Qa Query
  */
 export const qaQueryApiV1QaQueryPost = <ThrowOnError extends boolean = false>(options: Options<QaQueryApiV1QaQueryPostData, ThrowOnError>): RequestResult<QaQueryApiV1QaQueryPostResponses, QaQueryApiV1QaQueryPostErrors, ThrowOnError> => (options.client ?? client).post<QaQueryApiV1QaQueryPostResponses, QaQueryApiV1QaQueryPostErrors, ThrowOnError>({
@@ -270,6 +338,30 @@ export const updateMeApiV1UsersMePatch = <ThrowOnError extends boolean = false>(
 export const workflowsApiV1WorkflowsGet = <ThrowOnError extends boolean = false>(options?: Options<WorkflowsApiV1WorkflowsGetData, ThrowOnError>): RequestResult<WorkflowsApiV1WorkflowsGetResponses, WorkflowsApiV1WorkflowsGetErrors, ThrowOnError> => (options?.client ?? client).get<WorkflowsApiV1WorkflowsGetResponses, WorkflowsApiV1WorkflowsGetErrors, ThrowOnError>({ url: '/api/v1/workflows', ...options });
 
 /**
+ * Create Workflow
+ */
+export const createWorkflowApiV1WorkflowsPost = <ThrowOnError extends boolean = false>(options: Options<CreateWorkflowApiV1WorkflowsPostData, ThrowOnError>): RequestResult<CreateWorkflowApiV1WorkflowsPostResponses, CreateWorkflowApiV1WorkflowsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkflowApiV1WorkflowsPostResponses, CreateWorkflowApiV1WorkflowsPostErrors, ThrowOnError>({
+    url: '/api/v1/workflows',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Update Workflow
+ */
+export const updateWorkflowApiV1WorkflowsWorkflowIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateWorkflowApiV1WorkflowsWorkflowIdPatchData, ThrowOnError>): RequestResult<UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponses, UpdateWorkflowApiV1WorkflowsWorkflowIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponses, UpdateWorkflowApiV1WorkflowsWorkflowIdPatchErrors, ThrowOnError>({
+    url: '/api/v1/workflows/{workflow_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Execute Workflow
  */
 export const executeWorkflowApiV1WorkflowsWorkflowIdExecutionsPost = <ThrowOnError extends boolean = false>(options: Options<ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostData, ThrowOnError>): RequestResult<ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostErrors, ThrowOnError> => (options.client ?? client).post<ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostErrors, ThrowOnError>({
@@ -280,6 +372,16 @@ export const executeWorkflowApiV1WorkflowsWorkflowIdExecutionsPost = <ThrowOnErr
         ...options.headers
     }
 });
+
+/**
+ * Publish Workflow
+ */
+export const publishWorkflowApiV1WorkflowsWorkflowIdPublishPost = <ThrowOnError extends boolean = false>(options: Options<PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostData, ThrowOnError>): RequestResult<PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponses, PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostErrors, ThrowOnError> => (options.client ?? client).post<PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponses, PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostErrors, ThrowOnError>({ url: '/api/v1/workflows/{workflow_id}/publish', ...options });
+
+/**
+ * Validate Workflow
+ */
+export const validateWorkflowApiV1WorkflowsWorkflowIdValidatePost = <ThrowOnError extends boolean = false>(options: Options<ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostData, ThrowOnError>): RequestResult<ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponses, ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostErrors, ThrowOnError> => (options.client ?? client).post<ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponses, ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostErrors, ThrowOnError>({ url: '/api/v1/workflows/{workflow_id}/validate', ...options });
 
 /**
  * Workspace Snapshot

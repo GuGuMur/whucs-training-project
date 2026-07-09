@@ -2,14 +2,14 @@
   "version": 1,
   "created_at": "2026-07-06T07:17:33.095Z",
   "lifetime": {
-    "total_tokens_estimated": 485,
-    "total_reads": 1,
-    "total_writes": 1,
-    "total_sessions": 2,
-    "anatomy_hits": 0,
+    "total_tokens_estimated": 13162,
+    "total_reads": 2,
+    "total_writes": 5,
+    "total_sessions": 4,
+    "anatomy_hits": 1,
     "anatomy_misses": 1,
-    "repeated_reads_blocked": 0,
-    "estimated_savings_vs_bare_cli": 0
+    "repeated_reads_blocked": 7,
+    "estimated_savings_vs_bare_cli": 83381
   },
   "sessions": [
     {
@@ -38,6 +38,49 @@
         "writes_count": 1,
         "repeated_reads_blocked": 0,
         "anatomy_lookups": 0
+      }
+    },
+    {
+      "id": "session-2026-07-08-1727",
+      "started": "2026-07-08T09:27:57.498Z",
+      "ended": "2026-07-08T09:30:47.971Z",
+      "reads": [
+        {
+          "file": "/home/gugumur/whucs-training-project/report/design/system_design_specification.md",
+          "tokens_estimated": 11883,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/home/gugumur/whucs-training-project/report/design/system_design_specification.md",
+          "tokens_estimated": 250,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/report/design/system_design_specification.md",
+          "tokens_estimated": 177,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/report/design/system_design_specification.md",
+          "tokens_estimated": 285,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/report/design/system_design_specification.md",
+          "tokens_estimated": 82,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 11883,
+        "output_tokens_estimated": 794,
+        "reads_count": 1,
+        "writes_count": 4,
+        "repeated_reads_blocked": 7,
+        "anatomy_lookups": 1
       }
     }
   ],

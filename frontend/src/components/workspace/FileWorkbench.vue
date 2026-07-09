@@ -15,10 +15,14 @@ import type {
   WorkspaceFolderCreateInput,
   WorkspaceFolderOption,
   WorkspaceFolderUpdateInput,
+  WorkspacePermissionRule,
+  WorkspacePermissionRuleCreateInput,
+  WorkspaceTeamDetail,
 } from '@/client/workspace'
 import FileLifecyclePanel from './FileLifecyclePanel.vue'
 import FileUploadPanel from './FileUploadPanel.vue'
 import FolderTreePanel from './FolderTreePanel.vue'
+import PermissionRulesPanel from './PermissionRulesPanel.vue'
 import StatusChip from './StatusChip.vue'
 
 const emptyFilters: WorkspaceFileFilters = {
@@ -29,9 +33,11 @@ const emptyFilters: WorkspaceFileFilters = {
 
 const props = withDefaults(defineProps<{
   activeFolderId?: string | null
+  activeTeamDetail?: WorkspaceTeamDetail | null
   creatingFolder?: boolean
   deletingFileId?: string | null
   deletingFolderId?: string | null
+  deletingPermissionRuleId?: string | null
   downloadingFileId?: string | null
   filters?: WorkspaceFileFilters
   copyingFileId?: string | null
@@ -41,6 +47,9 @@ const props = withDefaults(defineProps<{
   folderTreeLoading?: boolean
   folders?: WorkspaceFolder[]
   listingFiles?: boolean
+  permissionRules?: WorkspacePermissionRule[]
+  permissionRulesLoading?: boolean
+  permissionRuleSaving?: boolean
   restoringVersionId?: string | null
   updatingFileId?: string | null
   updatingFolderId?: string | null
@@ -48,10 +57,12 @@ const props = withDefaults(defineProps<{
   versionFileId?: string | null
 }>(), {
   activeFolderId: null,
+  activeTeamDetail: null,
   copyingFileId: null,
   creatingFolder: false,
   deletingFileId: null,
   deletingFolderId: null,
+  deletingPermissionRuleId: null,
   downloadingFileId: null,
   filters: () => ({
     fileType: '',
@@ -63,6 +74,9 @@ const props = withDefaults(defineProps<{
   folderTreeLoading: false,
   folders: () => [],
   listingFiles: false,
+  permissionRuleSaving: false,
+  permissionRules: () => [],
+  permissionRulesLoading: false,
   restoringVersionId: null,
   updatingFileId: null,
   updatingFolderId: null,
@@ -72,9 +86,11 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'copy-file': [fileId: string, payload: WorkspaceFileCopyInput]
+  'create-permission-rule': [payload: WorkspacePermissionRuleCreateInput]
   'create-folder': [payload: WorkspaceFolderCreateInput]
   'delete-file': [file: WorkspaceFile]
   'delete-folder': [folderId: string]
+  'delete-permission-rule': [ruleId: string]
   'download-file': [file: WorkspaceFile]
   'load-file-versions': [fileId: string]
   'restore-file-version': [fileId: string, versionId: string]
@@ -465,6 +481,19 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
             </div>
           </NListItem>
         </NList>
+
+        <PermissionRulesPanel
+          :active-folder-id="activeFolderId"
+          :active-team-detail="activeTeamDetail"
+          :deleting-rule-id="deletingPermissionRuleId"
+          :files="files"
+          :folders="folders"
+          :loading="permissionRulesLoading"
+          :rules="permissionRules"
+          :saving="permissionRuleSaving"
+          @create-rule="emit('create-permission-rule', $event)"
+          @delete-rule="emit('delete-permission-rule', $event)"
+        />
       </div>
     </div>
   </NCard>

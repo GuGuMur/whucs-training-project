@@ -15,9 +15,15 @@ import type {
   WorkspaceFileUploadInput,
   WorkspaceFolderCreateInput,
   WorkspaceFolderUpdateInput,
+  WorkspaceKnowledgeBaseCreateInput,
+  WorkspacePermissionRuleCreateInput,
+  WorkspaceQuestionInput,
   WorkspaceTeamCreateInput,
   WorkspaceTeamInviteInput,
   WorkspaceTeamRole,
+  WorkspaceWorkflowCreateInput,
+  WorkspaceWorkflowExecuteInput,
+  WorkspaceWorkflowUpdateInput,
 } from '@/client/workspace'
 import { useWorkspaceLayoutMode } from '@/composables/useWorkspaceLayoutMode'
 import { useWorkspaceNavigation } from '@/composables/useWorkspaceNavigation'
@@ -28,13 +34,21 @@ import { useWorkspaceStore } from '@/stores/workspace'
 const workspace = useWorkspaceStore()
 const {
   activeFolderId,
+  activeKnowledgeBaseId,
+  activeKnowledgeDocuments,
   activeTeamDetail,
+  activeWorkflowExecution,
+  activeWorkflowId,
+  activeWorkflowValidation,
+  addingKnowledgeDocument,
   apiState,
+  askingQuestion,
   auditLogs,
   creatingFolder,
   copyingFileId,
   deletingFileId,
   deletingFolderId,
+  deletingPermissionRuleId,
   downloadingFileId,
   fileFilters,
   fileListLoading,
@@ -43,7 +57,13 @@ const {
   folderOptions,
   folders,
   folderTreeLoading,
+  indexedFiles,
+  knowledgeBases,
+  knowledgeOperationLoading,
   narrative,
+  permissionRuleSaving,
+  permissionRules,
+  permissionRulesLoading,
   summary,
   teams,
   teamOperationLoading,
@@ -53,6 +73,7 @@ const {
   updatingFolderId,
   uploadingFile,
   versionFileId,
+  workflowOperationLoading,
   workflows,
 } = storeToRefs(workspace)
 const { isMobileLayout } = useWorkspaceLayoutMode()
@@ -109,6 +130,30 @@ async function handleDeleteFolder(folderId: string) {
   await workspace.deleteFolder(folderId)
 }
 
+async function handleCreatePermissionRule(payload: WorkspacePermissionRuleCreateInput) {
+  await workspace.createPermissionRule(payload)
+}
+
+async function handleDeletePermissionRule(ruleId: string) {
+  await workspace.deletePermissionRule(ruleId)
+}
+
+async function handleCreateKnowledgeBase(payload: WorkspaceKnowledgeBaseCreateInput) {
+  await workspace.createKnowledgeBase(payload)
+}
+
+async function handleSelectKnowledgeBase(kbId: string) {
+  await workspace.selectKnowledgeBase(kbId)
+}
+
+async function handleAddKnowledgeDocument(kbId: string, fileId: string) {
+  await workspace.addKnowledgeDocument(kbId, fileId)
+}
+
+async function handleAskKnowledgeQuestion(payload: WorkspaceQuestionInput) {
+  await workspace.askKnowledgeQuestion(payload)
+}
+
 async function handleCreateTeam(payload: WorkspaceTeamCreateInput) {
   await workspace.createTeam(payload)
 }
@@ -127,6 +172,30 @@ async function handleUpdateTeamMemberRole(teamId: string, memberId: string, role
 
 async function handleRemoveTeamMember(teamId: string, memberId: string) {
   await workspace.removeTeamMember(teamId, memberId)
+}
+
+async function handleCreateWorkflow(payload: WorkspaceWorkflowCreateInput) {
+  await workspace.createWorkflow(payload)
+}
+
+function handleSelectWorkflow(workflowId: string) {
+  workspace.selectWorkflow(workflowId)
+}
+
+async function handleUpdateWorkflow(workflowId: string, payload: WorkspaceWorkflowUpdateInput) {
+  await workspace.updateWorkflow(workflowId, payload)
+}
+
+async function handleValidateWorkflow(workflowId: string) {
+  await workspace.validateWorkflow(workflowId)
+}
+
+async function handlePublishWorkflow(workflowId: string) {
+  await workspace.publishWorkflow(workflowId)
+}
+
+async function handleExecuteWorkflow(workflowId: string, payload: WorkspaceWorkflowExecuteInput) {
+  await workspace.executeWorkflow(workflowId, payload)
 }
 
 function saveBlob(file: WorkspaceFile, blob: Blob) {
@@ -165,10 +234,12 @@ function saveBlob(file: WorkspaceFile, blob: Blob) {
         <FileWorkbench
           id="files"
           :active-folder-id="activeFolderId"
+          :active-team-detail="activeTeamDetail"
           :copying-file-id="copyingFileId"
           :creating-folder="creatingFolder"
           :deleting-file-id="deletingFileId"
           :deleting-folder-id="deletingFolderId"
+          :deleting-permission-rule-id="deletingPermissionRuleId"
           :downloading-file-id="downloadingFileId"
           :filters="fileFilters"
           :file-versions-by-id="fileVersionsById"
@@ -177,6 +248,9 @@ function saveBlob(file: WorkspaceFile, blob: Blob) {
           :folder-tree-loading="folderTreeLoading"
           :folders="folders"
           :listing-files="fileListLoading"
+          :permission-rule-saving="permissionRuleSaving"
+          :permission-rules="permissionRules"
+          :permission-rules-loading="permissionRulesLoading"
           :restoring-version-id="restoringVersionId"
           :updating-file-id="updatingFileId"
           :updating-folder-id="updatingFolderId"
@@ -184,8 +258,10 @@ function saveBlob(file: WorkspaceFile, blob: Blob) {
           :version-file-id="versionFileId"
           @copy-file="handleCopyFile"
           @create-folder="handleCreateFolder"
+          @create-permission-rule="handleCreatePermissionRule"
           @delete-file="handleDeleteFile"
           @delete-folder="handleDeleteFolder"
+          @delete-permission-rule="handleDeletePermissionRule"
           @download-file="handleDownloadFile"
           @load-file-versions="handleLoadFileVersions"
           @restore-file-version="handleRestoreFileVersion"
@@ -197,14 +273,40 @@ function saveBlob(file: WorkspaceFile, blob: Blob) {
         />
         <AgentWorkflowPanel
           id="automation"
+          :active-workflow-id="activeWorkflowId"
           :agent-steps="narrative.agentSteps"
+          :files="files"
+          :knowledge-bases="knowledgeBases"
           :tools="tools"
+          :workflow-execution="activeWorkflowExecution"
+          :workflow-operation-loading="workflowOperationLoading"
+          :workflow-validation="activeWorkflowValidation"
           :workflows="workflows"
+          @create-workflow="handleCreateWorkflow"
+          @execute-workflow="handleExecuteWorkflow"
+          @publish-workflow="handlePublishWorkflow"
+          @select-workflow="handleSelectWorkflow"
+          @update-workflow="handleUpdateWorkflow"
+          @validate-workflow="handleValidateWorkflow"
         />
       </div>
 
       <div class="grid content-start gap-4 min-w-0">
-        <RagInsightPanel id="rag" :narrative="narrative" />
+        <RagInsightPanel
+          id="rag"
+          :active-knowledge-base-id="activeKnowledgeBaseId"
+          :adding-knowledge-document="addingKnowledgeDocument"
+          :asking-question="askingQuestion"
+          :indexed-files="indexedFiles"
+          :knowledge-bases="knowledgeBases"
+          :knowledge-documents="activeKnowledgeDocuments"
+          :loading-knowledge="knowledgeOperationLoading"
+          :narrative="narrative"
+          @add-knowledge-document="handleAddKnowledgeDocument"
+          @ask-question="handleAskKnowledgeQuestion"
+          @create-knowledge-base="handleCreateKnowledgeBase"
+          @select-knowledge-base="handleSelectKnowledgeBase"
+        />
         <TeamAuditPanel
           id="teams"
           :active-team-detail="activeTeamDetail"

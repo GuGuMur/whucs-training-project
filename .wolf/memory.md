@@ -100,3 +100,29 @@
 | 16:12 | regenerated team OpenAPI client and added frontend red tests | frontend/src/client/generated, frontend/src/stores/__tests__/workspace.spec.ts, frontend/src/components/workspace/__tests__/TeamAuditPanel.spec.ts | generated team SDK/types; frontend tests failed on missing team helper and panel controls as expected | ~1200 |
 | 16:22 | implemented team store/UI wiring | frontend/src/client/workspace.ts, frontend/src/stores/workspace.ts, frontend/src/components/workspace/TeamAuditPanel.vue, frontend/src/views/WorkspaceView.vue | added generated-client team adapters, Pinia team state/actions, team create/invite/member controls, and page handlers | ~2300 |
 | 16:24 | verified Phase 16 team membership slice | frontend, backend | focused Vitest 14 passed, full Vitest 40 passed, vue-tsc/build passed, backend pytest 19 passed, JSON validation and diff whitespace checks passed | ~1100 |
+
+## Session: 2026-07-08 17:27
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 17:29 | Edited report/design/system_design_specification.md | expanded (+30 lines) | ~234 |
+| 17:29 | Edited report/design/system_design_specification.md | expanded (+21 lines) | ~165 |
+| 17:30 | Edited report/design/system_design_specification.md | expanded (+35 lines) | ~266 |
+| 17:30 | Edited report/design/system_design_specification.md | expanded (+7 lines) | ~77 |
+| 17:30 | 将 system_design_specification.md 中的 4 处 ASCII 字符图转为 PlantUML：整体布局、FAISS 索引结构、开发环境、生产部署 | report/design/system_design_specification.md | 4 处 ASCII → PlantUML 转换完成 | ~400 tok |
+| 17:30 | Session end: 4 writes across 1 files (system_design_specification.md) | 1 reads | ~12677 tok |
+
+## Session: 2026-07-09 12:08
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 12:08 | completed backend Phase 20 ACL rules | backend/app/**, backend/tests/** | permission rule list/create/delete, deny precedence, folder inheritance, file override, audit events, and OpenAPI paths are implemented | ~1800 |
+| 12:08 | implemented frontend permission panel wiring | frontend/src/client/workspace.ts, frontend/src/stores/workspace.ts, frontend/src/components/workspace/PermissionRulesPanel.vue, frontend/src/views/WorkspaceView.vue | generated SDK adapters, Pinia state/actions, Naive UI + UnoCSS panel, and workbench/view events are wired without reintroducing services | ~2400 |
+| 12:08 | verified Phase 20 before docs cleanup | frontend, backend, .wolf/buglog.json | focused frontend tests, full frontend tests, type-check, build, backend pytest, JSON validation, services-boundary check, and diff whitespace check passed | ~1200 |
+| 12:08 | synchronized Phase 20 records | task_plan.md, progress.md, findings.md, .wolf/memory.md, .wolf/cerebrum.md, .wolf/buglog.json | marked Phase 20 complete and recorded permission-panel decisions, failures, and verification evidence | ~900 |
+
+## Session: 2026-07-09 16:39
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 16:42 | Edited frontend/src/components/workspace/AgentWorkflowPanel.vue | 14→11 lines | ~85 |
