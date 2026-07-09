@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+<<<<<<< HEAD
 from urllib.parse import quote
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Header, Response, UploadFile, status
+=======
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, File, Form, Header, UploadFile, status
+>>>>>>> permission-backend
 
 from app.domain.schemas import (
     AgentTaskRequest,
@@ -11,6 +17,7 @@ from app.domain.schemas import (
     AuthResponse,
     AuditLogResponse,
     CurrentUserResponse,
+<<<<<<< HEAD
     ErrorResponse,
     FileCopyRequest,
     FileItem,
@@ -21,10 +28,16 @@ from app.domain.schemas import (
     FolderItem,
     FolderTreeResponse,
     FolderUpdate,
+=======
+    FileItem,
+    FileListResponse,
+    FolderTreeResponse,
+>>>>>>> permission-backend
     LoginRequest,
     QARequest,
     QAResponse,
     RefreshTokenRequest,
+<<<<<<< HEAD
     TeamCreate,
     TeamDetail,
     TeamInviteCreate,
@@ -33,6 +46,9 @@ from app.domain.schemas import (
     TeamMemberJoin,
     TeamMemberPublic,
     TeamMemberUpdate,
+=======
+    TeamListResponse,
+>>>>>>> permission-backend
     ToolListResponse,
     UserCreate,
     UserPublic,
@@ -46,10 +62,13 @@ from app.services.workspace import workspace_service
 
 
 api_router = APIRouter(prefix="/api/v1")
+<<<<<<< HEAD
 auth_login_error_responses = {
     401: {"model": ErrorResponse, "description": "Invalid credentials"},
     423: {"model": ErrorResponse, "description": "Account temporarily locked"},
 }
+=======
+>>>>>>> permission-backend
 
 
 def current_user(authorization: Annotated[str | None, Header()] = None) -> UserPublic:
@@ -62,7 +81,11 @@ def register(payload: UserCreate) -> AuthResponse:
     return AuthResponse(access_token=access_token, refresh_token=refresh_token, expires_in=1800, user=user)
 
 
+<<<<<<< HEAD
 @api_router.post("/auth/login", response_model=AuthResponse, responses=auth_login_error_responses)
+=======
+@api_router.post("/auth/login", response_model=AuthResponse)
+>>>>>>> permission-backend
 def login(payload: LoginRequest) -> AuthResponse:
     user, access_token, refresh_token = workspace_service.login_user(payload.account, payload.password)
     return AuthResponse(access_token=access_token, refresh_token=refresh_token, expires_in=1800, user=user)
@@ -85,6 +108,7 @@ def update_me(payload: UserUpdate, user: Annotated[UserPublic, Depends(current_u
 
 
 @api_router.get("/folders/tree", response_model=FolderTreeResponse)
+<<<<<<< HEAD
 def folders(user: Annotated[UserPublic, Depends(current_user)]) -> FolderTreeResponse:
     return FolderTreeResponse(items=workspace_service.folder_tree(user))
 
@@ -107,6 +131,10 @@ def update_folder(
 def delete_folder(folder_id: str, user: Annotated[UserPublic, Depends(current_user)]) -> Response:
     workspace_service.delete_folder(folder_id, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+=======
+def folders(_: Annotated[UserPublic, Depends(current_user)]) -> FolderTreeResponse:
+    return FolderTreeResponse(items=workspace_service.folder_tree())
+>>>>>>> permission-backend
 
 
 @api_router.get("/files", response_model=FileListResponse)
@@ -130,6 +158,7 @@ async def upload_file(
     return await workspace_service.upload_file(file, folder_id, tags, user)
 
 
+<<<<<<< HEAD
 @api_router.patch("/files/{file_id}", response_model=FileItem)
 def update_file(
     file_id: str,
@@ -179,6 +208,8 @@ def delete_file(file_id: str, user: Annotated[UserPublic, Depends(current_user)]
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+=======
+>>>>>>> permission-backend
 @api_router.post("/qa/query", response_model=QAResponse)
 def qa_query(payload: QARequest, user: Annotated[UserPublic, Depends(current_user)]) -> QAResponse:
     return workspace_service.answer_question(payload, user)
@@ -215,6 +246,7 @@ def execute_workflow(
     return workspace_service.execute_workflow(workflow_id, payload, user)
 
 
+<<<<<<< HEAD
 @api_router.post("/teams", response_model=TeamDetail, status_code=status.HTTP_201_CREATED)
 def create_team(payload: TeamCreate, user: Annotated[UserPublic, Depends(current_user)]) -> TeamDetail:
     return workspace_service.create_team(payload, user)
@@ -266,6 +298,11 @@ def remove_team_member(
 ) -> Response:
     workspace_service.remove_team_member(team_id, member_id, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+=======
+@api_router.get("/teams", response_model=TeamListResponse)
+def teams(_: Annotated[UserPublic, Depends(current_user)]) -> TeamListResponse:
+    return TeamListResponse(items=workspace_service.list_teams())
+>>>>>>> permission-backend
 
 
 @api_router.get("/audit-logs", response_model=AuditLogResponse)
@@ -274,5 +311,10 @@ def audit_logs(_: Annotated[UserPublic, Depends(current_user)]) -> AuditLogRespo
 
 
 @api_router.get("/workspace/snapshot", response_model=WorkspaceSnapshot)
+<<<<<<< HEAD
 def workspace_snapshot(user: Annotated[UserPublic, Depends(current_user)]) -> WorkspaceSnapshot:
     return workspace_service.snapshot(user)
+=======
+def workspace_snapshot(_: Annotated[UserPublic, Depends(current_user)]) -> WorkspaceSnapshot:
+    return workspace_service.snapshot()
+>>>>>>> permission-backend

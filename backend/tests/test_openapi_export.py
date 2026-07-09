@@ -17,6 +17,7 @@ def test_export_openapi_writes_workspace_contract(tmp_path) -> None:
     assert schema["servers"] == [{"url": "/"}]
     assert "/api/v1/workspace/snapshot" in schema["paths"]
     assert schema["paths"]["/api/v1/workspace/snapshot"]["get"]["operationId"]
+<<<<<<< HEAD
     assert "/api/v1/files/{file_id}" in schema["paths"]
     assert schema["paths"]["/api/v1/files/{file_id}"]["patch"]["operationId"]
     assert schema["paths"]["/api/v1/files/{file_id}"]["delete"]["operationId"]
@@ -49,3 +50,5 @@ def test_export_openapi_writes_workspace_contract(tmp_path) -> None:
     login_responses = schema["paths"]["/api/v1/auth/login"]["post"]["responses"]
     assert login_responses["401"]["content"]["application/json"]["schema"]["$ref"] == "#/components/schemas/ErrorResponse"
     assert login_responses["423"]["content"]["application/json"]["schema"]["$ref"] == "#/components/schemas/ErrorResponse"
+=======
+>>>>>>> permission-backend

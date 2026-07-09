@@ -5,7 +5,11 @@ import hashlib
 import hmac
 import json
 import secrets
+<<<<<<< HEAD
 from dataclasses import dataclass, field
+=======
+from dataclasses import dataclass
+>>>>>>> permission-backend
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -18,6 +22,7 @@ from app.domain.schemas import (
     AuditLogEntry,
     Citation,
     DashboardSummary,
+<<<<<<< HEAD
     FileCopyRequest,
     FileItem,
     FileUpdate,
@@ -35,6 +40,13 @@ from app.domain.schemas import (
     TeamMemberJoin,
     TeamMemberPublic,
     TeamMemberUpdate,
+=======
+    FileItem,
+    FolderItem,
+    QARequest,
+    QAResponse,
+    TeamSummary,
+>>>>>>> permission-backend
     ToolDefinition,
     UserCreate,
     UserPublic,
@@ -56,6 +68,7 @@ class WorkspaceError(Exception):
         super().__init__(message)
 
 
+<<<<<<< HEAD
 LOGIN_FAILURE_LIMIT = 5
 LOGIN_LOCKOUT_DURATION = timedelta(minutes=5)
 
@@ -66,10 +79,13 @@ class LoginSecurityState:
     locked_until: datetime | None = None
 
 
+=======
+>>>>>>> permission-backend
 @dataclass
 class StoredUser:
     public: UserPublic
     password_hash: str
+<<<<<<< HEAD
     security: LoginSecurityState = field(default_factory=LoginSecurityState)
 
 
@@ -128,6 +144,8 @@ class StoredTeamInvite:
     created_by: int
     created_at: datetime
     expires_at: datetime
+=======
+>>>>>>> permission-backend
 
 
 class WorkspaceService:
@@ -137,6 +155,7 @@ class WorkspaceService:
         self._users_by_username: dict[str, StoredUser] = {}
         self._users_by_email: dict[str, StoredUser] = {}
         self._next_user_id = 1
+<<<<<<< HEAD
         self._folders = self._seed_folders()
         self._files = self._seed_files()
         self._file_contents = self._seed_file_contents()
@@ -148,13 +167,33 @@ class WorkspaceService:
 
     def register_user(self, payload: UserCreate) -> tuple[UserPublic, str, str]:
         if payload.username in self._users_by_username:
+=======
+        self._files = self._seed_files()
+        self._audit_logs: list[AuditLogEntry] = []
+        self._seed_demo_user()
+
+    def register_user(self, payload: UserCreate) -> tuple[UserPublic, str, str]:
+        existing_by_username = self._users_by_username.get(payload.username)
+        existing_by_email = self._users_by_email.get(str(payload.email))
+        if existing_by_username:
+            if (
+                existing_by_username is existing_by_email
+                and hmac.compare_digest(existing_by_username.password_hash, self._hash_password(payload.password))
+            ):
+                user = existing_by_username.public
+                return user, self._create_token(user.id, "access"), self._create_token(user.id, "refresh")
+>>>>>>> permission-backend
             raise WorkspaceError(
                 409,
                 "USERNAME_EXISTS",
                 "用户名已存在",
                 {"username": payload.username},
             )
+<<<<<<< HEAD
         if str(payload.email) in self._users_by_email:
+=======
+        if existing_by_email:
+>>>>>>> permission-backend
             raise WorkspaceError(409, "EMAIL_EXISTS", "邮箱已存在", {"email": str(payload.email)})
 
         user = UserPublic(
@@ -174,6 +213,7 @@ class WorkspaceService:
 
     def login_user(self, account: str, password: str) -> tuple[UserPublic, str, str]:
         stored = self._users_by_username.get(account) or self._users_by_email.get(account)
+<<<<<<< HEAD
         now = datetime.now(UTC)
         if stored:
             self._ensure_login_not_locked(stored, now)
@@ -182,6 +222,10 @@ class WorkspaceService:
                 self._record_failed_login(stored, now)
             raise WorkspaceError(401, "INVALID_CREDENTIALS", "用户名、邮箱或密码不正确")
         stored.security = LoginSecurityState()
+=======
+        if not stored or not hmac.compare_digest(stored.password_hash, self._hash_password(password)):
+            raise WorkspaceError(401, "INVALID_CREDENTIALS", "用户名、邮箱或密码不正确")
+>>>>>>> permission-backend
         self._record_audit(stored.public.username, "auth.login", "user", stored.public.username)
         return stored.public, self._create_token(stored.public.id, "access"), self._create_token(stored.public.id, "refresh")
 
@@ -227,6 +271,7 @@ class WorkspaceService:
         self._record_audit(stored.public.username, "user.update_profile", "user", stored.public.username)
         return stored.public
 
+<<<<<<< HEAD
     def folder_tree(self, actor: UserPublic) -> list[FolderItem]:
         return [
             self._folder_item(folder, actor)
@@ -294,6 +339,23 @@ class WorkspaceService:
         self._folders.pop(folder_id)
         self._record_audit(actor.username, "folder.delete", "folder", folder.name)
 
+=======
+    def folder_tree(self) -> list[FolderItem]:
+        return [
+            FolderItem(
+                id="personal-root",
+                name="个人文件",
+                scope="personal",
+                permission="管理",
+                children=[
+                    FolderItem(id="folder-biology", name="生物学实验", parent_id="personal-root", scope="personal", permission="管理"),
+                    FolderItem(id="folder-course", name="软件工程课程", parent_id="personal-root", scope="personal", permission="管理"),
+                ],
+            ),
+            FolderItem(id="team-root", name="团队文件", scope="team", permission="读写"),
+        ]
+
+>>>>>>> permission-backend
     def list_files(self, query: str | None = None, tag: str | None = None, file_type: str | None = None) -> list[FileItem]:
         files = self._files
         if query:
@@ -305,6 +367,7 @@ class WorkspaceService:
         return files
 
     async def upload_file(self, upload: UploadFile, folder_id: str, tags: str | None, actor: UserPublic) -> FileItem:
+<<<<<<< HEAD
         folder = self._find_folder(folder_id)
         self._ensure_can_write_folder(folder, actor)
         content = await upload.read()
@@ -336,11 +399,23 @@ class WorkspaceService:
             name=filename,
             folder_id=folder_id,
             type=self._file_type(filename),
+=======
+        content = await upload.read()
+        digest = hashlib.sha256(content).hexdigest()
+        clean_tags = [tag.strip() for tag in (tags or "").split(",") if tag.strip()]
+        file_type = self._file_type(upload.filename or "")
+        item = FileItem(
+            id=f"file-{digest[:12]}",
+            name=upload.filename or "未命名文件",
+            folder_id=folder_id,
+            type=file_type,
+>>>>>>> permission-backend
             size=len(content),
             sha256=digest,
             parse_status="queued",
             tags=clean_tags,
             updated_at=datetime.now(UTC),
+<<<<<<< HEAD
             permission_scope=self._permission_scope_for_folder(folder),
             knowledge_base_ids=[],
         )
@@ -454,6 +529,15 @@ class WorkspaceService:
         self._file_versions.pop(file_id, None)
         self._record_audit(actor.username, "file.delete", "file", file_item.name)
 
+=======
+            permission_scope="个人",
+            knowledge_base_ids=[],
+        )
+        self._files.insert(0, item)
+        self._record_audit(actor.username, "file.upload", "file", item.name)
+        return item
+
+>>>>>>> permission-backend
     def answer_question(self, payload: QARequest, actor: UserPublic) -> QAResponse:
         citation = Citation(
             file_id="file-microscope",
@@ -593,6 +677,7 @@ class WorkspaceService:
             output={"summary": summary},
         )
 
+<<<<<<< HEAD
     def create_team(self, payload: TeamCreate, actor: UserPublic) -> TeamDetail:
         team_id = f"team-{secrets.token_hex(4)}"
         root_folder_id = f"{team_id}-root"
@@ -716,6 +801,13 @@ class WorkspaceService:
             raise WorkspaceError(409, "TEAM_OWNER_PROTECTED", "不能移除团队所有者", {"member_id": member_id})
         member.status = "removed"
         self._record_audit(actor.username, "team.member_remove", "team", team.name)
+=======
+    def list_teams(self) -> list[TeamSummary]:
+        return [
+            TeamSummary(id="team-biology", name="生物学实验", role="团队管理员", member_count=6, unread_count=3),
+            TeamSummary(id="team-course", name="软件工程课程组", role="成员", member_count=5, unread_count=1),
+        ]
+>>>>>>> permission-backend
 
     def list_audit_logs(self) -> list[AuditLogEntry]:
         seeded = [
@@ -730,21 +822,31 @@ class WorkspaceService:
         ]
         return [*self._audit_logs[-8:], *seeded]
 
+<<<<<<< HEAD
     def snapshot(self, actor: UserPublic) -> WorkspaceSnapshot:
         files = self.list_files()
         teams = self.list_teams(actor)
+=======
+    def snapshot(self) -> WorkspaceSnapshot:
+        files = self.list_files()
+>>>>>>> permission-backend
         return WorkspaceSnapshot(
             summary=DashboardSummary(
                 file_count=len(files),
                 indexed_count=sum(1 for file in files if file.parse_status == "indexed"),
                 knowledge_base_count=2,
                 running_workflows=0,
+<<<<<<< HEAD
                 unread_notifications=sum(team.unread_count for team in teams),
+=======
+                unread_notifications=sum(team.unread_count for team in self.list_teams()),
+>>>>>>> permission-backend
                 tools_enabled=sum(1 for tool in self.list_tools() if tool.enabled),
             ),
             files=files[:5],
             tools=self.list_tools(),
             workflows=self.list_workflows(),
+<<<<<<< HEAD
             teams=teams,
             audit_logs=self.list_audit_logs(),
         )
@@ -855,6 +957,26 @@ class WorkspaceService:
         if not cleaned:
             raise WorkspaceError(422, "TEAM_NAME_REQUIRED", "团队名称不能为空")
         return cleaned
+=======
+            teams=self.list_teams(),
+            audit_logs=self.list_audit_logs(),
+        )
+
+    def _seed_demo_user(self) -> None:
+        payload = UserCreate(username="xiaoming", email="xiaoming@example.com", password="Str0ngPass!")
+        user = UserPublic(
+            id=self._next_user_id,
+            username=payload.username,
+            email=payload.email,
+            display_name="小明同学",
+            roles=["user"],
+        )
+        self._next_user_id += 1
+        stored = StoredUser(public=user, password_hash=self._hash_password(payload.password))
+        self._users_by_id[user.id] = stored
+        self._users_by_username[user.username] = stored
+        self._users_by_email[str(user.email)] = stored
+>>>>>>> permission-backend
 
     def _hash_password(self, password: str) -> str:
         digest = hashlib.pbkdf2_hmac("sha256", password.encode(), b"whu-workspace", 120_000)
@@ -911,6 +1033,7 @@ class WorkspaceService:
             )
         )
 
+<<<<<<< HEAD
     def _ensure_login_not_locked(self, stored: StoredUser, now: datetime) -> None:
         locked_until = stored.security.locked_until
         if not locked_until:
@@ -948,12 +1071,15 @@ class WorkspaceService:
             "retry_after_seconds": retry_after_seconds,
         }
 
+=======
+>>>>>>> permission-backend
     def _find_file(self, file_id: str) -> FileItem:
         for file_item in self._files:
             if file_item.id == file_id:
                 return file_item
         raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
 
+<<<<<<< HEAD
     def _read_file_content(self, file_id: str) -> bytes:
         content = self._file_contents.get(file_id)
         if content is None:
@@ -1078,12 +1204,15 @@ class WorkspaceService:
         stem, suffix = filename.rsplit(".", 1)
         return f"{stem} 副本.{suffix}"
 
+=======
+>>>>>>> permission-backend
     def _file_type(self, filename: str) -> str:
         suffix = filename.rsplit(".", 1)[-1].lower() if "." in filename else "unknown"
         return {"md": "markdown", "txt": "text", "pdf": "pdf", "docx": "docx", "pptx": "pptx", "csv": "csv"}.get(
             suffix, suffix
         )
 
+<<<<<<< HEAD
     def _new_file_id(self, digest: str) -> str:
         existing_ids = {file_item.id for file_item in self._files}
         base_id = f"file-{digest[:12]}"
@@ -1141,6 +1270,8 @@ class WorkspaceService:
             is_current=version.version_no == current_version_no,
         )
 
+=======
+>>>>>>> permission-backend
     def _seed_files(self) -> list[FileItem]:
         now = datetime.now(UTC)
         return [
@@ -1185,6 +1316,7 @@ class WorkspaceService:
             ),
         ]
 
+<<<<<<< HEAD
     def _seed_folders(self) -> dict[str, StoredFolder]:
         folders = [
             StoredFolder(id="personal-root", name="个人文件", parent_id=None, scope="personal", permission="管理"),
@@ -1240,5 +1372,7 @@ class WorkspaceService:
             ]
         return versions
 
+=======
+>>>>>>> permission-backend
 
 workspace_service = WorkspaceService()

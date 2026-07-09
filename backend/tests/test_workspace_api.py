@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+<<<<<<< HEAD
 import hashlib
+=======
+>>>>>>> permission-backend
 from itertools import count
 
 from fastapi.testclient import TestClient
@@ -32,12 +35,15 @@ def auth_headers(username: str | None = None) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+<<<<<<< HEAD
 def session_headers(session: dict[str, object]) -> dict[str, str]:
     token = session["access_token"]
     assert isinstance(token, str)
     return {"Authorization": f"Bearer {token}"}
 
 
+=======
+>>>>>>> permission-backend
 def test_register_login_and_current_user_require_bearer_token() -> None:
     headers = auth_headers("xiaoming")
 
@@ -100,6 +106,7 @@ def test_refresh_token_issues_new_access_token_and_enforces_token_kind() -> None
     assert access_cannot_refresh_response.json()["code"] == "INVALID_TOKEN"
 
 
+<<<<<<< HEAD
 def test_login_failures_lock_account_temporarily_and_are_audited() -> None:
     session = auth_session("lockout-user")
     access_token = session["access_token"]
@@ -171,6 +178,8 @@ def test_successful_login_resets_failed_login_count_before_lockout() -> None:
         assert response.json()["detail"]["failed_attempts"] == attempt
 
 
+=======
+>>>>>>> permission-backend
 def test_current_user_can_update_profile_details() -> None:
     session = auth_session()
     access_token = session["access_token"]
@@ -241,6 +250,7 @@ def test_file_listing_filtering_and_upload_expose_parse_state() -> None:
     assert uploaded["tags"] == ["实验", "观察"]
 
 
+<<<<<<< HEAD
 def test_file_download_returns_original_content_and_audit_event() -> None:
     headers = auth_headers()
     upload_response = client.post(
@@ -666,6 +676,8 @@ def test_team_folder_permissions_enforce_guest_read_only_and_member_write() -> N
     assert guest_upload_response.json()["code"] == "FOLDER_WRITE_FORBIDDEN"
 
 
+=======
+>>>>>>> permission-backend
 def test_qa_query_returns_answer_with_citations() -> None:
     headers = auth_headers()
 
@@ -741,6 +753,7 @@ def test_new_file_auto_summary_workflow_template_executes() -> None:
         "success",
     ]
     assert "显微镜实验报告.pdf" in execution["output"]["summary"]
+<<<<<<< HEAD
 
 
 def flatten_folders(items: list[dict[str, object]]) -> dict[str, dict[str, object]]:
@@ -753,3 +766,5 @@ def flatten_folders(items: list[dict[str, object]]) -> dict[str, dict[str, objec
         assert isinstance(children, list)
         flattened.update(flatten_folders(children))
     return flattened
+=======
+>>>>>>> permission-backend
