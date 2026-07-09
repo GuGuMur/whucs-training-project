@@ -3,31 +3,48 @@ import { defineStore } from 'pinia'
 
 import { resolveWorkspaceToken } from '@/auth'
 import {
+  addKnowledgeDocument,
+  askWorkspaceQuestion,
   copyWorkspaceFile,
+  createKnowledgeBase,
+  createWorkspacePermissionRule,
+  createWorkspaceWorkflow,
   createWorkspaceTeam,
   createWorkspaceFolder,
   demoWorkspaceFileVersions,
+  demoWorkspaceKnowledgeBases,
+  demoWorkspaceKnowledgeDocuments,
   demoWorkspaceNarrative,
+  demoWorkspacePermissionRules,
   demoWorkspaceFolders,
   demoWorkspaceSnapshot,
   demoWorkspaceTeamDetail,
+  deleteWorkspacePermissionRule,
   deleteWorkspaceFile,
   deleteWorkspaceFolder,
   downloadWorkspaceFile,
+  executeWorkspaceWorkflow,
   fetchWorkspaceSnapshot,
   createWorkspaceTeamInvite,
   joinWorkspaceTeam,
+  listKnowledgeBases,
+  listKnowledgeDocuments,
   listWorkspaceTeams,
   listWorkspaceFileVersions,
+  listWorkspacePermissionRules,
   listWorkspaceFolders,
   listWorkspaceFiles,
   loadWorkspaceTeamDetail,
+  publishWorkspaceWorkflow,
   removeWorkspaceTeamMember,
   restoreWorkspaceFileVersion,
   updateWorkspaceTeamMember,
   updateWorkspaceFile,
   updateWorkspaceFolder,
+  updateWorkspaceWorkflow,
   uploadWorkspaceFile,
+  validateWorkspaceWorkflow,
+  type AgentStep,
   type WorkspaceFile,
   type WorkspaceFileCopyInput,
   type WorkspaceFileFilters,
@@ -38,7 +55,13 @@ import {
   type WorkspaceFolderCreateInput,
   type WorkspaceFolderOption,
   type WorkspaceFolderUpdateInput,
+  type WorkspaceKnowledgeBase,
+  type WorkspaceKnowledgeBaseCreateInput,
+  type WorkspaceKnowledgeDocument,
   type WorkspaceNarrative,
+  type WorkspacePermissionRule,
+  type WorkspacePermissionRuleCreateInput,
+  type WorkspaceQuestionInput,
   type WorkspaceSnapshot,
   type TeamSummary,
   type WorkspaceTeamCreateInput,
@@ -46,6 +69,12 @@ import {
   type WorkspaceTeamInviteInput,
   type WorkspaceTeamMember,
   type WorkspaceTeamRole,
+  type WorkspaceWorkflow,
+  type WorkspaceWorkflowCreateInput,
+  type WorkspaceWorkflowExecuteInput,
+  type WorkspaceWorkflowExecution,
+  type WorkspaceWorkflowUpdateInput,
+  type WorkspaceWorkflowValidation,
 } from '@/client/workspace'
 import { useAuthStore } from '@/stores/auth'
 
@@ -61,8 +90,17 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const snapshot = shallowRef<WorkspaceSnapshot>(demoWorkspaceSnapshot)
   const folders = shallowRef<WorkspaceFolder[]>(cloneFolderTree(demoWorkspaceFolders.items))
   const fileVersionsById = shallowRef<Record<string, WorkspaceFileVersion[]>>(cloneVersionMap(demoWorkspaceFileVersions))
+  const knowledgeBases = shallowRef<WorkspaceKnowledgeBase[]>(cloneKnowledgeBases(demoWorkspaceKnowledgeBases))
+  const activeKnowledgeBaseId = shallowRef<string | null>(demoWorkspaceKnowledgeBases[0]?.id ?? null)
+  const knowledgeDocumentsByKbId = shallowRef<Record<string, WorkspaceKnowledgeDocument[]>>(
+    cloneKnowledgeDocumentMap(demoWorkspaceKnowledgeDocuments),
+  )
   const narrative = shallowRef<WorkspaceNarrative>(demoWorkspaceNarrative)
   const activeTeamDetail = shallowRef<WorkspaceTeamDetail | null>(demoWorkspaceTeamDetail)
+  const permissionRules = shallowRef<WorkspacePermissionRule[]>(clonePermissionRules(demoWorkspacePermissionRules))
+  const activeWorkflowId = shallowRef<string | null>(demoWorkspaceSnapshot.workflows[0]?.id ?? null)
+  const activeWorkflowValidation = shallowRef<WorkspaceWorkflowValidation | null>(null)
+  const activeWorkflowExecution = shallowRef<WorkspaceWorkflowExecution | null>(null)
   const loading = shallowRef(false)
   const folderTreeLoading = shallowRef(false)
   const activeFolderId = shallowRef<string | null>('personal-root')
@@ -78,7 +116,14 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const fileFilters = shallowRef<WorkspaceFileFilters>({ ...emptyFileFilters })
   const fileListLoading = shallowRef(false)
   const uploadingFile = shallowRef(false)
+  const knowledgeOperationLoading = shallowRef(false)
+  const addingKnowledgeDocument = shallowRef(false)
+  const askingQuestion = shallowRef(false)
   const teamOperationLoading = shallowRef(false)
+  const permissionRulesLoading = shallowRef(false)
+  const permissionRuleSaving = shallowRef(false)
+  const deletingPermissionRuleId = shallowRef<string | null>(null)
+  const workflowOperationLoading = shallowRef(false)
   const errorMessage = shallowRef('')
   const apiState = shallowRef<WorkspaceApiState>('demo')
 
@@ -89,8 +134,17 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const teams = computed(() => snapshot.value.teams)
   const auditLogs = computed(() => snapshot.value.audit_logs)
   const summary = computed(() => snapshot.value.summary)
+  const activeWorkflow = computed(
+    () => snapshot.value.workflows.find((workflow) => workflow.id === activeWorkflowId.value) ?? null,
+  )
   const folderOptions = computed(() => flattenFolderOptions(folders.value))
   const activeBreadcrumbs = computed(() => buildFolderBreadcrumbs(folders.value, activeFolderId.value))
+  const activeKnowledgeBase = computed(
+    () => knowledgeBases.value.find((knowledgeBase) => knowledgeBase.id === activeKnowledgeBaseId.value) ?? null,
+  )
+  const activeKnowledgeDocuments = computed(() =>
+    activeKnowledgeBaseId.value ? knowledgeDocumentsByKbId.value[activeKnowledgeBaseId.value] ?? [] : [],
+  )
 
   async function loadWorkspace(token?: string) {
     const accessToken = resolveOptionalAccessToken(token)
@@ -100,24 +154,35 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       fileFilters.value = { ...emptyFileFilters }
       resetFoldersToDemo()
       resetVersionsToDemo()
+      resetKnowledgeToDemo()
+      resetPermissionRulesToDemo()
       snapshot.value = demoWorkspaceSnapshot
       narrative.value = demoWorkspaceNarrative
       activeTeamDetail.value = demoWorkspaceTeamDetail
+      activeWorkflowValidation.value = null
+      activeWorkflowExecution.value = null
+      ensureActiveWorkflowSelection()
       return
     }
 
     loading.value = true
     try {
-      const [nextSnapshot, folderTree] = await Promise.all([
+      const [nextSnapshot, folderTree, ruleList] = await Promise.all([
         fetchWorkspaceSnapshot(accessToken),
         listWorkspaceFolders(accessToken),
+        listWorkspacePermissionRules(accessToken),
       ])
       snapshot.value = nextSnapshot
       folders.value = cloneFolderTree(folderTree.items)
+      permissionRules.value = clonePermissionRules(ruleList.items)
       fileVersionsById.value = {}
+      await loadKnowledgeBases(accessToken)
       activeTeamDetail.value = null
       ensureActiveFolderSelection()
+      ensureActiveWorkflowSelection()
       narrative.value = demoWorkspaceNarrative
+      activeWorkflowValidation.value = null
+      activeWorkflowExecution.value = null
       fileFilters.value = { ...emptyFileFilters }
       apiState.value = 'live'
     } catch {
@@ -125,7 +190,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       narrative.value = demoWorkspaceNarrative
       resetFoldersToDemo()
       resetVersionsToDemo()
+      resetKnowledgeToDemo()
+      resetPermissionRulesToDemo()
       activeTeamDetail.value = demoWorkspaceTeamDetail
+      activeWorkflowValidation.value = null
+      activeWorkflowExecution.value = null
+      ensureActiveWorkflowSelection()
       apiState.value = 'fallback'
     } finally {
       loading.value = false
@@ -186,6 +256,128 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   async function resetFileFilters() {
     return searchFiles(emptyFileFilters)
+  }
+
+  async function loadKnowledgeBases(token?: string) {
+    const accessToken = resolveOptionalAccessToken(token)
+
+    if (!accessToken) {
+      resetKnowledgeToDemo()
+      return { items: knowledgeBases.value }
+    }
+
+    knowledgeOperationLoading.value = true
+    errorMessage.value = ''
+    try {
+      const response = await listKnowledgeBases(accessToken)
+      knowledgeBases.value = cloneKnowledgeBases(response.items)
+      ensureActiveKnowledgeBaseSelection()
+      apiState.value = 'live'
+      return response
+    } catch (error) {
+      errorMessage.value = '知识库列表加载失败，请稍后重试'
+      throw error
+    } finally {
+      knowledgeOperationLoading.value = false
+    }
+  }
+
+  async function createKnowledgeBaseAction(payload: WorkspaceKnowledgeBaseCreateInput) {
+    const accessToken = requireAccessToken()
+    const nextPayload: WorkspaceKnowledgeBaseCreateInput = {
+      description: payload.description?.trim() || null,
+      name: payload.name.trim(),
+    }
+
+    knowledgeOperationLoading.value = true
+    errorMessage.value = ''
+    try {
+      const created = await createKnowledgeBase(accessToken, nextPayload)
+      upsertKnowledgeBase(created, true)
+      activeKnowledgeBaseId.value = created.id
+      knowledgeDocumentsByKbId.value = {
+        ...knowledgeDocumentsByKbId.value,
+        [created.id]: knowledgeDocumentsByKbId.value[created.id] ?? [],
+      }
+      apiState.value = 'live'
+      return created
+    } catch (error) {
+      errorMessage.value = '知识库创建失败，请检查名称后重试'
+      throw error
+    } finally {
+      knowledgeOperationLoading.value = false
+    }
+  }
+
+  async function loadKnowledgeDocuments(kbId: string, token?: string) {
+    const accessToken = requireAccessToken(token)
+
+    knowledgeOperationLoading.value = true
+    errorMessage.value = ''
+    try {
+      const response = await listKnowledgeDocuments(accessToken, kbId)
+      knowledgeDocumentsByKbId.value = {
+        ...knowledgeDocumentsByKbId.value,
+        [kbId]: response.items,
+      }
+      activeKnowledgeBaseId.value = kbId
+      apiState.value = 'live'
+      return response
+    } catch (error) {
+      errorMessage.value = '知识库文档加载失败，请稍后重试'
+      throw error
+    } finally {
+      knowledgeOperationLoading.value = false
+    }
+  }
+
+  async function addKnowledgeDocumentAction(kbId: string, fileId: string) {
+    const accessToken = requireAccessToken()
+
+    addingKnowledgeDocument.value = true
+    errorMessage.value = ''
+    try {
+      const document = await addKnowledgeDocument(accessToken, kbId, fileId)
+      upsertKnowledgeDocument(kbId, document)
+      markFileIndexedInKnowledgeBase(fileId, kbId)
+      activeKnowledgeBaseId.value = kbId
+      apiState.value = 'live'
+      return document
+    } catch (error) {
+      errorMessage.value = '文档入库失败，请检查文件解析状态和权限'
+      throw error
+    } finally {
+      addingKnowledgeDocument.value = false
+    }
+  }
+
+  async function askKnowledgeQuestion(payload: WorkspaceQuestionInput) {
+    const accessToken = requireAccessToken()
+    const nextPayload: WorkspaceQuestionInput = {
+      conversationId: payload.conversationId ?? null,
+      kbId: payload.kbId,
+      question: payload.question.trim(),
+      topK: payload.topK ?? 5,
+    }
+
+    askingQuestion.value = true
+    errorMessage.value = ''
+    try {
+      const response = await askWorkspaceQuestion(accessToken, nextPayload)
+      narrative.value = {
+        ...narrative.value,
+        answer: response.answer,
+        citations: response.citations,
+      }
+      activeKnowledgeBaseId.value = payload.kbId
+      apiState.value = 'live'
+      return response
+    } catch (error) {
+      errorMessage.value = '知识库问答失败，请稍后重试'
+      throw error
+    } finally {
+      askingQuestion.value = false
+    }
   }
 
   async function uploadFile(payload: WorkspaceFileUploadInput) {
@@ -341,6 +533,65 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       throw error
     } finally {
       teamOperationLoading.value = false
+    }
+  }
+
+  async function loadPermissionRules(token?: string) {
+    const accessToken = resolveOptionalAccessToken(token)
+
+    if (!accessToken) {
+      resetPermissionRulesToDemo()
+      return { items: permissionRules.value }
+    }
+
+    permissionRulesLoading.value = true
+    errorMessage.value = ''
+    try {
+      const response = await listWorkspacePermissionRules(accessToken)
+      permissionRules.value = clonePermissionRules(response.items)
+      apiState.value = 'live'
+      return response
+    } catch (error) {
+      errorMessage.value = '权限规则加载失败，请稍后重试'
+      throw error
+    } finally {
+      permissionRulesLoading.value = false
+    }
+  }
+
+  async function createPermissionRule(payload: WorkspacePermissionRuleCreateInput) {
+    const accessToken = requireAccessToken()
+    const nextPayload = normalizePermissionRulePayload(payload)
+
+    permissionRuleSaving.value = true
+    errorMessage.value = ''
+    try {
+      const created = await createWorkspacePermissionRule(accessToken, nextPayload)
+      upsertPermissionRule(created, true)
+      apiState.value = 'live'
+      return created
+    } catch (error) {
+      errorMessage.value = '权限规则保存失败，请检查主体、资源和管理权限'
+      throw error
+    } finally {
+      permissionRuleSaving.value = false
+    }
+  }
+
+  async function deletePermissionRule(ruleId: string) {
+    const accessToken = requireAccessToken()
+
+    deletingPermissionRuleId.value = ruleId
+    errorMessage.value = ''
+    try {
+      await deleteWorkspacePermissionRule(accessToken, ruleId)
+      permissionRules.value = permissionRules.value.filter((rule) => rule.id !== ruleId)
+      apiState.value = 'live'
+    } catch (error) {
+      errorMessage.value = '权限规则删除失败，请检查管理权限'
+      throw error
+    } finally {
+      deletingPermissionRuleId.value = null
     }
   }
 
@@ -573,6 +824,133 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   }
 
+  async function selectKnowledgeBase(kbId: string) {
+    if (!knowledgeBases.value.some((knowledgeBase) => knowledgeBase.id === kbId)) {
+      return
+    }
+    activeKnowledgeBaseId.value = kbId
+    if (resolveOptionalAccessToken()) {
+      await loadKnowledgeDocuments(kbId)
+    }
+  }
+
+  function selectWorkflow(workflowId: string) {
+    if (snapshot.value.workflows.some((workflow) => workflow.id === workflowId)) {
+      activeWorkflowId.value = workflowId
+    }
+  }
+
+  async function createWorkflow(payload: WorkspaceWorkflowCreateInput) {
+    const accessToken = requireAccessToken()
+    const nextPayload: WorkspaceWorkflowCreateInput = {
+      description: payload.description?.trim() || null,
+      edges: payload.edges ?? [],
+      name: payload.name.trim(),
+      nodes: payload.nodes ?? [],
+      trigger: payload.trigger?.trim() || 'manual',
+    }
+
+    workflowOperationLoading.value = true
+    errorMessage.value = ''
+    try {
+      const created = await createWorkspaceWorkflow(accessToken, nextPayload)
+      upsertWorkflow(created, true)
+      activeWorkflowId.value = created.id
+      activeWorkflowValidation.value = null
+      activeWorkflowExecution.value = null
+      apiState.value = 'live'
+      return created
+    } catch (error) {
+      errorMessage.value = '流程创建失败，请检查节点配置后重试'
+      throw error
+    } finally {
+      workflowOperationLoading.value = false
+    }
+  }
+
+  async function updateWorkflow(workflowId: string, payload: WorkspaceWorkflowUpdateInput) {
+    const accessToken = requireAccessToken()
+    const nextPayload: WorkspaceWorkflowUpdateInput = normalizeWorkflowUpdatePayload(payload)
+
+    workflowOperationLoading.value = true
+    errorMessage.value = ''
+    try {
+      const updated = await updateWorkspaceWorkflow(accessToken, workflowId, nextPayload)
+      upsertWorkflow(updated)
+      activeWorkflowId.value = updated.id
+      activeWorkflowValidation.value = null
+      apiState.value = 'live'
+      return updated
+    } catch (error) {
+      errorMessage.value = '流程保存失败，请检查节点配置后重试'
+      throw error
+    } finally {
+      workflowOperationLoading.value = false
+    }
+  }
+
+  async function validateWorkflow(workflowId: string) {
+    const accessToken = requireAccessToken()
+
+    workflowOperationLoading.value = true
+    errorMessage.value = ''
+    try {
+      const validation = await validateWorkspaceWorkflow(accessToken, workflowId)
+      activeWorkflowId.value = workflowId
+      activeWorkflowValidation.value = validation
+      apiState.value = 'live'
+      return validation
+    } catch (error) {
+      errorMessage.value = '流程校验失败，请稍后重试'
+      throw error
+    } finally {
+      workflowOperationLoading.value = false
+    }
+  }
+
+  async function publishWorkflow(workflowId: string) {
+    const accessToken = requireAccessToken()
+
+    workflowOperationLoading.value = true
+    errorMessage.value = ''
+    try {
+      const published = await publishWorkspaceWorkflow(accessToken, workflowId)
+      upsertWorkflow(published)
+      activeWorkflowId.value = published.id
+      apiState.value = 'live'
+      return published
+    } catch (error) {
+      errorMessage.value = '流程发布失败，请先完成校验'
+      throw error
+    } finally {
+      workflowOperationLoading.value = false
+    }
+  }
+
+  async function executeWorkflow(workflowId: string, payload: WorkspaceWorkflowExecuteInput) {
+    const accessToken = requireAccessToken()
+
+    workflowOperationLoading.value = true
+    errorMessage.value = ''
+    try {
+      const execution = await executeWorkspaceWorkflow(accessToken, workflowId, payload)
+      activeWorkflowId.value = workflowId
+      activeWorkflowExecution.value = execution
+      narrative.value = {
+        ...narrative.value,
+        answer: extractWorkflowExecutionAnswer(execution) ?? narrative.value.answer,
+        agentSteps: workflowExecutionToAgentSteps(execution),
+      }
+      apiState.value = 'live'
+      return execution
+    } catch (error) {
+      errorMessage.value = '流程执行失败，请检查文件和知识库权限'
+      throw error
+    } finally {
+      workflowOperationLoading.value = false
+    }
+  }
+
   function resolveOptionalAccessToken(token?: string) {
     const auth = useAuthStore()
     return token ?? auth.session?.accessToken ?? resolveWorkspaceToken()
@@ -666,6 +1044,38 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     return nextPayload
   }
 
+  function normalizeWorkflowUpdatePayload(payload: WorkspaceWorkflowUpdateInput): WorkspaceWorkflowUpdateInput {
+    const nextPayload: WorkspaceWorkflowUpdateInput = {}
+    if ('description' in payload) {
+      nextPayload.description = payload.description?.trim() || null
+    }
+    if ('edges' in payload) {
+      nextPayload.edges = payload.edges ?? null
+    }
+    if ('name' in payload) {
+      nextPayload.name = payload.name?.trim() || null
+    }
+    if ('nodes' in payload) {
+      nextPayload.nodes = payload.nodes ?? null
+    }
+    if ('trigger' in payload) {
+      nextPayload.trigger = payload.trigger?.trim() || null
+    }
+    return nextPayload
+  }
+
+  function normalizePermissionRulePayload(payload: WorkspacePermissionRuleCreateInput): WorkspacePermissionRuleCreateInput {
+    return {
+      action: payload.action,
+      effect: payload.effect,
+      inherit: payload.inherit ?? false,
+      resourceId: payload.resourceId.trim(),
+      resourceType: payload.resourceType,
+      subjectId: payload.subjectId.trim(),
+      subjectType: payload.subjectType,
+    }
+  }
+
   function normalizeTags(tags: string[]): string[] {
     return tags.map((tag) => tag.trim()).filter(Boolean)
   }
@@ -679,9 +1089,45 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     fileVersionsById.value = cloneVersionMap(demoWorkspaceFileVersions)
   }
 
+  function resetKnowledgeToDemo() {
+    knowledgeBases.value = cloneKnowledgeBases(demoWorkspaceKnowledgeBases)
+    knowledgeDocumentsByKbId.value = cloneKnowledgeDocumentMap(demoWorkspaceKnowledgeDocuments)
+    ensureActiveKnowledgeBaseSelection()
+  }
+
+  function resetPermissionRulesToDemo() {
+    permissionRules.value = clonePermissionRules(demoWorkspacePermissionRules)
+  }
+
   function ensureActiveFolderSelection() {
     if (!findFolderById(folders.value, activeFolderId.value)) {
       activeFolderId.value = findFirstFolderId(folders.value)
+    }
+  }
+
+  function ensureActiveKnowledgeBaseSelection() {
+    if (!knowledgeBases.value.some((knowledgeBase) => knowledgeBase.id === activeKnowledgeBaseId.value)) {
+      activeKnowledgeBaseId.value = knowledgeBases.value[0]?.id ?? null
+    }
+  }
+
+  function ensureActiveWorkflowSelection() {
+    if (!snapshot.value.workflows.some((workflow) => workflow.id === activeWorkflowId.value)) {
+      activeWorkflowId.value = snapshot.value.workflows[0]?.id ?? null
+    }
+  }
+
+  function upsertWorkflow(workflow: WorkspaceWorkflow, moveToFront = false) {
+    const existing = snapshot.value.workflows.some((item) => item.id === workflow.id)
+    const nextWorkflows = moveToFront
+      ? [workflow, ...snapshot.value.workflows.filter((item) => item.id !== workflow.id)]
+      : existing
+        ? snapshot.value.workflows.map((item) => (item.id === workflow.id ? workflow : item))
+        : [workflow, ...snapshot.value.workflows]
+
+    snapshot.value = {
+      ...snapshot.value,
+      workflows: nextWorkflows,
     }
   }
 
@@ -722,23 +1168,110 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     upsertTeamSummary(teamDetailToSummary(nextDetail))
   }
 
+  function upsertKnowledgeBase(knowledgeBase: WorkspaceKnowledgeBase, moveToFront = false) {
+    const existing = knowledgeBases.value.some((item) => item.id === knowledgeBase.id)
+    knowledgeBases.value = moveToFront
+      ? [knowledgeBase, ...knowledgeBases.value.filter((item) => item.id !== knowledgeBase.id)]
+      : existing
+        ? knowledgeBases.value.map((item) => (item.id === knowledgeBase.id ? knowledgeBase : item))
+        : [knowledgeBase, ...knowledgeBases.value]
+    snapshot.value = {
+      ...snapshot.value,
+      summary: {
+        ...snapshot.value.summary,
+        knowledge_base_count: knowledgeBases.value.length,
+      },
+    }
+  }
+
+  function upsertKnowledgeDocument(kbId: string, document: WorkspaceKnowledgeDocument) {
+    const currentDocuments = knowledgeDocumentsByKbId.value[kbId] ?? []
+    const nextDocuments = [
+      document,
+      ...currentDocuments.filter((item) => item.id !== document.id),
+    ]
+    knowledgeDocumentsByKbId.value = {
+      ...knowledgeDocumentsByKbId.value,
+      [kbId]: nextDocuments,
+    }
+    const knowledgeBase = knowledgeBases.value.find((item) => item.id === kbId)
+    if (knowledgeBase) {
+      upsertKnowledgeBase({
+        ...knowledgeBase,
+        chunk_count: nextDocuments.reduce((sum, item) => sum + item.chunk_count, 0),
+        document_count: nextDocuments.length,
+        updated_at: document.updated_at,
+      })
+    }
+  }
+
+  function upsertPermissionRule(rule: WorkspacePermissionRule, moveToFront = false) {
+    const existing = permissionRules.value.some((item) => item.id === rule.id)
+    permissionRules.value = moveToFront
+      ? [rule, ...permissionRules.value.filter((item) => item.id !== rule.id)]
+      : existing
+        ? permissionRules.value.map((item) => (item.id === rule.id ? rule : item))
+        : [rule, ...permissionRules.value]
+  }
+
+  function markFileIndexedInKnowledgeBase(fileId: string, kbId: string) {
+    const nextFiles = snapshot.value.files.map((file) => {
+      if (file.id !== fileId) {
+        return file
+      }
+      const knowledgeBaseIds = file.knowledge_base_ids.includes(kbId)
+        ? file.knowledge_base_ids
+        : [...file.knowledge_base_ids, kbId]
+      return {
+        ...file,
+        knowledge_base_ids: knowledgeBaseIds,
+        parse_status: 'indexed' as const,
+      }
+    })
+    snapshot.value = {
+      ...snapshot.value,
+      files: nextFiles,
+      summary: {
+        ...snapshot.value.summary,
+        indexed_count: nextFiles.filter((file) => file.parse_status === 'indexed').length,
+      },
+    }
+  }
+
   return {
+    activeWorkflow,
+    activeWorkflowExecution,
+    activeWorkflowId,
+    activeWorkflowValidation,
+    activeKnowledgeBase,
+    activeKnowledgeBaseId,
+    activeKnowledgeDocuments,
     activeTeamDetail,
     activeBreadcrumbs,
     activeFolderId,
     apiState,
+    addKnowledgeDocument: addKnowledgeDocumentAction,
+    addingKnowledgeDocument,
     auditLogs,
+    askKnowledgeQuestion,
+    askingQuestion,
     copyFile,
     copyingFileId,
     createFolder,
+    createKnowledgeBase: createKnowledgeBaseAction,
+    createPermissionRule,
+    createWorkflow,
     creatingFolder,
+    deletePermissionRule,
     deleteFolder,
     deleteFile,
+    deletingPermissionRuleId,
     deletingFolderId,
     deletingFileId,
     downloadFile,
     downloadingFileId,
     errorMessage,
+    executeWorkflow,
     fileFilters,
     fileListLoading,
     fileVersionsById,
@@ -747,18 +1280,29 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     folders,
     folderTreeLoading,
     indexedFiles,
+    knowledgeBases,
+    knowledgeDocumentsByKbId,
+    knowledgeOperationLoading,
+    loadKnowledgeBases,
+    loadKnowledgeDocuments,
     loadFolders,
     loadFileVersions,
+    loadPermissionRules,
     loadTeamDetail,
     loadTeams,
     loadWorkspace,
     loading,
     narrative,
+    permissionRuleSaving,
+    permissionRules,
+    permissionRulesLoading,
     resetFileFilters,
     restoreFileVersion,
     restoringVersionId,
     searchFiles,
     selectFolder,
+    selectKnowledgeBase,
+    selectWorkflow,
     summary,
     teams,
     createTeam,
@@ -770,14 +1314,55 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     updateTeamMemberRole,
     updateFile,
     updateFolder,
+    updateWorkflow,
     updatingFileId,
     updatingFolderId,
     uploadFile,
     uploadingFile,
+    validateWorkflow,
     versionFileId,
+    workflowOperationLoading,
     workflows,
+    publishWorkflow,
   }
 })
+
+function extractWorkflowExecutionAnswer(execution: WorkspaceWorkflowExecution): string | null {
+  const summary = execution.output.summary
+  return typeof summary === 'string' ? summary : null
+}
+
+function workflowExecutionToAgentSteps(execution: WorkspaceWorkflowExecution): AgentStep[] {
+  return execution.node_executions.map((node) => ({
+    content: formatWorkflowNodeOutput(node.output),
+    metadata: {
+      input: node.input ?? {},
+      node_id: node.node_id,
+    },
+    status: node.status,
+    title: node.name,
+    tool_name: node.tool_name === 'trigger' ? null : node.tool_name,
+    type: node.tool_name === 'trigger' ? 'thought' : 'action',
+  }))
+}
+
+function formatWorkflowNodeOutput(output: Record<string, unknown> | undefined): string {
+  if (!output || Object.keys(output).length === 0) {
+    return '节点已执行，等待下游节点消费结果。'
+  }
+
+  const summary = output.summary
+  if (typeof summary === 'string') {
+    return summary
+  }
+
+  const markdown = output.markdown
+  if (typeof markdown === 'string') {
+    return markdown
+  }
+
+  return JSON.stringify(output)
+}
 
 function cloneFolderTree(folders: WorkspaceFolder[]): WorkspaceFolder[] {
   return folders.map(cloneFolder)
@@ -797,6 +1382,25 @@ function cloneVersionMap(versions: Record<string, WorkspaceFileVersion[]>): Reco
       items.map((item) => ({ ...item })),
     ]),
   )
+}
+
+function cloneKnowledgeBases(knowledgeBases: WorkspaceKnowledgeBase[]): WorkspaceKnowledgeBase[] {
+  return knowledgeBases.map((knowledgeBase) => ({ ...knowledgeBase }))
+}
+
+function cloneKnowledgeDocumentMap(
+  documents: Record<string, WorkspaceKnowledgeDocument[]>,
+): Record<string, WorkspaceKnowledgeDocument[]> {
+  return Object.fromEntries(
+    Object.entries(documents).map(([kbId, items]) => [
+      kbId,
+      items.map((item) => ({ ...item })),
+    ]),
+  )
+}
+
+function clonePermissionRules(rules: WorkspacePermissionRule[]): WorkspacePermissionRule[] {
+  return rules.map((rule) => ({ ...rule }))
 }
 
 function flattenFolderOptions(folders: WorkspaceFolder[]): WorkspaceFolderOption[] {

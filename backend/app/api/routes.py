@@ -21,7 +21,17 @@ from app.domain.schemas import (
     FolderItem,
     FolderTreeResponse,
     FolderUpdate,
+    KnowledgeBaseCreate,
+    KnowledgeBaseListResponse,
+    KnowledgeBasePublic,
+    KnowledgeBaseUpdate,
+    KnowledgeDocumentCreate,
+    KnowledgeDocumentListResponse,
+    KnowledgeDocumentPublic,
     LoginRequest,
+    PermissionRuleCreate,
+    PermissionRuleListResponse,
+    PermissionRulePublic,
     QARequest,
     QAResponse,
     RefreshTokenRequest,
@@ -37,9 +47,13 @@ from app.domain.schemas import (
     UserCreate,
     UserPublic,
     UserUpdate,
+    WorkflowCreate,
+    WorkflowDefinition,
     WorkflowExecutionRequest,
     WorkflowExecutionResponse,
     WorkflowListResponse,
+    WorkflowUpdate,
+    WorkflowValidationResponse,
     WorkspaceSnapshot,
 )
 from app.services.workspace import workspace_service
@@ -111,12 +125,12 @@ def delete_folder(folder_id: str, user: Annotated[UserPublic, Depends(current_us
 
 @api_router.get("/files", response_model=FileListResponse)
 def files(
-    _: Annotated[UserPublic, Depends(current_user)],
+    user: Annotated[UserPublic, Depends(current_user)],
     query: str | None = None,
     tag: str | None = None,
     file_type: str | None = None,
 ) -> FileListResponse:
-    items = workspace_service.list_files(query=query, tag=tag, file_type=file_type)
+    items = workspace_service.list_files(user, query=query, tag=tag, file_type=file_type)
     return FileListResponse(items=items, total=len(items))
 
 
@@ -179,6 +193,49 @@ def delete_file(file_id: str, user: Annotated[UserPublic, Depends(current_user)]
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@api_router.get("/knowledge-bases", response_model=KnowledgeBaseListResponse)
+def knowledge_bases(user: Annotated[UserPublic, Depends(current_user)]) -> KnowledgeBaseListResponse:
+    return KnowledgeBaseListResponse(items=workspace_service.list_knowledge_bases(user))
+
+
+@api_router.post("/knowledge-bases", response_model=KnowledgeBasePublic, status_code=status.HTTP_201_CREATED)
+def create_knowledge_base(
+    payload: KnowledgeBaseCreate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> KnowledgeBasePublic:
+    return workspace_service.create_knowledge_base(payload, user)
+
+
+@api_router.patch("/knowledge-bases/{kb_id}", response_model=KnowledgeBasePublic)
+def update_knowledge_base(
+    kb_id: str,
+    payload: KnowledgeBaseUpdate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> KnowledgeBasePublic:
+    return workspace_service.update_knowledge_base(kb_id, payload, user)
+
+
+@api_router.get("/knowledge-bases/{kb_id}/documents", response_model=KnowledgeDocumentListResponse)
+def knowledge_documents(
+    kb_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> KnowledgeDocumentListResponse:
+    return KnowledgeDocumentListResponse(items=workspace_service.list_knowledge_documents(kb_id, user))
+
+
+@api_router.post(
+    "/knowledge-bases/{kb_id}/documents",
+    response_model=KnowledgeDocumentPublic,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_knowledge_document(
+    kb_id: str,
+    payload: KnowledgeDocumentCreate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> KnowledgeDocumentPublic:
+    return workspace_service.add_knowledge_document(kb_id, payload, user)
+
+
 @api_router.post("/qa/query", response_model=QAResponse)
 def qa_query(payload: QARequest, user: Annotated[UserPublic, Depends(current_user)]) -> QAResponse:
     return workspace_service.answer_question(payload, user)
@@ -200,6 +257,39 @@ def create_agent_task(
 @api_router.get("/workflows", response_model=WorkflowListResponse)
 def workflows(_: Annotated[UserPublic, Depends(current_user)]) -> WorkflowListResponse:
     return WorkflowListResponse(items=workspace_service.list_workflows())
+
+
+@api_router.post("/workflows", response_model=WorkflowDefinition, status_code=status.HTTP_201_CREATED)
+def create_workflow(
+    payload: WorkflowCreate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> WorkflowDefinition:
+    return workspace_service.create_workflow(payload, user)
+
+
+@api_router.patch("/workflows/{workflow_id}", response_model=WorkflowDefinition)
+def update_workflow(
+    workflow_id: str,
+    payload: WorkflowUpdate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> WorkflowDefinition:
+    return workspace_service.update_workflow(workflow_id, payload, user)
+
+
+@api_router.post("/workflows/{workflow_id}/validate", response_model=WorkflowValidationResponse)
+def validate_workflow(
+    workflow_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> WorkflowValidationResponse:
+    return workspace_service.validate_workflow(workflow_id, user)
+
+
+@api_router.post("/workflows/{workflow_id}/publish", response_model=WorkflowDefinition)
+def publish_workflow(
+    workflow_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> WorkflowDefinition:
+    return workspace_service.publish_workflow(workflow_id, user)
 
 
 @api_router.post(
@@ -265,6 +355,25 @@ def remove_team_member(
     user: Annotated[UserPublic, Depends(current_user)],
 ) -> Response:
     workspace_service.remove_team_member(team_id, member_id, user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@api_router.get("/permissions/rules", response_model=PermissionRuleListResponse)
+def permission_rules(user: Annotated[UserPublic, Depends(current_user)]) -> PermissionRuleListResponse:
+    return PermissionRuleListResponse(items=workspace_service.list_permission_rules(user))
+
+
+@api_router.post("/permissions/rules", response_model=PermissionRulePublic, status_code=status.HTTP_201_CREATED)
+def create_permission_rule(
+    payload: PermissionRuleCreate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> PermissionRulePublic:
+    return workspace_service.create_permission_rule(payload, user)
+
+
+@api_router.delete("/permissions/rules/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_permission_rule(rule_id: str, user: Annotated[UserPublic, Depends(current_user)]) -> Response:
+    workspace_service.delete_permission_rule(rule_id, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

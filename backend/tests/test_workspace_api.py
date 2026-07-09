@@ -666,6 +666,385 @@ def test_team_folder_permissions_enforce_guest_read_only_and_member_write() -> N
     assert guest_upload_response.json()["code"] == "FOLDER_WRITE_FORBIDDEN"
 
 
+def test_team_file_read_and_write_permissions_are_enforced_across_resources() -> None:
+    owner_session = auth_session()
+    member_session = auth_session()
+    guest_session = auth_session()
+    outsider_headers = auth_headers()
+    owner_headers = session_headers(owner_session)
+    member_headers = session_headers(member_session)
+    guest_headers = session_headers(guest_session)
+
+    create_team_response = client.post(
+        "/api/v1/teams",
+        headers=owner_headers,
+        json={"name": "权限边界小组", "description": "验证团队文件访问控制"},
+    )
+    assert create_team_response.status_code == 201
+    team = create_team_response.json()
+    team_folder_id = team["root_folder"]["id"]
+
+    for invited_session, role, headers in [
+        (member_session, "member", member_headers),
+        (guest_session, "guest", guest_headers),
+    ]:
+        invited_email = invited_session["user"]["email"]
+        assert isinstance(invited_email, str)
+        invite_response = client.post(
+            f"/api/v1/teams/{team['id']}/invites",
+            headers=owner_headers,
+            json={"email": invited_email, "role": role},
+        )
+        assert invite_response.status_code == 201
+        join_response = client.post(
+            f"/api/v1/teams/{team['id']}/members",
+            headers=headers,
+            json={"invite_token": invite_response.json()["token"]},
+        )
+        assert join_response.status_code == 201
+
+    upload_response = client.post(
+        "/api/v1/files/upload",
+        headers=member_headers,
+        files={
+            "file": (
+                "权限边界样本.md",
+                "团队权限边界样本，仅团队成员可读取。".encode(),
+                "text/markdown",
+            )
+        },
+        data={"folder_id": team_folder_id, "tags": "权限,团队"},
+    )
+    assert upload_response.status_code == 201
+    team_file = upload_response.json()
+
+    outsider_list_response = client.get(
+        "/api/v1/files",
+        headers=outsider_headers,
+        params={"query": "权限边界样本"},
+    )
+    assert outsider_list_response.status_code == 200
+    assert outsider_list_response.json()["items"] == []
+
+    outsider_download_response = client.get(f"/api/v1/files/{team_file['id']}/download", headers=outsider_headers)
+    assert outsider_download_response.status_code == 403
+    assert outsider_download_response.json()["code"] == "FILE_READ_FORBIDDEN"
+
+    guest_download_response = client.get(f"/api/v1/files/{team_file['id']}/download", headers=guest_headers)
+    assert guest_download_response.status_code == 200
+    assert guest_download_response.content == "团队权限边界样本，仅团队成员可读取。".encode()
+
+    guest_update_response = client.patch(
+        f"/api/v1/files/{team_file['id']}",
+        headers=guest_headers,
+        json={"tags": ["权限", "访客尝试"]},
+    )
+    assert guest_update_response.status_code == 403
+    assert guest_update_response.json()["code"] == "FILE_WRITE_FORBIDDEN"
+
+    guest_delete_response = client.delete(f"/api/v1/files/{team_file['id']}", headers=guest_headers)
+    assert guest_delete_response.status_code == 403
+    assert guest_delete_response.json()["code"] == "FILE_WRITE_FORBIDDEN"
+
+    outsider_kb_response = client.post(
+        "/api/v1/knowledge-bases",
+        headers=outsider_headers,
+        json={"name": "越权知识库", "description": "尝试索引他人团队文件"},
+    )
+    assert outsider_kb_response.status_code == 201
+    outsider_document_response = client.post(
+        f"/api/v1/knowledge-bases/{outsider_kb_response.json()['id']}/documents",
+        headers=outsider_headers,
+        json={"file_id": team_file["id"]},
+    )
+    assert outsider_document_response.status_code == 403
+    assert outsider_document_response.json()["code"] == "FILE_READ_FORBIDDEN"
+
+    outsider_workflow_response = client.post(
+        "/api/v1/workflows/new-file-auto-summary/executions",
+        headers=outsider_headers,
+        json={"file_id": team_file["id"], "target_kb_id": None},
+    )
+    assert outsider_workflow_response.status_code == 403
+    assert outsider_workflow_response.json()["code"] == "FILE_READ_FORBIDDEN"
+
+
+def test_permission_rules_support_inheritance_overrides_and_audit_events() -> None:
+    owner_session = auth_session()
+    member_session = auth_session()
+    guest_session = auth_session()
+    owner_headers = session_headers(owner_session)
+    member_headers = session_headers(member_session)
+    guest_headers = session_headers(guest_session)
+
+    create_team_response = client.post(
+        "/api/v1/teams",
+        headers=owner_headers,
+        json={"name": "ACL 规则小组", "description": "验证权限继承和覆盖"},
+    )
+    assert create_team_response.status_code == 201
+    team = create_team_response.json()
+    team_id = team["id"]
+    team_folder_id = team["root_folder"]["id"]
+
+    for invited_session, role, headers in [
+        (member_session, "member", member_headers),
+        (guest_session, "guest", guest_headers),
+    ]:
+        invited_email = invited_session["user"]["email"]
+        assert isinstance(invited_email, str)
+        invite_response = client.post(
+            f"/api/v1/teams/{team_id}/invites",
+            headers=owner_headers,
+            json={"email": invited_email, "role": role},
+        )
+        assert invite_response.status_code == 201
+        join_response = client.post(
+            f"/api/v1/teams/{team_id}/members",
+            headers=headers,
+            json={"invite_token": invite_response.json()["token"]},
+        )
+        assert join_response.status_code == 201
+
+    upload_response = client.post(
+        "/api/v1/files/upload",
+        headers=member_headers,
+        files={"file": ("继承权限资料.md", "权限继承验证资料。".encode(), "text/markdown")},
+        data={"folder_id": team_folder_id, "tags": "权限,继承"},
+    )
+    assert upload_response.status_code == 201
+    inherited_file = upload_response.json()
+
+    deny_read_response = client.post(
+        "/api/v1/permissions/rules",
+        headers=owner_headers,
+        json={
+            "subject_type": "role",
+            "subject_id": f"{team_id}:guest",
+            "resource_type": "folder",
+            "resource_id": team_folder_id,
+            "action": "read",
+            "effect": "deny",
+            "inherit": True,
+        },
+    )
+    assert deny_read_response.status_code == 201
+    deny_read_rule = deny_read_response.json()
+    assert deny_read_rule["subject_label"] == "访客"
+    assert deny_read_rule["resource_label"] == team["name"]
+
+    hidden_list_response = client.get(
+        "/api/v1/files",
+        headers=guest_headers,
+        params={"query": "继承权限资料"},
+    )
+    assert hidden_list_response.status_code == 200
+    assert hidden_list_response.json()["items"] == []
+
+    denied_download_response = client.get(f"/api/v1/files/{inherited_file['id']}/download", headers=guest_headers)
+    assert denied_download_response.status_code == 403
+    assert denied_download_response.json()["code"] == "FILE_READ_FORBIDDEN"
+
+    delete_deny_read_response = client.delete(
+        f"/api/v1/permissions/rules/{deny_read_rule['id']}",
+        headers=owner_headers,
+    )
+    assert delete_deny_read_response.status_code == 204
+
+    restored_download_response = client.get(f"/api/v1/files/{inherited_file['id']}/download", headers=guest_headers)
+    assert restored_download_response.status_code == 200
+    assert restored_download_response.content == "权限继承验证资料。".encode()
+
+    guest_upload_denied_response = client.post(
+        "/api/v1/files/upload",
+        headers=guest_headers,
+        files={"file": ("访客上传前.md", "访客默认不可写。".encode(), "text/markdown")},
+        data={"folder_id": team_folder_id, "tags": "权限"},
+    )
+    assert guest_upload_denied_response.status_code == 403
+    assert guest_upload_denied_response.json()["code"] == "FOLDER_WRITE_FORBIDDEN"
+
+    allow_write_response = client.post(
+        "/api/v1/permissions/rules",
+        headers=owner_headers,
+        json={
+            "subject_type": "role",
+            "subject_id": f"{team_id}:guest",
+            "resource_type": "folder",
+            "resource_id": team_folder_id,
+            "action": "write",
+            "effect": "allow",
+            "inherit": True,
+        },
+    )
+    assert allow_write_response.status_code == 201
+    allow_write_rule = allow_write_response.json()
+    assert allow_write_rule["effect"] == "allow"
+
+    guest_upload_response = client.post(
+        "/api/v1/files/upload",
+        headers=guest_headers,
+        files={"file": ("访客上传后.md", "继承允许写入。".encode(), "text/markdown")},
+        data={"folder_id": team_folder_id, "tags": "权限,访客"},
+    )
+    assert guest_upload_response.status_code == 201
+    guest_file = guest_upload_response.json()
+
+    deny_file_write_response = client.post(
+        "/api/v1/permissions/rules",
+        headers=owner_headers,
+        json={
+            "subject_type": "role",
+            "subject_id": f"{team_id}:guest",
+            "resource_type": "file",
+            "resource_id": guest_file["id"],
+            "action": "write",
+            "effect": "deny",
+            "inherit": False,
+        },
+    )
+    assert deny_file_write_response.status_code == 201
+    deny_file_write_rule = deny_file_write_response.json()
+
+    denied_update_response = client.patch(
+        f"/api/v1/files/{guest_file['id']}",
+        headers=guest_headers,
+        json={"tags": ["权限", "覆盖拒绝"]},
+    )
+    assert denied_update_response.status_code == 403
+    assert denied_update_response.json()["code"] == "FILE_WRITE_FORBIDDEN"
+
+    list_rules_response = client.get("/api/v1/permissions/rules", headers=owner_headers)
+    assert list_rules_response.status_code == 200
+    rules = list_rules_response.json()["items"]
+    assert {rule["id"] for rule in rules}.issuperset({allow_write_rule["id"], deny_file_write_rule["id"]})
+
+    delete_file_deny_response = client.delete(
+        f"/api/v1/permissions/rules/{deny_file_write_rule['id']}",
+        headers=owner_headers,
+    )
+    assert delete_file_deny_response.status_code == 204
+
+    restored_update_response = client.patch(
+        f"/api/v1/files/{guest_file['id']}",
+        headers=guest_headers,
+        json={"tags": ["权限", "覆盖删除后可写"]},
+    )
+    assert restored_update_response.status_code == 200
+    assert restored_update_response.json()["tags"] == ["权限", "覆盖删除后可写"]
+
+    delete_allow_write_response = client.delete(
+        f"/api/v1/permissions/rules/{allow_write_rule['id']}",
+        headers=owner_headers,
+    )
+    assert delete_allow_write_response.status_code == 204
+
+    guest_upload_restored_denied_response = client.post(
+        "/api/v1/files/upload",
+        headers=guest_headers,
+        files={"file": ("访客上传恢复拒绝.md", "允许规则删除后不可写。".encode(), "text/markdown")},
+        data={"folder_id": team_folder_id, "tags": "权限"},
+    )
+    assert guest_upload_restored_denied_response.status_code == 403
+    assert guest_upload_restored_denied_response.json()["code"] == "FOLDER_WRITE_FORBIDDEN"
+
+    audit_response = client.get("/api/v1/audit-logs", headers=owner_headers)
+    assert audit_response.status_code == 200
+    actions = [entry["action"] for entry in audit_response.json()["items"]]
+    assert "permission.rule_create" in actions
+    assert "permission.rule_delete" in actions
+
+
+def test_knowledge_base_create_update_document_index_and_qa_are_audited() -> None:
+    headers = auth_headers()
+    upload_response = client.post(
+        "/api/v1/files/upload",
+        headers=headers,
+        files={
+            "file": (
+                "排序实验记录.md",
+                "归并排序实验记录\n归并排序先递归拆分序列，再合并有序子序列，时间复杂度为 O(n log n)。".encode(),
+                "text/markdown",
+            )
+        },
+        data={"folder_id": "personal-root", "tags": "算法,排序"},
+    )
+    assert upload_response.status_code == 201
+    file_id = upload_response.json()["id"]
+
+    create_response = client.post(
+        "/api/v1/knowledge-bases",
+        headers=headers,
+        json={"name": "算法实验知识库", "description": "课程实验记录检索"},
+    )
+    assert create_response.status_code == 201
+    knowledge_base = create_response.json()
+    assert knowledge_base["name"] == "算法实验知识库"
+    assert knowledge_base["description"] == "课程实验记录检索"
+    assert knowledge_base["status"] == "active"
+    assert knowledge_base["document_count"] == 0
+    assert knowledge_base["chunk_count"] == 0
+
+    list_response = client.get("/api/v1/knowledge-bases", headers=headers)
+    assert list_response.status_code == 200
+    assert any(item["id"] == knowledge_base["id"] for item in list_response.json()["items"])
+
+    update_response = client.patch(
+        f"/api/v1/knowledge-bases/{knowledge_base['id']}",
+        headers=headers,
+        json={"description": "算法课程实验记录检索", "status": "active"},
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["description"] == "算法课程实验记录检索"
+
+    document_response = client.post(
+        f"/api/v1/knowledge-bases/{knowledge_base['id']}/documents",
+        headers=headers,
+        json={"file_id": file_id},
+    )
+    assert document_response.status_code == 201
+    document = document_response.json()
+    assert document["file_id"] == file_id
+    assert document["file_name"] == "排序实验记录.md"
+    assert document["index_status"] == "indexed"
+    assert document["chunk_count"] >= 1
+
+    documents_response = client.get(f"/api/v1/knowledge-bases/{knowledge_base['id']}/documents", headers=headers)
+    assert documents_response.status_code == 200
+    assert documents_response.json()["items"] == [document]
+
+    files_response = client.get("/api/v1/files", params={"query": "排序实验记录"}, headers=headers)
+    assert files_response.status_code == 200
+    indexed_file = files_response.json()["items"][0]
+    assert indexed_file["parse_status"] == "indexed"
+    assert knowledge_base["id"] in indexed_file["knowledge_base_ids"]
+
+    qa_response = client.post(
+        "/api/v1/qa/query",
+        headers=headers,
+        json={
+            "kb_id": knowledge_base["id"],
+            "question": "归并排序的步骤和复杂度是什么？",
+            "top_k": 2,
+            "stream": False,
+        },
+    )
+    assert qa_response.status_code == 200
+    answer = qa_response.json()
+    assert "归并排序" in answer["answer"]
+    assert "O(n log n)" in answer["answer"]
+    assert answer["citations"][0]["file_id"] == file_id
+    assert answer["citations"][0]["title"] == "排序实验记录.md"
+
+    audit_response = client.get("/api/v1/audit-logs", headers=headers)
+    assert audit_response.status_code == 200
+    actions = [entry["action"] for entry in audit_response.json()["items"]]
+    assert "knowledge_base.create" in actions
+    assert "knowledge_base.update" in actions
+    assert "knowledge_base.add_document" in actions
+    assert "qa.query" in actions
+
+
 def test_qa_query_returns_answer_with_citations() -> None:
     headers = auth_headers()
 
@@ -741,6 +1120,153 @@ def test_new_file_auto_summary_workflow_template_executes() -> None:
         "success",
     ]
     assert "显微镜实验报告.pdf" in execution["output"]["summary"]
+
+
+def test_workflow_definition_create_update_validate_publish_execute_and_audit() -> None:
+    headers = auth_headers()
+    create_payload = {
+        "name": "团队周报生成",
+        "description": "汇总团队文件并生成 Markdown 周报",
+        "trigger": "manual",
+        "nodes": [
+            {"id": "input", "name": "选择团队文件", "type": "trigger", "parameters": {"source": "team-folder"}},
+            {"id": "search", "name": "检索文件", "type": "tool", "tool_name": "file_search", "parameters": {"query": "周报"}},
+            {
+                "id": "report",
+                "name": "生成周报",
+                "type": "tool",
+                "tool_name": "report_generate",
+                "parameters": {"format": "markdown"},
+            },
+        ],
+        "edges": [
+            {"id": "edge-input-search", "source": "input", "target": "search"},
+            {"id": "edge-search-report", "source": "search", "target": "report"},
+        ],
+    }
+
+    create_response = client.post("/api/v1/workflows", headers=headers, json=create_payload)
+
+    assert create_response.status_code == 201
+    created = create_response.json()
+    workflow_id = created["id"]
+    assert created["status"] == "draft"
+    assert created["node_count"] == 3
+    assert [node["id"] for node in created["nodes"]] == ["input", "search", "report"]
+
+    update_response = client.patch(
+        f"/api/v1/workflows/{workflow_id}",
+        headers=headers,
+        json={
+            "description": "从团队目录中检索进展并生成可发布周报",
+            "nodes": [
+                *create_payload["nodes"],
+                {
+                    "id": "output",
+                    "name": "输出 Markdown",
+                    "type": "output",
+                    "parameters": {"target": "workspace"},
+                },
+            ],
+            "edges": [
+                *create_payload["edges"],
+                {"id": "edge-report-output", "source": "report", "target": "output"},
+            ],
+        },
+    )
+    assert update_response.status_code == 200
+    updated = update_response.json()
+    assert updated["description"] == "从团队目录中检索进展并生成可发布周报"
+    assert updated["node_count"] == 4
+
+    validate_response = client.post(f"/api/v1/workflows/{workflow_id}/validate", headers=headers)
+    assert validate_response.status_code == 200
+    validation = validate_response.json()
+    assert validation == {
+        "valid": True,
+        "issues": [],
+        "node_count": 4,
+        "edge_count": 3,
+    }
+
+    publish_response = client.post(f"/api/v1/workflows/{workflow_id}/publish", headers=headers)
+    assert publish_response.status_code == 200
+    published = publish_response.json()
+    assert published["status"] == "published"
+    assert published["version"] == "1.0.0"
+
+    team_response = client.post(
+        "/api/v1/teams",
+        headers=headers,
+        json={"name": "周报流程小组", "description": "流程执行权限验证"},
+    )
+    assert team_response.status_code == 201
+    team_folder_id = team_response.json()["root_folder"]["id"]
+    upload_response = client.post(
+        "/api/v1/files/upload",
+        headers=headers,
+        files={"file": ("团队周报.md", "本周完成权限边界和流程联调。".encode(), "text/markdown")},
+        data={"folder_id": team_folder_id, "tags": "周报,流程"},
+    )
+    assert upload_response.status_code == 201
+    workflow_file_id = upload_response.json()["id"]
+
+    execution_response = client.post(
+        f"/api/v1/workflows/{workflow_id}/executions",
+        headers=headers,
+        json={"file_id": workflow_file_id, "target_kb_id": "kb-course"},
+    )
+    assert execution_response.status_code == 201
+    execution = execution_response.json()
+    assert execution["workflow_id"] == workflow_id
+    assert execution["status"] == "completed"
+    assert [node["node_id"] for node in execution["node_executions"]] == ["input", "search", "report", "output"]
+    assert all(node["status"] == "success" for node in execution["node_executions"])
+    assert "团队周报生成" in execution["output"]["summary"]
+
+    audit_response = client.get("/api/v1/audit-logs", headers=headers)
+    assert audit_response.status_code == 200
+    actions = [entry["action"] for entry in audit_response.json()["items"]]
+    assert "workflow.create" in actions
+    assert "workflow.update" in actions
+    assert "workflow.publish" in actions
+    assert "workflow.execute" in actions
+
+
+def test_workflow_validation_rejects_cycles_and_invalid_tool_nodes_before_publish() -> None:
+    headers = auth_headers()
+    create_response = client.post(
+        "/api/v1/workflows",
+        headers=headers,
+        json={
+            "name": "循环流程草稿",
+            "description": "用于校验错误提示",
+            "trigger": "manual",
+            "nodes": [
+                {"id": "a", "name": "缺少工具", "type": "tool", "parameters": {}},
+                {"id": "b", "name": "报告生成", "type": "tool", "tool_name": "report_generate", "parameters": {}},
+            ],
+            "edges": [
+                {"id": "edge-a-b", "source": "a", "target": "b"},
+                {"id": "edge-b-a", "source": "b", "target": "a"},
+            ],
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    validate_response = client.post(f"/api/v1/workflows/{workflow_id}/validate", headers=headers)
+
+    assert validate_response.status_code == 200
+    validation = validate_response.json()
+    issue_codes = {issue["code"] for issue in validation["issues"]}
+    assert validation["valid"] is False
+    assert {"WORKFLOW_CYCLE", "WORKFLOW_TOOL_REQUIRED"}.issubset(issue_codes)
+
+    publish_response = client.post(f"/api/v1/workflows/{workflow_id}/publish", headers=headers)
+    assert publish_response.status_code == 409
+    assert publish_response.json()["code"] == "WORKFLOW_INVALID"
+    assert publish_response.json()["detail"]["issue_count"] >= 2
 
 
 def flatten_folders(items: list[dict[str, object]]) -> dict[str, dict[str, object]]:

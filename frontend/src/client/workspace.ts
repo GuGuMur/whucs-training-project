@@ -1,24 +1,39 @@
 import { createAuthorizationHeader } from '@/auth/workspaceAccess'
 import {
+  addKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPost,
   copyFileApiV1FilesFileIdCopyPost,
   createFolderApiV1FoldersPost,
+  createKnowledgeBaseApiV1KnowledgeBasesPost,
+  createPermissionRuleApiV1PermissionsRulesPost,
   createTeamApiV1TeamsPost,
   createTeamInviteApiV1TeamsTeamIdInvitesPost,
+  createWorkflowApiV1WorkflowsPost,
   deleteFileApiV1FilesFileIdDelete,
   deleteFolderApiV1FoldersFolderIdDelete,
+  deletePermissionRuleApiV1PermissionsRulesRuleIdDelete,
   downloadFileApiV1FilesFileIdDownloadGet,
+  executeWorkflowApiV1WorkflowsWorkflowIdExecutionsPost,
   filesApiV1FilesGet,
   fileVersionsApiV1FilesFileIdVersionsGet,
   foldersApiV1FoldersTreeGet,
   joinTeamApiV1TeamsTeamIdMembersPost,
+  knowledgeBasesApiV1KnowledgeBasesGet,
+  knowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGet,
+  permissionRulesApiV1PermissionsRulesGet,
+  publishWorkflowApiV1WorkflowsWorkflowIdPublishPost,
   removeTeamMemberApiV1TeamsTeamIdMembersMemberIdDelete,
   restoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePost,
   teamDetailApiV1TeamsTeamIdGet,
   teamsApiV1TeamsGet,
   updateFileApiV1FilesFileIdPatch,
   updateFolderApiV1FoldersFolderIdPatch,
+  updateKnowledgeBaseApiV1KnowledgeBasesKbIdPatch,
   updateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatch,
+  updateWorkflowApiV1WorkflowsWorkflowIdPatch,
   uploadFileApiV1FilesUploadPost,
+  qaQueryApiV1QaQueryPost,
+  validateWorkflowApiV1WorkflowsWorkflowIdValidatePost,
+  workflowsApiV1WorkflowsGet,
   workspaceSnapshotApiV1WorkspaceSnapshotGet,
 } from '@/client/generated'
 import type {
@@ -35,6 +50,15 @@ import type {
   FolderItem,
   FolderTreeResponse,
   FolderUpdate,
+  KnowledgeBaseListResponse,
+  KnowledgeBasePublic,
+  KnowledgeBaseUpdate,
+  KnowledgeDocumentListResponse,
+  KnowledgeDocumentPublic,
+  PermissionRuleCreate,
+  PermissionRuleListResponse,
+  PermissionRulePublic,
+  QaResponse,
   TeamDetail,
   TeamInvitePublic,
   TeamListResponse,
@@ -42,7 +66,14 @@ import type {
   TeamMemberUpdate,
   TeamSummary,
   ToolDefinition,
+  WorkflowCreate,
   WorkflowDefinition,
+  WorkflowEdgeDefinition,
+  WorkflowExecutionResponse,
+  WorkflowListResponse,
+  WorkflowNodeDefinition,
+  WorkflowUpdate,
+  WorkflowValidationResponse,
   WorkspaceSnapshot,
 } from '@/client/generated'
 
@@ -53,10 +84,22 @@ export type WorkspaceFileVersionListResponse = FileVersionListResponse
 export type WorkspaceFolder = FolderItem
 export type WorkspaceFolderScope = WorkspaceFolder['scope']
 export type WorkspaceFolderTreeResponse = FolderTreeResponse
+export type WorkspaceKnowledgeBase = KnowledgeBasePublic
+export type WorkspaceKnowledgeDocument = KnowledgeDocumentPublic
+export type WorkspaceKnowledgeBaseListResponse = KnowledgeBaseListResponse
+export type WorkspaceKnowledgeDocumentListResponse = KnowledgeDocumentListResponse
+export type WorkspacePermissionRule = PermissionRulePublic
+export type WorkspacePermissionRuleListResponse = PermissionRuleListResponse
+export type WorkspaceQuestionResponse = QaResponse
 export type WorkspaceTeamDetail = TeamDetail
 export type WorkspaceTeamInvite = TeamInvitePublic
 export type WorkspaceTeamMember = TeamMemberPublic
 export type WorkspaceTeamRole = TeamMemberUpdate['role']
+export type WorkspaceWorkflow = WorkflowDefinition
+export type WorkspaceWorkflowNode = WorkflowNodeDefinition
+export type WorkspaceWorkflowEdge = WorkflowEdgeDefinition
+export type WorkspaceWorkflowValidation = WorkflowValidationResponse
+export type WorkspaceWorkflowExecution = WorkflowExecutionResponse
 
 export interface WorkspaceFileFilters {
   fileType: string
@@ -91,6 +134,21 @@ export interface WorkspaceFolderOption {
   label: string
   value: string
 }
+export interface WorkspaceKnowledgeBaseCreateInput {
+  description?: string | null
+  name: string
+}
+export interface WorkspaceKnowledgeBaseUpdateInput {
+  description?: string | null
+  name?: string | null
+  status?: NonNullable<KnowledgeBaseUpdate['status']>
+}
+export interface WorkspaceQuestionInput {
+  conversationId?: string | null
+  kbId: string
+  question: string
+  topK?: number
+}
 export interface WorkspaceTeamCreateInput {
   description?: string | null
   name: string
@@ -98,6 +156,33 @@ export interface WorkspaceTeamCreateInput {
 export interface WorkspaceTeamInviteInput {
   email: string
   role: WorkspaceTeamRole
+}
+export interface WorkspacePermissionRuleCreateInput {
+  action: PermissionRuleCreate['action']
+  effect: PermissionRuleCreate['effect']
+  inherit?: boolean
+  resourceId: string
+  resourceType: PermissionRuleCreate['resource_type']
+  subjectId: string
+  subjectType: PermissionRuleCreate['subject_type']
+}
+export interface WorkspaceWorkflowCreateInput {
+  description?: string | null
+  edges?: WorkspaceWorkflowEdge[]
+  name: string
+  nodes?: WorkspaceWorkflowNode[]
+  trigger?: string
+}
+export interface WorkspaceWorkflowUpdateInput {
+  description?: string | null
+  edges?: WorkspaceWorkflowEdge[] | null
+  name?: string | null
+  nodes?: WorkspaceWorkflowNode[] | null
+  trigger?: string | null
+}
+export interface WorkspaceWorkflowExecuteInput {
+  fileId: string
+  targetKbId?: string | null
 }
 export type {
   AuditLogEntry,
@@ -254,6 +339,33 @@ export const demoWorkspaceSnapshot: WorkspaceSnapshot = {
       trigger: 'file.uploaded',
       version: '1.0.0',
       node_count: 3,
+      nodes: [
+        {
+          id: 'parse',
+          name: '内容提取',
+          parameters: { query: '{{ file.name }}' },
+          tool_name: 'file_search',
+          type: 'tool',
+        },
+        {
+          id: 'qa',
+          name: '知识问答',
+          parameters: { question: '总结文档关键内容' },
+          tool_name: 'knowledge_qa',
+          type: 'tool',
+        },
+        {
+          id: 'summary',
+          name: '摘要生成',
+          parameters: { format: 'markdown' },
+          tool_name: 'report_generate',
+          type: 'tool',
+        },
+      ],
+      edges: [
+        { id: 'edge-parse-qa', source: 'parse', target: 'qa' },
+        { id: 'edge-qa-summary', source: 'qa', target: 'summary' },
+      ],
       status: 'published',
     },
   ],
@@ -351,6 +463,37 @@ export const demoWorkspaceTeamDetail: WorkspaceTeamDetail = {
   unread_count: 3,
 }
 
+export const demoWorkspacePermissionRules: WorkspacePermissionRule[] = [
+  {
+    action: 'read',
+    created_at: '2026-07-08T08:30:00+08:00',
+    created_by: 'xiaoming',
+    effect: 'deny',
+    id: 'demo-rule-folder-deny',
+    inherit: true,
+    resource_id: 'team-root',
+    resource_label: '团队文件',
+    resource_type: 'folder',
+    subject_id: 'team-biology:guest',
+    subject_label: '生物学实验 / 访客',
+    subject_type: 'role',
+  },
+  {
+    action: 'write',
+    created_at: '2026-07-08T08:35:00+08:00',
+    created_by: 'xiaoming',
+    effect: 'allow',
+    id: 'demo-rule-file-override',
+    inherit: false,
+    resource_id: 'file-weekly',
+    resource_label: '小组周报.docx',
+    resource_type: 'file',
+    subject_id: 'team-biology:member',
+    subject_label: '生物学实验 / 成员',
+    subject_type: 'role',
+  },
+]
+
 export const demoWorkspaceFileVersions: Record<string, WorkspaceFileVersion[]> = {
   'file-microscope': [
     {
@@ -389,6 +532,52 @@ export const demoWorkspaceFileVersions: Record<string, WorkspaceFileVersion[]> =
       created_at: '2026-07-08T07:43:00+08:00',
       created_by: 'system',
       is_current: true,
+    },
+  ],
+}
+
+export const demoWorkspaceKnowledgeBases: WorkspaceKnowledgeBase[] = [
+  {
+    chunk_count: 1,
+    description: '显微镜实验报告、观察记录和实验步骤',
+    document_count: 1,
+    id: 'kb-biology',
+    name: '生物学实验知识库',
+    status: 'active',
+    updated_at: '2026-07-08T06:21:00+08:00',
+  },
+  {
+    chunk_count: 1,
+    description: '需求文档、课程资料和团队协作记录',
+    document_count: 1,
+    id: 'kb-course',
+    name: '软件工程课程知识库',
+    status: 'active',
+    updated_at: '2026-07-07T18:10:00+08:00',
+  },
+]
+
+export const demoWorkspaceKnowledgeDocuments: Record<string, WorkspaceKnowledgeDocument[]> = {
+  'kb-biology': [
+    {
+      chunk_count: 1,
+      file_id: 'file-microscope',
+      file_name: '显微镜实验报告.pdf',
+      id: 'doc-microscope',
+      index_status: 'indexed',
+      kb_id: 'kb-biology',
+      updated_at: '2026-07-08T06:21:00+08:00',
+    },
+  ],
+  'kb-course': [
+    {
+      chunk_count: 1,
+      file_id: 'file-requirements',
+      file_name: '需求规格说明书.md',
+      id: 'doc-requirements',
+      index_status: 'indexed',
+      kb_id: 'kb-course',
+      updated_at: '2026-07-07T18:10:00+08:00',
     },
   ],
 }
@@ -440,6 +629,242 @@ export async function fetchWorkspaceSnapshot(token: string): Promise<WorkspaceSn
   return response.data
 }
 
+export async function listWorkspaceWorkflows(token: string): Promise<WorkflowListResponse> {
+  const response = await workflowsApiV1WorkflowsGet({
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function createWorkspaceWorkflow(
+  token: string,
+  payload: WorkspaceWorkflowCreateInput,
+): Promise<WorkspaceWorkflow> {
+  const body: WorkflowCreate = {
+    description: payload.description ?? null,
+    edges: payload.edges ?? [],
+    name: payload.name,
+    nodes: payload.nodes ?? [],
+    trigger: payload.trigger ?? 'manual',
+  }
+  const response = await createWorkflowApiV1WorkflowsPost({
+    body,
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function updateWorkspaceWorkflow(
+  token: string,
+  workflowId: string,
+  payload: WorkspaceWorkflowUpdateInput,
+): Promise<WorkspaceWorkflow> {
+  const body: WorkflowUpdate = {}
+  if ('description' in payload) {
+    body.description = payload.description ?? null
+  }
+  if ('edges' in payload) {
+    body.edges = payload.edges ?? null
+  }
+  if ('name' in payload) {
+    body.name = payload.name ?? null
+  }
+  if ('nodes' in payload) {
+    body.nodes = payload.nodes ?? null
+  }
+  if ('trigger' in payload) {
+    body.trigger = payload.trigger ?? null
+  }
+
+  const response = await updateWorkflowApiV1WorkflowsWorkflowIdPatch({
+    body,
+    headers: createAuthorizationHeader(token),
+    path: { workflow_id: workflowId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function validateWorkspaceWorkflow(
+  token: string,
+  workflowId: string,
+): Promise<WorkspaceWorkflowValidation> {
+  const response = await validateWorkflowApiV1WorkflowsWorkflowIdValidatePost({
+    headers: createAuthorizationHeader(token),
+    path: { workflow_id: workflowId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function publishWorkspaceWorkflow(token: string, workflowId: string): Promise<WorkspaceWorkflow> {
+  const response = await publishWorkflowApiV1WorkflowsWorkflowIdPublishPost({
+    headers: createAuthorizationHeader(token),
+    path: { workflow_id: workflowId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function executeWorkspaceWorkflow(
+  token: string,
+  workflowId: string,
+  payload: WorkspaceWorkflowExecuteInput,
+): Promise<WorkspaceWorkflowExecution> {
+  const response = await executeWorkflowApiV1WorkflowsWorkflowIdExecutionsPost({
+    body: {
+      file_id: payload.fileId,
+      target_kb_id: payload.targetKbId ?? null,
+    },
+    headers: createAuthorizationHeader(token),
+    path: { workflow_id: workflowId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function listKnowledgeBases(token: string): Promise<WorkspaceKnowledgeBaseListResponse> {
+  const response = await knowledgeBasesApiV1KnowledgeBasesGet({
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function createKnowledgeBase(
+  token: string,
+  payload: WorkspaceKnowledgeBaseCreateInput,
+): Promise<WorkspaceKnowledgeBase> {
+  const response = await createKnowledgeBaseApiV1KnowledgeBasesPost({
+    body: {
+      description: payload.description ?? null,
+      name: payload.name,
+    },
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function updateKnowledgeBase(
+  token: string,
+  kbId: string,
+  payload: WorkspaceKnowledgeBaseUpdateInput,
+): Promise<WorkspaceKnowledgeBase> {
+  const body: KnowledgeBaseUpdate = {}
+  if ('description' in payload) {
+    body.description = payload.description ?? null
+  }
+  if ('name' in payload) {
+    body.name = payload.name ?? null
+  }
+  if ('status' in payload) {
+    body.status = payload.status ?? null
+  }
+
+  const response = await updateKnowledgeBaseApiV1KnowledgeBasesKbIdPatch({
+    body,
+    headers: createAuthorizationHeader(token),
+    path: { kb_id: kbId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function listKnowledgeDocuments(
+  token: string,
+  kbId: string,
+): Promise<WorkspaceKnowledgeDocumentListResponse> {
+  const response = await knowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGet({
+    headers: createAuthorizationHeader(token),
+    path: { kb_id: kbId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function addKnowledgeDocument(
+  token: string,
+  kbId: string,
+  fileId: string,
+): Promise<WorkspaceKnowledgeDocument> {
+  const response = await addKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPost({
+    body: { file_id: fileId },
+    headers: createAuthorizationHeader(token),
+    path: { kb_id: kbId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function askWorkspaceQuestion(
+  token: string,
+  payload: WorkspaceQuestionInput,
+): Promise<WorkspaceQuestionResponse> {
+  const response = await qaQueryApiV1QaQueryPost({
+    body: {
+      conversation_id: payload.conversationId ?? null,
+      kb_id: payload.kbId,
+      question: payload.question,
+      stream: false,
+      top_k: payload.topK ?? 5,
+    },
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
 export async function listWorkspaceTeams(token: string): Promise<TeamListResponse> {
   const response = await teamsApiV1TeamsGet({
     headers: createAuthorizationHeader(token),
@@ -450,6 +875,54 @@ export async function listWorkspaceTeams(token: string): Promise<TeamListRespons
   }
 
   return response.data
+}
+
+export async function listWorkspacePermissionRules(token: string): Promise<WorkspacePermissionRuleListResponse> {
+  const response = await permissionRulesApiV1PermissionsRulesGet({
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function createWorkspacePermissionRule(
+  token: string,
+  payload: WorkspacePermissionRuleCreateInput,
+): Promise<WorkspacePermissionRule> {
+  const body: PermissionRuleCreate = {
+    action: payload.action,
+    effect: payload.effect,
+    inherit: payload.inherit ?? false,
+    resource_id: payload.resourceId,
+    resource_type: payload.resourceType,
+    subject_id: payload.subjectId,
+    subject_type: payload.subjectType,
+  }
+  const response = await createPermissionRuleApiV1PermissionsRulesPost({
+    body,
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function deleteWorkspacePermissionRule(token: string, ruleId: string): Promise<void> {
+  const response = await deletePermissionRuleApiV1PermissionsRulesRuleIdDelete({
+    headers: createAuthorizationHeader(token),
+    path: { rule_id: ruleId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
 }
 
 export async function createWorkspaceTeam(

@@ -4,6 +4,7 @@ import { createTestingPinia } from '@pinia/testing'
 import { defineComponent, h } from 'vue'
 import naive, { NConfigProvider } from 'naive-ui'
 
+import { useWorkspaceStore } from '@/stores/workspace'
 import WorkspaceView from '../WorkspaceView.vue'
 
 describe('WorkspaceView', () => {
@@ -15,6 +16,11 @@ describe('WorkspaceView', () => {
     const wrapper = mount(TestHost, {
       global: {
         plugins: [naive, createTestingPinia({ createSpy: vi.fn, stubActions: false })],
+        stubs: {
+          Background: true,
+          Controls: true,
+          VueFlow: { template: '<div><slot /></div>' },
+        },
       },
     })
 
@@ -30,5 +36,119 @@ describe('WorkspaceView', () => {
     expect(wrapper.text()).toContain('新文件自动摘要')
     expect(wrapper.text()).toContain('生物学实验')
     expect(wrapper.text()).toContain('审计日志')
+  })
+
+  it('wires knowledge-base panel actions to the workspace store', async () => {
+    const TestHost = defineComponent({
+      setup: () => () => h(NConfigProvider, null, { default: () => h(WorkspaceView) }),
+    })
+
+    const wrapper = mount(TestHost, {
+      global: {
+        plugins: [naive, createTestingPinia({ createSpy: vi.fn })],
+        stubs: {
+          Background: true,
+          Controls: true,
+          VueFlow: { template: '<div><slot /></div>' },
+        },
+      },
+    })
+    const workspace = useWorkspaceStore()
+
+    await flushPromises()
+    await wrapper.get('input[placeholder="知识库名称"]').setValue(' 算法复习库 ')
+    await wrapper.get('textarea[placeholder="知识库说明"]').setValue(' 课程材料 ')
+    await wrapper.get('[data-testid="submit-create-kb"]').trigger('click')
+    await wrapper.get('[data-testid="select-kb-kb-biology"]').trigger('click')
+    await wrapper.get('[data-testid="add-kb-document-file-requirements"]').trigger('click')
+    await wrapper.get('textarea[placeholder="输入问题"]').setValue(' 显微镜实验步骤是什么？ ')
+    await wrapper.get('[data-testid="submit-rag-question"]').trigger('click')
+
+    expect(workspace.createKnowledgeBase).toHaveBeenCalledWith({
+      description: '课程材料',
+      name: '算法复习库',
+    })
+    expect(workspace.selectKnowledgeBase).toHaveBeenCalledWith('kb-biology')
+    expect(workspace.addKnowledgeDocument).toHaveBeenCalledWith('kb-biology', 'file-requirements')
+    expect(workspace.askKnowledgeQuestion).toHaveBeenCalledWith({
+      kbId: 'kb-biology',
+      question: '显微镜实验步骤是什么？',
+      topK: 5,
+    })
+  })
+
+  it('wires workflow builder actions to the workspace store', async () => {
+    const TestHost = defineComponent({
+      setup: () => () => h(NConfigProvider, null, { default: () => h(WorkspaceView) }),
+    })
+
+    const wrapper = mount(TestHost, {
+      global: {
+        plugins: [naive, createTestingPinia({ createSpy: vi.fn })],
+        stubs: {
+          Background: true,
+          Controls: true,
+          VueFlow: { template: '<div><slot /></div>' },
+        },
+      },
+    })
+    const workspace = useWorkspaceStore()
+
+    await flushPromises()
+    await wrapper.get('input[placeholder="流程名称"]').setValue(' 团队周报流程 ')
+    await wrapper.get('textarea[placeholder="流程说明"]').setValue(' 自动整理团队目录 ')
+    await wrapper.get('[data-testid="submit-create-workflow"]').trigger('click')
+    await wrapper.get('[data-testid="select-workflow-new-file-auto-summary"]').trigger('click')
+    await wrapper.get('[data-testid="validate-workflow-new-file-auto-summary"]').trigger('click')
+    await wrapper.get('[data-testid="publish-workflow-new-file-auto-summary"]').trigger('click')
+    await wrapper.get('[data-testid="execute-workflow-new-file-auto-summary"]').trigger('click')
+
+    const createPayload = vi.mocked(workspace.createWorkflow).mock.calls[0]?.[0]
+    expect(createPayload).toMatchObject({
+      description: '自动整理团队目录',
+      name: '团队周报流程',
+      trigger: 'manual',
+    })
+    expect(createPayload?.nodes).toHaveLength(4)
+    expect(workspace.selectWorkflow).toHaveBeenCalledWith('new-file-auto-summary')
+    expect(workspace.validateWorkflow).toHaveBeenCalledWith('new-file-auto-summary')
+    expect(workspace.publishWorkflow).toHaveBeenCalledWith('new-file-auto-summary')
+    expect(workspace.executeWorkflow).toHaveBeenCalledWith('new-file-auto-summary', {
+      fileId: 'file-microscope',
+      targetKbId: 'kb-biology',
+    })
+  })
+
+  it('wires permission rule panel actions to the workspace store', async () => {
+    const TestHost = defineComponent({
+      setup: () => () => h(NConfigProvider, null, { default: () => h(WorkspaceView) }),
+    })
+
+    const wrapper = mount(TestHost, {
+      global: {
+        plugins: [naive, createTestingPinia({ createSpy: vi.fn })],
+        stubs: {
+          Background: true,
+          Controls: true,
+          VueFlow: { template: '<div><slot /></div>' },
+        },
+      },
+    })
+    const workspace = useWorkspaceStore()
+
+    await flushPromises()
+    await wrapper.get('[data-testid="submit-permission-rule"]').trigger('click')
+    await wrapper.get('[data-testid="delete-permission-rule-demo-rule-folder-deny"]').trigger('click')
+
+    expect(workspace.createPermissionRule).toHaveBeenCalledWith({
+      action: 'read',
+      effect: 'deny',
+      inherit: true,
+      resourceId: 'personal-root',
+      resourceType: 'folder',
+      subjectId: 'team-biology:guest',
+      subjectType: 'role',
+    })
+    expect(workspace.deletePermissionRule).toHaveBeenCalledWith('demo-rule-folder-deny')
   })
 })

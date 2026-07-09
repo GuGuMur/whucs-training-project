@@ -2,7 +2,7 @@
 
 > OpenWolf's learning memory. Updated automatically as the AI learns from interactions.
 > Do not edit manually unless correcting an error.
-> Last updated: 2026-07-08
+> Last updated: 2026-07-09
 
 ## User Preferences
 
@@ -31,6 +31,8 @@
 - **File move/copy/version boundary:** FR-F01/FR-F05 lifecycle operations now use backend `PATCH /files/{file_id}`, `POST /files/{file_id}/copy`, `GET /files/{file_id}/versions`, and restore routes. Frontend maps generated snake_case contracts in `src/client/workspace.ts`, owns loading state in `stores/workspace.ts`, and keeps the lifecycle UI isolated in `FileLifecyclePanel.vue`.
 - **Folder CRUD boundary:** FR-F02 folder create/tree/move/delete is now a backend/OpenAPI/generated-client/store/UI slice. Components emit camelCase payloads (`parentId`), `src/client/workspace.ts` maps them to OpenAPI `parent_id`, and `stores/workspace.ts` owns the tree, active folder, folder options, and loading state.
 - **Folder move rule:** Backend folder moves cannot cross personal/team scope and cannot target self/descendants. Frontend move options should filter by same scope and exclude the active folder subtree before emitting updates.
+- **Permission rule boundary:** Resource ACL rules use backend `/api/v1/permissions/rules` and generated SDK calls through `frontend/src/client/workspace.ts`; Pinia owns `permissionRules` state/actions, `PermissionRulesPanel.vue` is the presenter, and `WorkspaceView.vue` only wires handlers.
+- **ACL evaluation rule:** Phase 20 keeps ACL rules in memory but enforces deny precedence, inherited folder rules, and file-level overrides through the shared file/folder read-write helpers established in Phase 19.
 - **Local API proxy boundary:** Vite development should proxy same-origin `/api` calls to `http://127.0.0.1:8000`; this keeps the generated client on `baseUrl: '/'` while connecting to the FastAPI backend during local development.
 - **Testing pattern:** When mounting Naive UI workspace views in Vitest, install the Naive UI plugin and wrap the tested component in `NConfigProvider`; `@pinia/testing` needs `createSpy: vi.fn` in this setup.
 - **UnoCSS gotcha:** Use arbitrary unitless line-height syntax (`leading-[1.65]`) for design line-height values. Classes like `leading-1.65` can generate tiny rem line heights and visually overlap text.
@@ -57,6 +59,7 @@
 - [2026-07-08] Do not use a boolean parameter to represent optional-vs-required token return contracts in TypeScript stores; split optional and required helpers so `vue-tsc` can prove generated SDK calls receive a string token.
 - [2026-07-08] Do not reference local constants inside `withDefaults(defineProps())`; Vue hoists the props macro, so inline defaults or use imported constants that are safe at module scope.
 - [2026-07-08] Do not rely on `array[0]` to narrow fixture types in strict TypeScript tests; find a stable item and throw if missing before passing it to typed APIs.
+- [2026-07-09] Do not rely on `array[0]` to narrow select options in strict Vue components either; assign the first option to a local constant and guard it before reading `.value`.
 - [2026-07-08] Do not write frontend folder move tests or UI flows that move a personal folder under `team-root`; the backend intentionally rejects cross-scope moves with `FOLDER_SCOPE_MISMATCH`.
 - [2026-07-08] When adding file lifecycle UI, wire both desktop table rows and mobile grouped rows with the same `manage-file-*` public test/action surface, then keep lifecycle form state in a child panel component.
 
@@ -75,3 +78,4 @@
 - [2026-07-08] Added frontend file search/upload wiring before folder CRUD because backend list/upload contracts and generated SDK functions already existed; this improved the daily file workflow without expanding backend scope.
 - [2026-07-08] Added FR-F02 folder CRUD/tree UI as the next file-domain slice: backend owns validation and audit events, generated SDK stays isolated under `client/generated/`, Pinia owns folder state, and `FolderTreePanel.vue` presents tree navigation, breadcrumbs, create, rename, move, and delete controls.
 - [2026-07-08] Added FR-F01/FR-F05 file lifecycle/version UI after folder CRUD because rename/move/copy need valid folder targets. Backend owns folder-scope validation and version creation/restore semantics; frontend keeps `FileWorkbench.vue` as composition and moves form/detail markup into `FileLifecyclePanel.vue`.
+- [2026-07-09] Added resource ACL rules before persistent permission repositories: keep rule storage in memory for the MVP, expose stable OpenAPI/generated-client contracts now, and make database-backed permission repositories a later implementation detail.

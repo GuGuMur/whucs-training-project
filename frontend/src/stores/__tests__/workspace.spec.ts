@@ -5,11 +5,17 @@ import { saveWorkspaceSession } from '@/auth'
 import * as workspaceClient from '@/client/workspace'
 import {
   demoWorkspaceSnapshot,
+  type WorkspacePermissionRule,
   type WorkspaceFileVersion,
   type WorkspaceFolder,
+  type WorkspaceKnowledgeBase,
+  type WorkspaceKnowledgeDocument,
   type WorkspaceTeamDetail,
   type WorkspaceTeamInvite,
   type WorkspaceTeamMember,
+  type WorkspaceWorkflow,
+  type WorkspaceWorkflowExecution,
+  type WorkspaceWorkflowValidation,
 } from '@/client/workspace'
 import { useWorkspaceStore } from '@/stores/workspace'
 
@@ -386,6 +392,256 @@ describe('workspace store file actions', () => {
     expect(workspace.activeTeamDetail?.members.map((member) => member.id)).not.toContain('member-2')
     expect(workspace.teamOperationLoading).toBe(false)
   })
+
+  it('manages knowledge bases, indexed documents, and RAG questions through generated-client adapters', async () => {
+    saveWorkspaceSession({
+      accessToken: 'access-token',
+      displayName: '小明',
+      permissionScope: '个人',
+      refreshToken: 'refresh-token',
+      userId: '1',
+    })
+    const knowledgeBase = createKnowledgeBase()
+    const createdKnowledgeBase = {
+      ...knowledgeBase,
+      description: '课程实验检索',
+      document_count: 0,
+    }
+    const document = createKnowledgeDocument()
+    const qaResponse = {
+      answer: '归并排序先递归拆分序列，再合并有序子序列，时间复杂度为 O(n log n)。',
+      citations: [
+        {
+          chunk_id: 'chunk-sort-1',
+          document_id: 'doc-kb-algo-file-microscope',
+          file_id: 'file-microscope',
+          page_no: 1,
+          paragraph_no: 1,
+          snippet: '归并排序先递归拆分序列，再合并有序子序列，时间复杂度为 O(n log n)。',
+          title: '显微镜实验报告.pdf',
+        },
+      ],
+      conversation_id: 'conv-sort',
+      message_id: 'msg-sort',
+    }
+    const listSpy = vi.spyOn(workspaceClient, 'listKnowledgeBases').mockResolvedValue({ items: [knowledgeBase] })
+    const createSpy = vi.spyOn(workspaceClient, 'createKnowledgeBase').mockResolvedValue(createdKnowledgeBase)
+    const listDocsSpy = vi.spyOn(workspaceClient, 'listKnowledgeDocuments').mockResolvedValue({ items: [document] })
+    const addDocSpy = vi.spyOn(workspaceClient, 'addKnowledgeDocument').mockResolvedValue(document)
+    const askSpy = vi.spyOn(workspaceClient, 'askWorkspaceQuestion').mockResolvedValue(qaResponse)
+    const workspace = useWorkspaceStore()
+
+    await workspace.loadKnowledgeBases()
+    await workspace.createKnowledgeBase({ description: ' 课程实验检索 ', name: ' 算法实验知识库 ' })
+    await workspace.loadKnowledgeDocuments('kb-algo')
+    await workspace.addKnowledgeDocument('kb-algo', 'file-microscope')
+    await workspace.askKnowledgeQuestion({
+      kbId: 'kb-algo',
+      question: ' 归并排序的步骤和复杂度是什么？ ',
+      topK: 2,
+    })
+
+    expect(listSpy).toHaveBeenCalledWith('access-token')
+    expect(createSpy).toHaveBeenCalledWith('access-token', {
+      description: '课程实验检索',
+      name: '算法实验知识库',
+    })
+    expect(listDocsSpy).toHaveBeenCalledWith('access-token', 'kb-algo')
+    expect(addDocSpy).toHaveBeenCalledWith('access-token', 'kb-algo', 'file-microscope')
+    expect(askSpy).toHaveBeenCalledWith('access-token', {
+      conversationId: null,
+      kbId: 'kb-algo',
+      question: '归并排序的步骤和复杂度是什么？',
+      topK: 2,
+    })
+    expect(workspace.knowledgeBases[0]).toEqual({
+      ...createdKnowledgeBase,
+      chunk_count: document.chunk_count,
+      document_count: 1,
+      updated_at: document.updated_at,
+    })
+    expect(workspace.activeKnowledgeBaseId).toBe('kb-algo')
+    expect(workspace.activeKnowledgeDocuments).toEqual([document])
+    expect(workspace.narrative.answer).toContain('归并排序')
+    const firstCitation = workspace.narrative.citations[0]
+    expect(firstCitation).toBeDefined()
+    expect(firstCitation?.file_id).toBe('file-microscope')
+    expect(workspace.askingQuestion).toBe(false)
+    expect(workspace.knowledgeOperationLoading).toBe(false)
+  })
+
+  it('manages workflow definitions, validation, publication, and execution through generated-client adapters', async () => {
+    saveWorkspaceSession({
+      accessToken: 'access-token',
+      displayName: '小明',
+      permissionScope: '个人',
+      refreshToken: 'refresh-token',
+      userId: '1',
+    })
+    const createdWorkflow = createWorkflowDefinition('workflow-weekly', 'draft')
+    const updatedWorkflow = {
+      ...createdWorkflow,
+      description: '从团队目录检索进展并生成 Markdown 周报',
+      node_count: 4,
+      nodes: [
+        ...(createdWorkflow.nodes ?? []),
+        {
+          id: 'output',
+          name: '输出 Markdown',
+          parameters: { target: 'workspace' },
+          type: 'output' as const,
+        },
+      ],
+      edges: [
+        ...(createdWorkflow.edges ?? []),
+        { id: 'edge-report-output', source: 'report', target: 'output' },
+      ],
+    }
+    const validation: WorkspaceWorkflowValidation = {
+      edge_count: 3,
+      issues: [],
+      node_count: 4,
+      valid: true,
+    }
+    const publishedWorkflow = { ...updatedWorkflow, status: 'published' as const, version: '1.0.0' }
+    const execution: WorkspaceWorkflowExecution = {
+      id: 'exec-weekly',
+      node_executions: [
+        {
+          input: { file_id: 'file-weekly' },
+          name: '选择团队文件',
+          node_id: 'input',
+          output: { accepted: true },
+          status: 'success',
+          tool_name: 'trigger',
+        },
+        {
+          input: { file_id: 'file-weekly' },
+          name: '生成周报',
+          node_id: 'report',
+          output: { format: 'markdown' },
+          status: 'success',
+          tool_name: 'report_generate',
+        },
+      ],
+      output: { summary: '团队周报生成 已完成：基于 小组周报.docx 生成流程输出。' },
+      status: 'completed',
+      workflow_id: 'workflow-weekly',
+    }
+    const createSpy = vi.spyOn(workspaceClient, 'createWorkspaceWorkflow').mockResolvedValue(createdWorkflow)
+    const updateSpy = vi.spyOn(workspaceClient, 'updateWorkspaceWorkflow').mockResolvedValue(updatedWorkflow)
+    const validateSpy = vi.spyOn(workspaceClient, 'validateWorkspaceWorkflow').mockResolvedValue(validation)
+    const publishSpy = vi.spyOn(workspaceClient, 'publishWorkspaceWorkflow').mockResolvedValue(publishedWorkflow)
+    const executeSpy = vi.spyOn(workspaceClient, 'executeWorkspaceWorkflow').mockResolvedValue(execution)
+    const workspace = useWorkspaceStore()
+
+    await workspace.createWorkflow({
+      description: ' 汇总团队文件并生成 Markdown 周报 ',
+      edges: createdWorkflow.edges ?? [],
+      name: ' 团队周报生成 ',
+      nodes: createdWorkflow.nodes ?? [],
+      trigger: 'manual',
+    })
+    await workspace.updateWorkflow('workflow-weekly', {
+      description: ' 从团队目录检索进展并生成 Markdown 周报 ',
+      edges: updatedWorkflow.edges ?? [],
+      nodes: updatedWorkflow.nodes ?? [],
+    })
+    await workspace.validateWorkflow('workflow-weekly')
+    await workspace.publishWorkflow('workflow-weekly')
+    await workspace.executeWorkflow('workflow-weekly', { fileId: 'file-weekly', targetKbId: 'kb-course' })
+
+    expect(createSpy).toHaveBeenCalledWith('access-token', {
+      description: '汇总团队文件并生成 Markdown 周报',
+      edges: createdWorkflow.edges,
+      name: '团队周报生成',
+      nodes: createdWorkflow.nodes,
+      trigger: 'manual',
+    })
+    expect(updateSpy).toHaveBeenCalledWith('access-token', 'workflow-weekly', {
+      description: '从团队目录检索进展并生成 Markdown 周报',
+      edges: updatedWorkflow.edges,
+      nodes: updatedWorkflow.nodes,
+    })
+    expect(validateSpy).toHaveBeenCalledWith('access-token', 'workflow-weekly')
+    expect(publishSpy).toHaveBeenCalledWith('access-token', 'workflow-weekly')
+    expect(executeSpy).toHaveBeenCalledWith('access-token', 'workflow-weekly', {
+      fileId: 'file-weekly',
+      targetKbId: 'kb-course',
+    })
+    expect(workspace.activeWorkflowId).toBe('workflow-weekly')
+    expect(workspace.activeWorkflowValidation).toEqual(validation)
+    expect(workspace.activeWorkflowExecution).toEqual(execution)
+    expect(workspace.workflows[0]).toEqual(publishedWorkflow)
+    expect(workspace.narrative.agentSteps.map((step) => step.tool_name)).toContain('report_generate')
+    expect(workspace.workflowOperationLoading).toBe(false)
+  })
+
+  it('manages permission rules through generated-client adapters', async () => {
+    saveWorkspaceSession({
+      accessToken: 'access-token',
+      displayName: '小明',
+      permissionScope: '个人',
+      refreshToken: 'refresh-token',
+      userId: '1',
+    })
+    const inheritedDeny = createPermissionRule('rule-folder-deny', {
+      action: 'read',
+      effect: 'deny',
+      inherit: true,
+      resource_id: 'team-root',
+      resource_label: '团队文件',
+      resource_type: 'folder',
+      subject_id: 'team-biology:guest',
+      subject_label: '生物学实验 / 访客',
+      subject_type: 'role',
+    })
+    const directOverride = createPermissionRule('rule-file-allow', {
+      action: 'write',
+      effect: 'allow',
+      inherit: false,
+      resource_id: 'file-weekly',
+      resource_label: '小组周报.docx',
+      resource_type: 'file',
+      subject_id: 'team-biology:member',
+      subject_label: '生物学实验 / 成员',
+      subject_type: 'role',
+    })
+    const listSpy = vi.spyOn(workspaceClient, 'listWorkspacePermissionRules').mockResolvedValue({
+      items: [inheritedDeny],
+    })
+    const createSpy = vi.spyOn(workspaceClient, 'createWorkspacePermissionRule').mockResolvedValue(directOverride)
+    const deleteSpy = vi.spyOn(workspaceClient, 'deleteWorkspacePermissionRule').mockResolvedValue()
+    const workspace = useWorkspaceStore()
+
+    await workspace.loadPermissionRules()
+    await workspace.createPermissionRule({
+      action: 'write',
+      effect: 'allow',
+      inherit: false,
+      resourceId: 'file-weekly',
+      resourceType: 'file',
+      subjectId: 'team-biology:member',
+      subjectType: 'role',
+    })
+    await workspace.deletePermissionRule('rule-folder-deny')
+
+    expect(listSpy).toHaveBeenCalledWith('access-token')
+    expect(createSpy).toHaveBeenCalledWith('access-token', {
+      action: 'write',
+      effect: 'allow',
+      inherit: false,
+      resourceId: 'file-weekly',
+      resourceType: 'file',
+      subjectId: 'team-biology:member',
+      subjectType: 'role',
+    })
+    expect(deleteSpy).toHaveBeenCalledWith('access-token', 'rule-folder-deny')
+    expect(workspace.permissionRules).toEqual([directOverride])
+    expect(workspace.permissionRulesLoading).toBe(false)
+    expect(workspace.permissionRuleSaving).toBe(false)
+    expect(workspace.deletingPermissionRuleId).toBeNull()
+  })
 })
 
 function createFolderTree(): WorkspaceFolder[] {
@@ -440,6 +696,18 @@ function createVersion(id: string, versionNo: number, isCurrent: boolean): Works
   }
 }
 
+function createPermissionRule(
+  id: string,
+  overrides: Omit<WorkspacePermissionRule, 'created_at' | 'created_by' | 'id'>,
+): WorkspacePermissionRule {
+  return {
+    created_at: '2026-07-08T08:00:00+08:00',
+    created_by: 'xiaoming',
+    id,
+    ...overrides,
+  }
+}
+
 function createTeamDetail(): WorkspaceTeamDetail {
   return {
     description: '课程资料协作',
@@ -473,5 +741,67 @@ function createTeamMember(id: string, role: WorkspaceTeamMember['role']): Worksp
     team_id: 'team-algo',
     user_id: id === 'member-1' ? 1 : 2,
     username: id === 'member-1' ? 'xiaoming' : 'xiaohong',
+  }
+}
+
+function createKnowledgeBase(): WorkspaceKnowledgeBase {
+  return {
+    chunk_count: 1,
+    description: '算法课程实验记录',
+    document_count: 1,
+    id: 'kb-algo',
+    name: '算法实验知识库',
+    status: 'active',
+    updated_at: '2026-07-08T08:00:00+08:00',
+  }
+}
+
+function createKnowledgeDocument(): WorkspaceKnowledgeDocument {
+  return {
+    chunk_count: 1,
+    file_id: 'file-microscope',
+    file_name: '显微镜实验报告.pdf',
+    id: 'doc-kb-algo-file-microscope',
+    index_status: 'indexed',
+    kb_id: 'kb-algo',
+    updated_at: '2026-07-08T08:05:00+08:00',
+  }
+}
+
+function createWorkflowDefinition(id: string, status: WorkspaceWorkflow['status']): WorkspaceWorkflow {
+  return {
+    description: '汇总团队文件并生成 Markdown 周报',
+    edges: [
+      { id: 'edge-input-search', source: 'input', target: 'search' },
+      { id: 'edge-search-report', source: 'search', target: 'report' },
+    ],
+    id,
+    name: '团队周报生成',
+    node_count: 3,
+    nodes: [
+      {
+        id: 'input',
+        name: '选择团队文件',
+        parameters: { source: 'team-folder' },
+        type: 'trigger',
+      },
+      {
+        id: 'search',
+        name: '检索文件',
+        parameters: { query: '周报' },
+        tool_name: 'file_search',
+        type: 'tool',
+      },
+      {
+        id: 'report',
+        name: '生成周报',
+        parameters: { format: 'markdown' },
+        tool_name: 'report_generate',
+        type: 'tool',
+      },
+    ],
+    status,
+    trigger: 'manual',
+    version: '0.1.0',
   }
 }

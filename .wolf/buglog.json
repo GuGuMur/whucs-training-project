@@ -16,612 +16,663 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-06T13:47:40.816Z"
-        },
-        {
-            "id": "bug-002",
-            "timestamp": "2026-07-07T10:28:50+08:00",
-            "error_message": "sed: 无法读取 /home/gugumur/.agents/skills/Skywork Document/SKILL.md: 没有那个文件或目录",
-            "file": "/home/gugumur/.agents/skills/skywork-document/SKILL.md",
-            "root_cause": "Used the display skill name as a filesystem path instead of the actual lowercase directory name.",
-            "fix": "Read the skill from the actual path `/home/gugumur/.agents/skills/skywork-document/SKILL.md` and continued with local Markdown document creation.",
-            "tags": [
-                "skill-path",
-                "documentation",
-                "sed"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-07T10:28:50+08:00"
-        },
-        {
-            "id": "bug-003",
-            "timestamp": "2026-07-07T11:11:06+08:00",
-            "error_message": "The local `od` command resolves to GNU coreutils and npm package names `open-design`, `@nexu/open-design`, and `@open-design/cli` are not installable from the public npm registry.",
-            "file": "OPEN_DESIGN.md",
-            "root_cause": "Open Design is distributed as a separate repository/product with its own local daemon and CLI, not as a normal dependency of this Vue project.",
-            "fix": "Configured project-level Open Design files (`DESIGN.md` and `skills/.../SKILL.md`) and documented that the official Open Design CLI must be installed before running `od mcp install codex`.",
-            "tags": [
-                "open-design",
-                "cli",
-                "documentation"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-07T11:11:06+08:00"
-        },
-        {
-            "id": "bug-004",
-            "timestamp": "2026-07-07T13:07:54+08:00",
-            "error_message": "Error: Skill path not found: /tmp/codex/skill-install-*/skills-main/skills/.curated/frontend-skill",
-            "file": "$CODEX_HOME/skills",
-            "root_cause": "`frontend-skill` is not present in the current `openai/skills` curated list.",
-            "fix": "Listed curated skills with `list-skills.py --format json`; no install was performed. User needs to provide a valid skill name or GitHub repo/path.",
-            "tags": [
-                "skill-installer",
-                "openai-skills",
-                "missing-skill"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-07T13:07:54+08:00"
-        },
-        {
-            "id": "bug-005",
-            "timestamp": "2026-07-08T08:26:00+08:00",
-            "error_message": "SyntaxError: bytes can only contain ASCII literal characters",
-            "file": "backend/tests/test_workspace_api.py",
-            "root_cause": "The test used a bytes literal containing Chinese characters for the upload fixture.",
-            "fix": "Changed the upload fixture to a Unicode string and encoded it with `.encode()`.",
-            "tags": [
-                "pytest",
-                "python",
-                "unicode",
-                "tests"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T08:26:00+08:00"
-        },
-        {
-            "id": "bug-006",
-            "timestamp": "2026-07-08T08:37:00+08:00",
-            "error_message": "ImportError: email-validator is not installed, run `pip install 'pydantic[email]'`",
-            "file": "backend/app/domain/schemas.py",
-            "root_cause": "The MVP schema used Pydantic `EmailStr` without declaring the required `email-validator` extra in backend dependencies.",
-            "fix": "Changed email fields to `str` with a basic email regex pattern to keep the dependency surface explicit.",
-            "tags": [
-                "pydantic",
-                "dependencies",
-                "fastapi",
-                "tests"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T08:37:00+08:00"
-        },
-        {
-            "id": "bug-007",
-            "timestamp": "2026-07-08T09:02:16+08:00",
-            "error_message": "Error: [@pinia/testing]: You must configure the `createSpy` option.",
-            "file": "frontend/src/views/__tests__/WorkspaceView.spec.ts",
-            "root_cause": "The Pinia testing plugin in this dependency set requires an explicit spy factory when used outside Vitest globals.",
-            "fix": "Imported `vi` from Vitest and passed `createSpy: vi.fn` to `createTestingPinia`.",
-            "tags": [
-                "pinia",
-                "vitest",
-                "frontend-tests"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T09:02:16+08:00"
-        },
-        {
-            "id": "bug-008",
-            "timestamp": "2026-07-08T09:02:43+08:00",
-            "error_message": "WorkspaceView test rendered unresolved Naive UI components and failed to find `新文件自动摘要`.",
-            "file": "frontend/src/views/__tests__/WorkspaceView.spec.ts",
-            "root_cause": "The unit test mounted `WorkspaceView` directly without the Naive UI plugin or `NConfigProvider`, so Naive component props and slots were not rendered as in the app.",
-            "fix": "Mounted a test host that wraps `WorkspaceView` in `NConfigProvider` and installs the Naive UI plugin.",
-            "tags": [
-                "naive-ui",
-                "vue-test-utils",
-                "frontend-tests"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T09:02:43+08:00"
-        },
-        {
-            "id": "bug-009",
-            "timestamp": "2026-07-08T09:08:00+08:00",
-            "error_message": "Browser screenshot showed overlapping RAG text and compressed headings.",
-            "file": "frontend/src/components/workspace/RagInsightPanel.vue",
-            "root_cause": "UnoCSS parsed `leading-1.65`-style classes as small rem line heights instead of unitless line-height values.",
-            "fix": "Changed custom line-height utilities to explicit arbitrary value syntax such as `leading-[1.65]`.",
-            "tags": [
-                "unocss",
-                "css",
-                "visual-regression"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T09:08:00+08:00"
-        },
-        {
-            "id": "bug-010",
-            "timestamp": "2026-07-08T09:10:00+08:00",
-            "error_message": "Mobile viewport had horizontal overflow: `clientWidth` 390, `scrollWidth` 668.",
-            "file": "frontend/src/components/workspace/FileWorkbench.vue",
-            "root_cause": "Naive UI `NDataTable` required a 650px table width and expanded the mobile page instead of scrolling inside the table surface.",
-            "fix": "Added `scroll-x` to `NDataTable` and constrained workspace cards with `min-w-0 overflow-hidden`.",
-            "tags": [
-                "naive-ui",
-                "responsive",
-                "datatable"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T09:10:00+08:00"
-        },
-        {
-            "id": "bug-011",
-            "timestamp": "2026-07-08T09:14:00+08:00",
-            "error_message": "Build failed with missing starter modules: `HelloWorld.vue` and `TheWelcome.vue`.",
-            "file": "frontend/src/views/HomeView.vue",
-            "root_cause": "Vue starter components had been removed for the workbench, but stale starter tests and views still referenced them and were included by `vue-tsc --build`.",
-            "fix": "Deleted unused starter test and unused starter views so the app only compiles the workspace route.",
-            "tags": [
-                "vue-tsc",
-                "starter-cleanup",
-                "build"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T09:14:00+08:00"
-        },
-        {
-            "id": "bug-012",
-            "timestamp": "2026-07-08T09:17:00+08:00",
-            "error_message": "/usr/bin/bash: 行 1: python: 未找到命令",
-            "file": ".wolf/buglog.json",
-            "root_cause": "The shell environment exposes `python3` but not `python`.",
-            "fix": "Re-ran JSON validation with `python3 -m json.tool .wolf/buglog.json`.",
-            "tags": [
-                "environment",
-                "python",
-                "json-validation"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T09:17:00+08:00"
-        },
-        {
-            "id": "bug-013",
-            "timestamp": "2026-07-08T09:34:00+08:00",
-            "error_message": "Edge DevTools `resize_page` failed with `Protocol error (Browser.setContentsSize): Restore window to normal state before setting content size`.",
-            "file": "browser-devtools",
-            "root_cause": "The browser window state did not allow direct content-size resizing through the DevTools protocol.",
-            "fix": "Used `emulate` viewport settings for desktop and phone visual checks instead of `resize_page`.",
-            "tags": [
-                "devtools",
-                "browser-check",
-                "viewport"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T09:34:00+08:00"
-        },
-        {
-            "id": "bug-014",
-            "timestamp": "2026-07-08T09:46:00+08:00",
-            "error_message": "rmdir: 删除 'frontend/src/__tests__' 失败: 没有那个文件或目录",
-            "file": "frontend/src/__tests__",
-            "root_cause": "The command was run from `frontend/` but used a path with an extra `frontend/` prefix.",
-            "fix": "Removed the empty directory using the correct path relative to `frontend/`: `src/__tests__`.",
-            "tags": [
-                "shell",
-                "path",
-                "cleanup"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T09:46:00+08:00"
-        },
-        {
-            "id": "bug-015",
-            "timestamp": "2026-07-08T09:56:00+08:00",
-            "error_message": "Vite/Rolldown emitted `INVALID_ANNOTATION` warnings from `@vueuse/core` after importing `useMediaQuery`.",
-            "file": "frontend/src/composables/useWorkspaceLayoutMode.ts",
-            "root_cause": "The small media-query need pulled `@vueuse/core` into the production bundle, and Rolldown reported unsupported pure annotation positions in that dependency.",
-            "fix": "Replaced the dependency import with a focused Vue composable using `window.matchMedia`, `shallowRef`, `onMounted`, and `onUnmounted`.",
-            "tags": [
-                "vite",
-                "rolldown",
-                "vueuse",
-                "build-warning"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T09:56:00+08:00"
-        },
-        {
-            "id": "bug-016",
-            "timestamp": "2026-07-08T09:47:00+08:00",
-            "error_message": "Vite HMR temporarily failed to reload moved modules during the `services` and layout migration.",
-            "file": "frontend/src/stores/workspace.ts",
-            "root_cause": "The dev server observed intermediate file states where imports still referenced moved files such as `src/services/workspaceApi.ts` and `src/layouts/WorkspaceShell.vue`.",
-            "fix": "Updated imports to `src/client/workspace.ts` and split layout files, then reloaded the browser at the final URL; console checks were clean after reload.",
-            "tags": [
-                "vite",
-                "hmr",
-                "refactor"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T09:47:00+08:00"
-        },
-        {
-            "id": "bug-017",
-            "timestamp": "2026-07-08T10:10:00+08:00",
-            "error_message": "ModuleNotFoundError: No module named 'app.openapi_export'",
-            "file": "backend/app/openapi_export.py",
-            "root_cause": "The frontend client generation workflow needed a stable backend OpenAPI export entry point, but no backend module existed for exporting `app.openapi()` to JSON.",
-            "fix": "Added `backend/app/openapi_export.py` with `export_openapi()` and a CLI main function, then covered it with `backend/tests/test_openapi_export.py`.",
-            "tags": [
-                "openapi",
-                "backend",
-                "pytest",
-                "tdd-red"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T10:10:00+08:00"
-        },
-        {
-            "id": "bug-018",
-            "timestamp": "2026-07-08T10:12:00+08:00",
-            "error_message": "Generated hey-api fetch client used `baseUrl: 'src'` after reading `src/client/openapi/workspace.openapi.json`.",
-            "file": "backend/app/main.py",
-            "root_cause": "The FastAPI OpenAPI document had no `servers` entry, so hey-api inferred an incorrect base URL from the local schema path.",
-            "fix": "Set FastAPI `servers=[{\"url\": \"/\"}]`, added an OpenAPI export assertion for that server URL, regenerated the client, and verified `baseUrl: '/'`.",
-            "tags": [
-                "openapi",
-                "hey-api",
-                "frontend-client",
-                "fastapi"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T10:12:00+08:00"
-        },
-        {
-            "id": "bug-019",
-            "timestamp": "2026-07-08T10:14:00+08:00",
-            "error_message": "Frontend architecture test showed `frontend/src/client/workspace.ts` still imported axios directly instead of using `@/client/generated`.",
-            "file": "frontend/src/client/workspace.ts",
-            "root_cause": "The generated SDK had been added, but the hand-written workspace adapter still owned the live HTTP request path.",
-            "fix": "Rewired `fetchWorkspaceSnapshot()` to call `workspaceSnapshotApiV1WorkspaceSnapshotGet`, exported generated OpenAPI types through the adapter, and changed auth headers to generated-client-compatible lowercase `authorization`.",
-            "tags": [
-                "frontend-client",
-                "hey-api",
-                "architecture",
-                "auth"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T10:14:00+08:00"
-        },
-        {
-            "id": "bug-020",
-            "timestamp": "2026-07-08T10:34:00+08:00",
-            "error_message": "[Vue warn]: Failed to resolve component: NSegmented; LoginView test could not find `注册账号`.",
-            "file": "frontend/src/views/LoginView.vue",
-            "root_cause": "The installed Naive UI package does not export an `NSegmented` component, so the login/register mode switch rendered as an unresolved custom element instead of visible options.",
-            "fix": "Replaced `NSegmented` with `NRadioGroup` plus `NRadioButton` using `button-style=\"solid\"`, then updated the test Pinia spy to `vi.fn` and reran focused auth/router/view tests.",
-            "tags": [
-                "naive-ui",
-                "vue",
-                "frontend-tests",
-                "auth"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T10:34:00+08:00"
-        },
-        {
-            "id": "bug-021",
-            "timestamp": "2026-07-08T10:44:00+08:00",
-            "error_message": "Backend TDD refresh-token test initially received 404 for `POST /api/v1/auth/refresh`.",
-            "file": "backend/app/api/routes.py",
-            "root_cause": "The auth API exposed login/register and current-user restoration, but no refresh endpoint or request schema existed yet.",
-            "fix": "Added `RefreshTokenRequest`, `POST /auth/refresh`, `WorkspaceService.refresh_session()`, token-kind validation, and random token `jti` so refreshed tokens differ from previous tokens.",
-            "tags": [
-                "backend",
-                "auth",
-                "refresh-token",
-                "tdd-red"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T10:44:00+08:00"
-        },
-        {
-            "id": "bug-022",
-            "timestamp": "2026-07-08T10:48:00+08:00",
-            "error_message": "Frontend auth store test failed because `auth.refreshSession` was not a function.",
-            "file": "frontend/src/stores/auth.ts",
-            "root_cause": "The generated refresh SDK function existed after client regeneration, but the Pinia auth store had not exposed an action to call it and persist the rotated session.",
-            "fix": "Added `refreshSession()` using `refreshApiV1AuthRefreshPost`, persisted the returned access/refresh tokens through `src/auth/`, and covered it in `auth.spec.ts`.",
-            "tags": [
-                "frontend",
-                "pinia",
-                "auth",
-                "refresh-token"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T10:48:00+08:00"
-        },
-        {
-            "id": "bug-023",
-            "timestamp": "2026-07-08T11:04:00+08:00",
-            "error_message": "Backend profile TDD tests received 405 Method Not Allowed for `PATCH /api/v1/users/me`.",
-            "file": "backend/app/api/routes.py",
-            "root_cause": "The report listed current-user profile update as `PATCH /users/me`, but the backend only exposed `GET /users/me`.",
-            "fix": "Added `UserUpdate`, `PATCH /users/me`, `WorkspaceService.update_user_profile()`, duplicate email validation, email index maintenance, and `user.update_profile` audit logging.",
-            "tags": [
-                "backend",
-                "auth",
-                "profile",
-                "tdd-red"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T11:04:00+08:00"
-        },
-        {
-            "id": "bug-024",
-            "timestamp": "2026-07-08T11:07:00+08:00",
-            "error_message": "Frontend profile tests failed because `ProfileView.vue` was missing, `/profile` had no route match, and `auth.updateProfile` was not a function.",
-            "file": "frontend/src/views/ProfileView.vue",
-            "root_cause": "The OpenAPI profile endpoint had been generated, but no frontend auth-store action, protected route, or page existed for FR-U04.",
-            "fix": "Added `updateProfile()` using `updateMeApiV1UsersMePatch`, protected `/profile`, `ProfileView.vue`, and desktop/mobile profile navigation links.",
-            "tags": [
-                "frontend",
-                "vue",
-                "pinia",
-                "profile",
-                "tdd-red"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T11:07:00+08:00"
-        },
-        {
-            "id": "bug-025",
-            "timestamp": "2026-07-08T13:59:42+08:00",
-            "error_message": "Frontend architecture test failed because `vite.config.ts` did not contain the expected `'/api'` proxy target string for `http://127.0.0.1:8000`.",
-            "file": "frontend/vite.config.ts",
-            "root_cause": "The local development proxy used double-quoted `\"/api\"` and targeted `http://localhost:8000`, while the architecture contract requires the FastAPI loopback target `http://127.0.0.1:8000`.",
-            "fix": "Changed the Vite proxy key to `'/api'`, set `target: 'http://127.0.0.1:8000'`, and reran the architecture test plus full frontend/backend verification.",
-            "tags": [
-                "vite",
-                "proxy",
-                "frontend-architecture",
-                "tdd-red"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T13:59:42+08:00"
-        },
-        {
-            "id": "bug-026",
-            "timestamp": "2026-07-08T14:01:24+08:00",
-            "error_message": "/usr/bin/bash: 行 1: /api: 没有那个文件或目录",
-            "file": "shell command",
-            "root_cause": "A ripgrep search pattern containing Markdown backticks was wrapped in double quotes, so bash treated the backticked `/api` text as command substitution.",
-            "fix": "Re-ran the search with a single-quoted pattern so backticks stayed literal.",
-            "tags": [
-                "shell",
-                "quoting",
-                "ripgrep"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T14:01:24+08:00"
-        },
-        {
-            "id": "bug-027",
-            "timestamp": "2026-07-08T14:10:00+08:00",
-            "error_message": "Backend lockout TDD tests failed with `KeyError: 'failed_attempts'` after wrong-password login responses.",
-            "file": "backend/app/services/workspace.py",
-            "root_cause": "The auth service returned generic invalid-credential errors and did not record per-user failed login counts or temporary lockout state for FR-U05.",
-            "fix": "Added `LoginSecurityState`, a 5-attempt/5-minute in-memory lockout policy, structured `failed_attempts`/`retry_after_seconds` details, success reset, and `auth.login_failed`/`auth.account_locked` audit events.",
-            "tags": [
-                "backend",
-                "auth",
-                "lockout",
-                "tdd-red"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T14:10:00+08:00"
-        },
-        {
-            "id": "bug-028",
-            "timestamp": "2026-07-08T14:12:00+08:00",
-            "error_message": "OpenAPI export test failed with `KeyError: '401'` for `/api/v1/auth/login` responses.",
-            "file": "backend/app/api/routes.py",
-            "root_cause": "The runtime emitted structured auth errors, but the login route did not declare 401 or 423 `ErrorResponse` schemas in OpenAPI metadata.",
-            "fix": "Added login route `responses` metadata for 401 invalid credentials and 423 account lockout, then regenerated the frontend OpenAPI client.",
-            "tags": [
-                "backend",
-                "openapi",
-                "auth",
-                "generated-client"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T14:12:00+08:00"
-        },
-        {
-            "id": "bug-029",
-            "timestamp": "2026-07-08T14:11:00+08:00",
-            "error_message": "Frontend auth store test expected `账户已临时锁定，请 5 分钟后再试` but received `账号或密码不正确`.",
-            "file": "frontend/src/stores/auth.ts",
-            "root_cause": "The generated-client-backed login action treated all login errors as generic invalid credentials and ignored the backend `ACCOUNT_LOCKED` code.",
-            "fix": "Added runtime error narrowing and login error message mapping for `ACCOUNT_LOCKED` and remaining-attempt details, with a typed `ErrorResponse` store test.",
-            "tags": [
-                "frontend",
-                "pinia",
-                "auth",
-                "lockout",
-                "tdd-red"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T14:11:00+08:00"
-        },
-        {
-            "id": "bug-030",
-            "timestamp": "2026-07-08T14:23:00+08:00",
-            "error_message": "File lifecycle backend tests expected download/delete endpoints but received 404 for `/api/v1/files/{file_id}/download` and `DELETE /api/v1/files/{file_id}`.",
-            "file": "backend/app/api/routes.py",
-            "root_cause": "The backend file API only supported listing/filtering/upload, and the service did not store uploaded bytes for later download or delete file metadata/content.",
-            "fix": "Added in-memory `_file_contents`, `download_file()`, `delete_file()`, FastAPI download/delete routes, UTF-8 attachment headers, and file audit events.",
-            "tags": [
-                "backend",
-                "files",
-                "download",
-                "delete",
-                "tdd-red"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T14:23:00+08:00"
-        },
-        {
-            "id": "bug-031",
-            "timestamp": "2026-07-08T14:24:00+08:00",
-            "error_message": "Frontend file-action tests failed because `downloadWorkspaceFile` and `deleteWorkspaceFile` were not defined and FileWorkbench had no row action buttons.",
-            "file": "frontend/src/components/workspace/FileWorkbench.vue",
-            "root_cause": "The OpenAPI client had generated download/delete functions, but the hand-written workspace adapter, Pinia store, and FileWorkbench presenter had not exposed file actions.",
-            "fix": "Added generated-client adapter functions, workspace store `downloadFile()`/`deleteFile()` actions with per-file loading state, and Naive UI row controls that emit download/delete events.",
-            "tags": [
-                "frontend",
-                "vue",
-                "pinia",
-                "files",
-                "tdd-red"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T14:24:00+08:00"
-        },
-        {
-            "id": "bug-032",
-            "timestamp": "2026-07-08T14:27:00+08:00",
-            "error_message": "`pnpm build` failed with `TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'` in `frontend/src/stores/workspace.ts`.",
-            "file": "frontend/src/stores/workspace.ts",
-            "root_cause": "`resolveAccessToken(token?, required = true)` used a boolean parameter to express optional and required return contracts, so TypeScript could not narrow the action token to `string`.",
-            "fix": "Split the helper into `resolveOptionalAccessToken()` for workspace loading and `requireAccessToken()` for generated SDK file actions.",
-            "tags": [
-                "frontend",
-                "typescript",
-                "pinia",
-                "build"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T14:27:00+08:00"
-        },
-        {
-            "id": "bug-033",
-            "timestamp": "2026-07-08T14:31:00+08:00",
-            "error_message": "File search/upload component failed to compile because `withDefaults(defineProps())` referenced a local `emptyFilters` constant.",
-            "file": "frontend/src/components/workspace/FileWorkbench.vue",
-            "root_cause": "Vue hoists the `defineProps` macro, so default values inside `withDefaults()` cannot reference local constants declared in the SFC setup scope.",
-            "fix": "Inlined the default filters object in the `withDefaults()` callback so the SFC compiler can hoist props safely.",
-            "tags": [
-                "frontend",
-                "vue",
-                "sfc",
-                "typescript"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T14:31:00+08:00"
-        },
-        {
-            "id": "bug-034",
-            "timestamp": "2026-07-08T14:32:00+08:00",
-            "error_message": "Type check rejected `demoWorkspaceSnapshot.files[0]` in workspace store tests as possibly undefined.",
-            "file": "frontend/src/stores/__tests__/workspace.spec.ts",
-            "root_cause": "Array index access does not prove a fixture item exists under strict TypeScript settings, so the value remained `FileItem | undefined`.",
-            "fix": "Added a fixture helper that finds the demo file by id and throws if it is absent before passing the value into typed test mocks.",
-            "tags": [
-                "frontend",
-                "typescript",
-                "vitest",
-                "fixtures"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T14:32:00+08:00"
-        },
-        {
-            "id": "bug-035",
-            "timestamp": "2026-07-08T15:02:00+08:00",
-            "error_message": "Folder CRUD backend tests expected `/api/v1/folders` endpoints and OpenAPI paths, but requests returned 404 and the schema lacked folder paths.",
-            "file": "backend/app/api/routes.py",
-            "root_cause": "FR-F02 folder create/tree/move/delete contracts were not implemented in the backend route, schema, or service layers.",
-            "fix": "Added `FolderCreate` and `FolderUpdate` schemas, folder CRUD routes, in-memory folder tree mutation methods, root/non-empty/cycle/scope validation, folder audit events, and OpenAPI export assertions.",
-            "tags": [
-                "backend",
-                "folders",
-                "openapi",
-                "tdd-red"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T15:02:00+08:00"
-        },
-        {
-            "id": "bug-036",
-            "timestamp": "2026-07-08T15:07:00+08:00",
-            "error_message": "Frontend folder tests failed because `listWorkspaceFolders` was not defined and `FolderTreePanel.vue` did not exist.",
-            "file": "frontend/src/components/workspace/FolderTreePanel.vue",
-            "root_cause": "The generated client exposed folder SDK functions after regeneration, but the hand-written workspace adapter, Pinia store, and presenter components had not wired folder CRUD into the frontend architecture.",
-            "fix": "Added folder adapters in `src/client/workspace.ts`, Pinia folder state/actions/options in `stores/workspace.ts`, dynamic upload folder options, `FolderTreePanel.vue`, and FileWorkbench/WorkspaceView event wiring.",
-            "tags": [
-                "frontend",
-                "vue",
-                "pinia",
-                "folders",
-                "tdd-red"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T15:07:00+08:00"
-        },
-        {
-            "id": "bug-037",
-            "timestamp": "2026-07-08T15:54:00+08:00",
-            "error_message": "FileWorkbench lifecycle test failed because `[data-testid=\"manage-file-file-microscope\"]` was missing.",
-            "file": "frontend/src/components/workspace/FileWorkbench.vue",
-            "root_cause": "The generated lifecycle SDK adapters and Pinia actions existed, but the presenter layer had not exposed a manage-file row action or lifecycle detail panel for update/copy/version operations.",
-            "fix": "Added `FileLifecyclePanel.vue`, desktop and mobile `manage-file-*` buttons, typed FileWorkbench lifecycle emits, and WorkspaceView handlers that call the workspace store actions.",
-            "tags": [
-                "frontend",
-                "vue",
-                "pinia",
-                "files",
-                "versions",
-                "tdd-red"
-            ],
-            "related_bugs": [],
-            "occurrences": 1,
-            "last_seen": "2026-07-08T15:54:00+08:00"
-        }
-    ]
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-07-07T10:28:50+08:00",
+      "error_message": "sed: 无法读取 /home/gugumur/.agents/skills/Skywork Document/SKILL.md: 没有那个文件或目录",
+      "file": "/home/gugumur/.agents/skills/skywork-document/SKILL.md",
+      "root_cause": "Used the display skill name as a filesystem path instead of the actual lowercase directory name.",
+      "fix": "Read the skill from the actual path `/home/gugumur/.agents/skills/skywork-document/SKILL.md` and continued with local Markdown document creation.",
+      "tags": [
+        "skill-path",
+        "documentation",
+        "sed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-07T10:28:50+08:00"
+    },
+    {
+      "id": "bug-003",
+      "timestamp": "2026-07-07T11:11:06+08:00",
+      "error_message": "The local `od` command resolves to GNU coreutils and npm package names `open-design`, `@nexu/open-design`, and `@open-design/cli` are not installable from the public npm registry.",
+      "file": "OPEN_DESIGN.md",
+      "root_cause": "Open Design is distributed as a separate repository/product with its own local daemon and CLI, not as a normal dependency of this Vue project.",
+      "fix": "Configured project-level Open Design files (`DESIGN.md` and `skills/.../SKILL.md`) and documented that the official Open Design CLI must be installed before running `od mcp install codex`.",
+      "tags": [
+        "open-design",
+        "cli",
+        "documentation"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-07T11:11:06+08:00"
+    },
+    {
+      "id": "bug-004",
+      "timestamp": "2026-07-07T13:07:54+08:00",
+      "error_message": "Error: Skill path not found: /tmp/codex/skill-install-*/skills-main/skills/.curated/frontend-skill",
+      "file": "$CODEX_HOME/skills",
+      "root_cause": "`frontend-skill` is not present in the current `openai/skills` curated list.",
+      "fix": "Listed curated skills with `list-skills.py --format json`; no install was performed. User needs to provide a valid skill name or GitHub repo/path.",
+      "tags": [
+        "skill-installer",
+        "openai-skills",
+        "missing-skill"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-07T13:07:54+08:00"
+    },
+    {
+      "id": "bug-005",
+      "timestamp": "2026-07-08T08:26:00+08:00",
+      "error_message": "SyntaxError: bytes can only contain ASCII literal characters",
+      "file": "backend/tests/test_workspace_api.py",
+      "root_cause": "The test used a bytes literal containing Chinese characters for the upload fixture.",
+      "fix": "Changed the upload fixture to a Unicode string and encoded it with `.encode()`.",
+      "tags": [
+        "pytest",
+        "python",
+        "unicode",
+        "tests"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T08:26:00+08:00"
+    },
+    {
+      "id": "bug-006",
+      "timestamp": "2026-07-08T08:37:00+08:00",
+      "error_message": "ImportError: email-validator is not installed, run `pip install 'pydantic[email]'`",
+      "file": "backend/app/domain/schemas.py",
+      "root_cause": "The MVP schema used Pydantic `EmailStr` without declaring the required `email-validator` extra in backend dependencies.",
+      "fix": "Changed email fields to `str` with a basic email regex pattern to keep the dependency surface explicit.",
+      "tags": [
+        "pydantic",
+        "dependencies",
+        "fastapi",
+        "tests"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T08:37:00+08:00"
+    },
+    {
+      "id": "bug-007",
+      "timestamp": "2026-07-08T09:02:16+08:00",
+      "error_message": "Error: [@pinia/testing]: You must configure the `createSpy` option.",
+      "file": "frontend/src/views/__tests__/WorkspaceView.spec.ts",
+      "root_cause": "The Pinia testing plugin in this dependency set requires an explicit spy factory when used outside Vitest globals.",
+      "fix": "Imported `vi` from Vitest and passed `createSpy: vi.fn` to `createTestingPinia`.",
+      "tags": [
+        "pinia",
+        "vitest",
+        "frontend-tests"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T09:02:16+08:00"
+    },
+    {
+      "id": "bug-008",
+      "timestamp": "2026-07-08T09:02:43+08:00",
+      "error_message": "WorkspaceView test rendered unresolved Naive UI components and failed to find `新文件自动摘要`.",
+      "file": "frontend/src/views/__tests__/WorkspaceView.spec.ts",
+      "root_cause": "The unit test mounted `WorkspaceView` directly without the Naive UI plugin or `NConfigProvider`, so Naive component props and slots were not rendered as in the app.",
+      "fix": "Mounted a test host that wraps `WorkspaceView` in `NConfigProvider` and installs the Naive UI plugin.",
+      "tags": [
+        "naive-ui",
+        "vue-test-utils",
+        "frontend-tests"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T09:02:43+08:00"
+    },
+    {
+      "id": "bug-009",
+      "timestamp": "2026-07-08T09:08:00+08:00",
+      "error_message": "Browser screenshot showed overlapping RAG text and compressed headings.",
+      "file": "frontend/src/components/workspace/RagInsightPanel.vue",
+      "root_cause": "UnoCSS parsed `leading-1.65`-style classes as small rem line heights instead of unitless line-height values.",
+      "fix": "Changed custom line-height utilities to explicit arbitrary value syntax such as `leading-[1.65]`.",
+      "tags": [
+        "unocss",
+        "css",
+        "visual-regression"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T09:08:00+08:00"
+    },
+    {
+      "id": "bug-010",
+      "timestamp": "2026-07-08T09:10:00+08:00",
+      "error_message": "Mobile viewport had horizontal overflow: `clientWidth` 390, `scrollWidth` 668.",
+      "file": "frontend/src/components/workspace/FileWorkbench.vue",
+      "root_cause": "Naive UI `NDataTable` required a 650px table width and expanded the mobile page instead of scrolling inside the table surface.",
+      "fix": "Added `scroll-x` to `NDataTable` and constrained workspace cards with `min-w-0 overflow-hidden`.",
+      "tags": [
+        "naive-ui",
+        "responsive",
+        "datatable"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T09:10:00+08:00"
+    },
+    {
+      "id": "bug-011",
+      "timestamp": "2026-07-08T09:14:00+08:00",
+      "error_message": "Build failed with missing starter modules: `HelloWorld.vue` and `TheWelcome.vue`.",
+      "file": "frontend/src/views/HomeView.vue",
+      "root_cause": "Vue starter components had been removed for the workbench, but stale starter tests and views still referenced them and were included by `vue-tsc --build`.",
+      "fix": "Deleted unused starter test and unused starter views so the app only compiles the workspace route.",
+      "tags": [
+        "vue-tsc",
+        "starter-cleanup",
+        "build"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T09:14:00+08:00"
+    },
+    {
+      "id": "bug-012",
+      "timestamp": "2026-07-08T09:17:00+08:00",
+      "error_message": "/usr/bin/bash: 行 1: python: 未找到命令",
+      "file": ".wolf/buglog.json",
+      "root_cause": "The shell environment exposes `python3` but not `python`.",
+      "fix": "Re-ran JSON validation with `python3 -m json.tool .wolf/buglog.json`.",
+      "tags": [
+        "environment",
+        "python",
+        "json-validation"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T09:17:00+08:00"
+    },
+    {
+      "id": "bug-013",
+      "timestamp": "2026-07-08T09:34:00+08:00",
+      "error_message": "Edge DevTools `resize_page` failed with `Protocol error (Browser.setContentsSize): Restore window to normal state before setting content size`.",
+      "file": "browser-devtools",
+      "root_cause": "The browser window state did not allow direct content-size resizing through the DevTools protocol.",
+      "fix": "Used `emulate` viewport settings for desktop and phone visual checks instead of `resize_page`.",
+      "tags": [
+        "devtools",
+        "browser-check",
+        "viewport"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T09:34:00+08:00"
+    },
+    {
+      "id": "bug-014",
+      "timestamp": "2026-07-08T09:46:00+08:00",
+      "error_message": "rmdir: 删除 'frontend/src/__tests__' 失败: 没有那个文件或目录",
+      "file": "frontend/src/__tests__",
+      "root_cause": "The command was run from `frontend/` but used a path with an extra `frontend/` prefix.",
+      "fix": "Removed the empty directory using the correct path relative to `frontend/`: `src/__tests__`.",
+      "tags": [
+        "shell",
+        "path",
+        "cleanup"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T09:46:00+08:00"
+    },
+    {
+      "id": "bug-015",
+      "timestamp": "2026-07-08T09:56:00+08:00",
+      "error_message": "Vite/Rolldown emitted `INVALID_ANNOTATION` warnings from `@vueuse/core` after importing `useMediaQuery`.",
+      "file": "frontend/src/composables/useWorkspaceLayoutMode.ts",
+      "root_cause": "The small media-query need pulled `@vueuse/core` into the production bundle, and Rolldown reported unsupported pure annotation positions in that dependency.",
+      "fix": "Replaced the dependency import with a focused Vue composable using `window.matchMedia`, `shallowRef`, `onMounted`, and `onUnmounted`.",
+      "tags": [
+        "vite",
+        "rolldown",
+        "vueuse",
+        "build-warning"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T09:56:00+08:00"
+    },
+    {
+      "id": "bug-016",
+      "timestamp": "2026-07-08T09:47:00+08:00",
+      "error_message": "Vite HMR temporarily failed to reload moved modules during the `services` and layout migration.",
+      "file": "frontend/src/stores/workspace.ts",
+      "root_cause": "The dev server observed intermediate file states where imports still referenced moved files such as `src/services/workspaceApi.ts` and `src/layouts/WorkspaceShell.vue`.",
+      "fix": "Updated imports to `src/client/workspace.ts` and split layout files, then reloaded the browser at the final URL; console checks were clean after reload.",
+      "tags": [
+        "vite",
+        "hmr",
+        "refactor"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T09:47:00+08:00"
+    },
+    {
+      "id": "bug-017",
+      "timestamp": "2026-07-08T10:10:00+08:00",
+      "error_message": "ModuleNotFoundError: No module named 'app.openapi_export'",
+      "file": "backend/app/openapi_export.py",
+      "root_cause": "The frontend client generation workflow needed a stable backend OpenAPI export entry point, but no backend module existed for exporting `app.openapi()` to JSON.",
+      "fix": "Added `backend/app/openapi_export.py` with `export_openapi()` and a CLI main function, then covered it with `backend/tests/test_openapi_export.py`.",
+      "tags": [
+        "openapi",
+        "backend",
+        "pytest",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T10:10:00+08:00"
+    },
+    {
+      "id": "bug-018",
+      "timestamp": "2026-07-08T10:12:00+08:00",
+      "error_message": "Generated hey-api fetch client used `baseUrl: 'src'` after reading `src/client/openapi/workspace.openapi.json`.",
+      "file": "backend/app/main.py",
+      "root_cause": "The FastAPI OpenAPI document had no `servers` entry, so hey-api inferred an incorrect base URL from the local schema path.",
+      "fix": "Set FastAPI `servers=[{\"url\": \"/\"}]`, added an OpenAPI export assertion for that server URL, regenerated the client, and verified `baseUrl: '/'`.",
+      "tags": [
+        "openapi",
+        "hey-api",
+        "frontend-client",
+        "fastapi"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T10:12:00+08:00"
+    },
+    {
+      "id": "bug-019",
+      "timestamp": "2026-07-08T10:14:00+08:00",
+      "error_message": "Frontend architecture test showed `frontend/src/client/workspace.ts` still imported axios directly instead of using `@/client/generated`.",
+      "file": "frontend/src/client/workspace.ts",
+      "root_cause": "The generated SDK had been added, but the hand-written workspace adapter still owned the live HTTP request path.",
+      "fix": "Rewired `fetchWorkspaceSnapshot()` to call `workspaceSnapshotApiV1WorkspaceSnapshotGet`, exported generated OpenAPI types through the adapter, and changed auth headers to generated-client-compatible lowercase `authorization`.",
+      "tags": [
+        "frontend-client",
+        "hey-api",
+        "architecture",
+        "auth"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T10:14:00+08:00"
+    },
+    {
+      "id": "bug-020",
+      "timestamp": "2026-07-08T10:34:00+08:00",
+      "error_message": "[Vue warn]: Failed to resolve component: NSegmented; LoginView test could not find `注册账号`.",
+      "file": "frontend/src/views/LoginView.vue",
+      "root_cause": "The installed Naive UI package does not export an `NSegmented` component, so the login/register mode switch rendered as an unresolved custom element instead of visible options.",
+      "fix": "Replaced `NSegmented` with `NRadioGroup` plus `NRadioButton` using `button-style=\"solid\"`, then updated the test Pinia spy to `vi.fn` and reran focused auth/router/view tests.",
+      "tags": [
+        "naive-ui",
+        "vue",
+        "frontend-tests",
+        "auth"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T10:34:00+08:00"
+    },
+    {
+      "id": "bug-021",
+      "timestamp": "2026-07-08T10:44:00+08:00",
+      "error_message": "Backend TDD refresh-token test initially received 404 for `POST /api/v1/auth/refresh`.",
+      "file": "backend/app/api/routes.py",
+      "root_cause": "The auth API exposed login/register and current-user restoration, but no refresh endpoint or request schema existed yet.",
+      "fix": "Added `RefreshTokenRequest`, `POST /auth/refresh`, `WorkspaceService.refresh_session()`, token-kind validation, and random token `jti` so refreshed tokens differ from previous tokens.",
+      "tags": [
+        "backend",
+        "auth",
+        "refresh-token",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T10:44:00+08:00"
+    },
+    {
+      "id": "bug-022",
+      "timestamp": "2026-07-08T10:48:00+08:00",
+      "error_message": "Frontend auth store test failed because `auth.refreshSession` was not a function.",
+      "file": "frontend/src/stores/auth.ts",
+      "root_cause": "The generated refresh SDK function existed after client regeneration, but the Pinia auth store had not exposed an action to call it and persist the rotated session.",
+      "fix": "Added `refreshSession()` using `refreshApiV1AuthRefreshPost`, persisted the returned access/refresh tokens through `src/auth/`, and covered it in `auth.spec.ts`.",
+      "tags": [
+        "frontend",
+        "pinia",
+        "auth",
+        "refresh-token"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T10:48:00+08:00"
+    },
+    {
+      "id": "bug-023",
+      "timestamp": "2026-07-08T11:04:00+08:00",
+      "error_message": "Backend profile TDD tests received 405 Method Not Allowed for `PATCH /api/v1/users/me`.",
+      "file": "backend/app/api/routes.py",
+      "root_cause": "The report listed current-user profile update as `PATCH /users/me`, but the backend only exposed `GET /users/me`.",
+      "fix": "Added `UserUpdate`, `PATCH /users/me`, `WorkspaceService.update_user_profile()`, duplicate email validation, email index maintenance, and `user.update_profile` audit logging.",
+      "tags": [
+        "backend",
+        "auth",
+        "profile",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T11:04:00+08:00"
+    },
+    {
+      "id": "bug-024",
+      "timestamp": "2026-07-08T11:07:00+08:00",
+      "error_message": "Frontend profile tests failed because `ProfileView.vue` was missing, `/profile` had no route match, and `auth.updateProfile` was not a function.",
+      "file": "frontend/src/views/ProfileView.vue",
+      "root_cause": "The OpenAPI profile endpoint had been generated, but no frontend auth-store action, protected route, or page existed for FR-U04.",
+      "fix": "Added `updateProfile()` using `updateMeApiV1UsersMePatch`, protected `/profile`, `ProfileView.vue`, and desktop/mobile profile navigation links.",
+      "tags": [
+        "frontend",
+        "vue",
+        "pinia",
+        "profile",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T11:07:00+08:00"
+    },
+    {
+      "id": "bug-025",
+      "timestamp": "2026-07-08T13:59:42+08:00",
+      "error_message": "Frontend architecture test failed because `vite.config.ts` did not contain the expected `'/api'` proxy target string for `http://127.0.0.1:8000`.",
+      "file": "frontend/vite.config.ts",
+      "root_cause": "The local development proxy used double-quoted `\"/api\"` and targeted `http://localhost:8000`, while the architecture contract requires the FastAPI loopback target `http://127.0.0.1:8000`.",
+      "fix": "Changed the Vite proxy key to `'/api'`, set `target: 'http://127.0.0.1:8000'`, and reran the architecture test plus full frontend/backend verification.",
+      "tags": [
+        "vite",
+        "proxy",
+        "frontend-architecture",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T13:59:42+08:00"
+    },
+    {
+      "id": "bug-026",
+      "timestamp": "2026-07-08T14:01:24+08:00",
+      "error_message": "/usr/bin/bash: 行 1: /api: 没有那个文件或目录",
+      "file": "shell command",
+      "root_cause": "A ripgrep search pattern containing Markdown backticks was wrapped in double quotes, so bash treated the backticked `/api` text as command substitution.",
+      "fix": "Re-ran the search with a single-quoted pattern so backticks stayed literal.",
+      "tags": [
+        "shell",
+        "quoting",
+        "ripgrep"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T14:01:24+08:00"
+    },
+    {
+      "id": "bug-027",
+      "timestamp": "2026-07-08T14:10:00+08:00",
+      "error_message": "Backend lockout TDD tests failed with `KeyError: 'failed_attempts'` after wrong-password login responses.",
+      "file": "backend/app/services/workspace.py",
+      "root_cause": "The auth service returned generic invalid-credential errors and did not record per-user failed login counts or temporary lockout state for FR-U05.",
+      "fix": "Added `LoginSecurityState`, a 5-attempt/5-minute in-memory lockout policy, structured `failed_attempts`/`retry_after_seconds` details, success reset, and `auth.login_failed`/`auth.account_locked` audit events.",
+      "tags": [
+        "backend",
+        "auth",
+        "lockout",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T14:10:00+08:00"
+    },
+    {
+      "id": "bug-028",
+      "timestamp": "2026-07-08T14:12:00+08:00",
+      "error_message": "OpenAPI export test failed with `KeyError: '401'` for `/api/v1/auth/login` responses.",
+      "file": "backend/app/api/routes.py",
+      "root_cause": "The runtime emitted structured auth errors, but the login route did not declare 401 or 423 `ErrorResponse` schemas in OpenAPI metadata.",
+      "fix": "Added login route `responses` metadata for 401 invalid credentials and 423 account lockout, then regenerated the frontend OpenAPI client.",
+      "tags": [
+        "backend",
+        "openapi",
+        "auth",
+        "generated-client"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T14:12:00+08:00"
+    },
+    {
+      "id": "bug-029",
+      "timestamp": "2026-07-08T14:11:00+08:00",
+      "error_message": "Frontend auth store test expected `账户已临时锁定，请 5 分钟后再试` but received `账号或密码不正确`.",
+      "file": "frontend/src/stores/auth.ts",
+      "root_cause": "The generated-client-backed login action treated all login errors as generic invalid credentials and ignored the backend `ACCOUNT_LOCKED` code.",
+      "fix": "Added runtime error narrowing and login error message mapping for `ACCOUNT_LOCKED` and remaining-attempt details, with a typed `ErrorResponse` store test.",
+      "tags": [
+        "frontend",
+        "pinia",
+        "auth",
+        "lockout",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T14:11:00+08:00"
+    },
+    {
+      "id": "bug-030",
+      "timestamp": "2026-07-08T14:23:00+08:00",
+      "error_message": "File lifecycle backend tests expected download/delete endpoints but received 404 for `/api/v1/files/{file_id}/download` and `DELETE /api/v1/files/{file_id}`.",
+      "file": "backend/app/api/routes.py",
+      "root_cause": "The backend file API only supported listing/filtering/upload, and the service did not store uploaded bytes for later download or delete file metadata/content.",
+      "fix": "Added in-memory `_file_contents`, `download_file()`, `delete_file()`, FastAPI download/delete routes, UTF-8 attachment headers, and file audit events.",
+      "tags": [
+        "backend",
+        "files",
+        "download",
+        "delete",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T14:23:00+08:00"
+    },
+    {
+      "id": "bug-031",
+      "timestamp": "2026-07-08T14:24:00+08:00",
+      "error_message": "Frontend file-action tests failed because `downloadWorkspaceFile` and `deleteWorkspaceFile` were not defined and FileWorkbench had no row action buttons.",
+      "file": "frontend/src/components/workspace/FileWorkbench.vue",
+      "root_cause": "The OpenAPI client had generated download/delete functions, but the hand-written workspace adapter, Pinia store, and FileWorkbench presenter had not exposed file actions.",
+      "fix": "Added generated-client adapter functions, workspace store `downloadFile()`/`deleteFile()` actions with per-file loading state, and Naive UI row controls that emit download/delete events.",
+      "tags": [
+        "frontend",
+        "vue",
+        "pinia",
+        "files",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T14:24:00+08:00"
+    },
+    {
+      "id": "bug-032",
+      "timestamp": "2026-07-08T14:27:00+08:00",
+      "error_message": "`pnpm build` failed with `TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'` in `frontend/src/stores/workspace.ts`.",
+      "file": "frontend/src/stores/workspace.ts",
+      "root_cause": "`resolveAccessToken(token?, required = true)` used a boolean parameter to express optional and required return contracts, so TypeScript could not narrow the action token to `string`.",
+      "fix": "Split the helper into `resolveOptionalAccessToken()` for workspace loading and `requireAccessToken()` for generated SDK file actions.",
+      "tags": [
+        "frontend",
+        "typescript",
+        "pinia",
+        "build"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T14:27:00+08:00"
+    },
+    {
+      "id": "bug-033",
+      "timestamp": "2026-07-08T14:31:00+08:00",
+      "error_message": "File search/upload component failed to compile because `withDefaults(defineProps())` referenced a local `emptyFilters` constant.",
+      "file": "frontend/src/components/workspace/FileWorkbench.vue",
+      "root_cause": "Vue hoists the `defineProps` macro, so default values inside `withDefaults()` cannot reference local constants declared in the SFC setup scope.",
+      "fix": "Inlined the default filters object in the `withDefaults()` callback so the SFC compiler can hoist props safely.",
+      "tags": [
+        "frontend",
+        "vue",
+        "sfc",
+        "typescript"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T14:31:00+08:00"
+    },
+    {
+      "id": "bug-034",
+      "timestamp": "2026-07-08T14:32:00+08:00",
+      "error_message": "Type check rejected `demoWorkspaceSnapshot.files[0]` in workspace store tests as possibly undefined.",
+      "file": "frontend/src/stores/__tests__/workspace.spec.ts",
+      "root_cause": "Array index access does not prove a fixture item exists under strict TypeScript settings, so the value remained `FileItem | undefined`.",
+      "fix": "Added a fixture helper that finds the demo file by id and throws if it is absent before passing the value into typed test mocks.",
+      "tags": [
+        "frontend",
+        "typescript",
+        "vitest",
+        "fixtures"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T14:32:00+08:00"
+    },
+    {
+      "id": "bug-035",
+      "timestamp": "2026-07-08T15:02:00+08:00",
+      "error_message": "Folder CRUD backend tests expected `/api/v1/folders` endpoints and OpenAPI paths, but requests returned 404 and the schema lacked folder paths.",
+      "file": "backend/app/api/routes.py",
+      "root_cause": "FR-F02 folder create/tree/move/delete contracts were not implemented in the backend route, schema, or service layers.",
+      "fix": "Added `FolderCreate` and `FolderUpdate` schemas, folder CRUD routes, in-memory folder tree mutation methods, root/non-empty/cycle/scope validation, folder audit events, and OpenAPI export assertions.",
+      "tags": [
+        "backend",
+        "folders",
+        "openapi",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T15:02:00+08:00"
+    },
+    {
+      "id": "bug-036",
+      "timestamp": "2026-07-08T15:07:00+08:00",
+      "error_message": "Frontend folder tests failed because `listWorkspaceFolders` was not defined and `FolderTreePanel.vue` did not exist.",
+      "file": "frontend/src/components/workspace/FolderTreePanel.vue",
+      "root_cause": "The generated client exposed folder SDK functions after regeneration, but the hand-written workspace adapter, Pinia store, and presenter components had not wired folder CRUD into the frontend architecture.",
+      "fix": "Added folder adapters in `src/client/workspace.ts`, Pinia folder state/actions/options in `stores/workspace.ts`, dynamic upload folder options, `FolderTreePanel.vue`, and FileWorkbench/WorkspaceView event wiring.",
+      "tags": [
+        "frontend",
+        "vue",
+        "pinia",
+        "folders",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T15:07:00+08:00"
+    },
+    {
+      "id": "bug-037",
+      "timestamp": "2026-07-08T15:54:00+08:00",
+      "error_message": "FileWorkbench lifecycle test failed because `[data-testid=\"manage-file-file-microscope\"]` was missing.",
+      "file": "frontend/src/components/workspace/FileWorkbench.vue",
+      "root_cause": "The generated lifecycle SDK adapters and Pinia actions existed, but the presenter layer had not exposed a manage-file row action or lifecycle detail panel for update/copy/version operations.",
+      "fix": "Added `FileLifecyclePanel.vue`, desktop and mobile `manage-file-*` buttons, typed FileWorkbench lifecycle emits, and WorkspaceView handlers that call the workspace store actions.",
+      "tags": [
+        "frontend",
+        "vue",
+        "pinia",
+        "files",
+        "versions",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-08T15:54:00+08:00"
+    },
+    {
+      "id": "bug-038",
+      "timestamp": "2026-07-08T09:29:40.623Z",
+      "error_message": "Significant refactor of ",
+      "file": "report/design/system_design_specification.md",
+      "root_cause": "11 lines replaced/restructured",
+      "fix": "Rewrote 12→42 lines (11 removed) | Also: ```text; frontend: Vue 3 + Vite + pnpm | Also: ```text; Browser | Also: ```text; storage/vector_indexes/",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-07-08T09:30:18.017Z"
+    },
+    {
+      "id": "bug-039",
+      "timestamp": "2026-07-09T12:08:00+08:00",
+      "error_message": "Frontend permission-rule tests failed because generated-client adapters, Pinia actions, and permission panel wiring were missing.",
+      "file": "frontend/src/components/workspace/PermissionRulesPanel.vue",
+      "root_cause": "The backend/OpenAPI permission-rule contract had been generated, but the hand-written workspace adapter, workspace store, FileWorkbench presenter, and WorkspaceView handlers had not exposed rule list/create/delete behavior.",
+      "fix": "Added permission-rule adapters in `src/client/workspace.ts`, demo rules, Pinia `permissionRules` state/actions, `PermissionRulesPanel.vue`, and FileWorkbench/WorkspaceView props/events.",
+      "tags": [
+        "frontend",
+        "vue",
+        "pinia",
+        "permissions",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T12:08:00+08:00"
+    },
+    {
+      "id": "bug-040",
+      "timestamp": "2026-07-09T12:08:00+08:00",
+      "error_message": "`pnpm type-check` failed because `subjectOptions.value[0]` and `resourceOptions.value[0]` were possibly undefined in `PermissionRulesPanel.vue`.",
+      "file": "frontend/src/components/workspace/PermissionRulesPanel.vue",
+      "root_cause": "Strict TypeScript does not narrow array index access to a defined item after a length check in this Vue SFC setup.",
+      "fix": "Assigned each first option to a local constant and guarded it before assigning `.value` into form state.",
+      "tags": [
+        "frontend",
+        "typescript",
+        "vue",
+        "type-check"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T12:08:00+08:00"
+    }
+  ]
 }

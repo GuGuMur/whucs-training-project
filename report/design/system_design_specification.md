@@ -4,7 +4,7 @@
 
 ### 1.1 编写目的
 
-本文档在《需求规格说明书》和现有 UML/开发计划文档基础上，对“基于大模型的智能文件管理与智能体协同平台”进行系统设计说明。文档面向项目开发、测试、部署和答辩评审，覆盖系统体系架构、功能结构、关键用例时序、复杂算法、类图、接口、数据库物理设计、UI 设计以及前后端依赖库选型。
+本文档在《需求规格说明书》和现有 开发计划文档基础上，对“基于大模型的智能文件管理与智能体协同平台”进行系统设计说明。文档面向项目开发、测试、部署和答辩评审，覆盖系统体系架构、功能结构、关键用例时序、复杂算法、类图、接口、数据库物理设计、UI 设计以及前后端依赖库选型。
 
 ### 1.3 系统定位
 
@@ -1426,36 +1426,24 @@ FAISS/Milvus 中每个向量保存以下 metadata：
 | `paragraph_no`     | 段落号                                            |
 | `visibility_scope` | private/team/public                               |
 
-FAISS 本地部署时，索引文件建议按知识库拆分：
+FAISS 本地部署时，索引文件按知识库拆分：
 
-```text
-storage/vector_indexes/
-+-- kb_10.index
-+-- kb_10.meta.json
-+-- kb_11.index
-+-- kb_11.meta.json
+```plantuml
+@startuml
+title FAISS 本地索引文件结构
+skinparam folderBackgroundColor #F6F8FB
+skinparam fileBackgroundColor #FFFFFF
+
+folder "storage/vector_indexes/" {
+  file "kb_10.index" as F1
+  file "kb_10.meta.json" as F2
+  file "kb_11.index" as F3
+  file "kb_11.meta.json" as F4
+}
+@enduml
 ```
 
 ## 9. UI 界面设计
-
-### 9.1 设计原则
-
-界面遵循根目录 `DESIGN.md` 的项目设计系统：安静、学术、操作型、信息密度适中。系统首屏应是可工作的知识工作台，不设计营销型首页。颜色以 `#F6F8FB` 背景、白色操作面板、`#246BFE` 主色、绿色/黄色/红色状态色和少量紫色 AI 标识构成。
-
-### 9.2 整体布局
-
-```text
-+--------------------------------------------------------------+
-| 顶部栏：当前空间 / 搜索 / 通知 / 用户菜单                    |
-+---------------+------------------------------+---------------+
-| 左侧导航      | 主工作区                     | 右侧上下文面板 |
-| - 个人文件    | - 文件表格/知识库/流程画布   | - RAG 问答    |
-| - 团队空间    | - 批量操作工具条             | - 引用来源    |
-| - 知识库      | - 状态/筛选/分页             | - 执行步骤    |
-| - 工具流      |                              | - 文件详情    |
-| - 管理后台    |                              |               |
-+---------------+------------------------------+---------------+
-```
 
 ### 9.3 主要页面设计
 
@@ -1549,27 +1537,83 @@ storage/vector_indexes/
 
 ### 12.1 开发环境
 
-```text
-frontend: Vue 3 + Vite + pnpm
-backend: Python 3.13 + uv + FastAPI
-database: MySQL 8.0
-object storage: MinIO 或本地目录
-vector store: FAISS 本地索引
-queue: Redis + ARQ/Celery
+```plantuml
+@startuml
+title 开发环境技术栈
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam defaultFontSize 12
+
+left to right direction
+
+node "Frontend" as FE #White {
+  [Vue 3 + Vite + pnpm] as FrontendStack
+}
+
+node "Backend" as BE #White {
+  [Python 3.13 + uv + FastAPI] as BackendStack
+}
+
+database "MySQL 8.0" as MySQL #F6F8FB
+database "MinIO / 本地目录" as MinIO #F6F8FB
+database "FAISS 本地索引" as FAISS #F6F8FB
+queue "Redis + ARQ/Celery" as Queue #F6F8FB
+
+FE -[hidden]right-> BE
+BE -[hidden]right-> MySQL
+MySQL -[hidden]right-> MinIO
+MinIO -[hidden]right-> FAISS
+FAISS -[hidden]right-> Queue
+@enduml
 ```
 
 ### 12.2 生产部署
 
-```text
-Browser
-  -> Nginx HTTPS
-    -> frontend static assets
-    -> FastAPI Uvicorn/Gunicorn workers
-      -> MySQL
-      -> Redis
-      -> MinIO
-      -> FAISS local volume or Milvus service
-      -> External LLM API
+```plantuml
+@startuml
+title 生产部署架构
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam defaultFontSize 12
+
+actor "Browser" as Browser
+
+node "Nginx (HTTPS)" as Nginx #White {
+  component "Frontend Static Assets" as Frontend
+  component "反向代理" as Proxy
+}
+
+node "FastAPI Uvicorn/Gunicorn Workers" as API #White {
+  component "API Worker 1" as W1
+  component "API Worker 2" as W2
+  component "API Worker N" as WN
+}
+
+node "Task Workers" as TaskWorker #White {
+  component "ARQ/Celery Worker" as CW
+}
+
+database "MySQL 8.0" as MySQL #F6F8FB
+database "Redis" as Redis #F6F8FB
+database "MinIO\n对象存储" as MinIO #F6F8FB
+database "FAISS / Milvus\n向量数据库" as VectorDB #F6F8FB
+cloud "External LLM API\n(DeepSeek / OpenAI)" as LLM
+
+Browser --> Nginx : HTTPS
+Nginx --> Frontend
+Nginx --> Proxy
+Proxy --> API
+API --> MySQL
+API --> Redis
+API --> MinIO
+API --> VectorDB
+API --> LLM
+TaskWorker --> Redis
+TaskWorker --> MySQL
+TaskWorker --> MinIO
+TaskWorker --> VectorDB
+TaskWorker --> LLM
+@enduml
 ```
 
 生产环境将 API 服务、任务 Worker、Redis、MySQL、MinIO 和向量库独立部署；LLM API Key、数据库密码和对象存储密钥只通过环境变量或密钥管理系统注入。

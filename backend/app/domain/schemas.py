@@ -124,6 +124,41 @@ class FileListResponse(BaseModel):
     total: int
 
 
+PermissionSubjectType = Literal["user", "team", "role"]
+PermissionResourceType = Literal["file", "folder", "knowledge_base", "tool", "workflow"]
+PermissionAction = Literal["read", "write", "delete", "manage", "execute"]
+PermissionEffect = Literal["allow", "deny"]
+
+
+class PermissionRuleCreate(BaseModel):
+    subject_type: PermissionSubjectType
+    subject_id: str = Field(min_length=1)
+    resource_type: PermissionResourceType
+    resource_id: str = Field(min_length=1)
+    action: PermissionAction
+    effect: PermissionEffect
+    inherit: bool = False
+
+
+class PermissionRulePublic(BaseModel):
+    id: str
+    subject_type: PermissionSubjectType
+    subject_id: str
+    subject_label: str
+    resource_type: PermissionResourceType
+    resource_id: str
+    resource_label: str
+    action: PermissionAction
+    effect: PermissionEffect
+    inherit: bool
+    created_at: datetime
+    created_by: str
+
+
+class PermissionRuleListResponse(BaseModel):
+    items: list[PermissionRulePublic]
+
+
 class Citation(BaseModel):
     file_id: str
     document_id: str
@@ -147,6 +182,53 @@ class QAResponse(BaseModel):
     message_id: str
     answer: str
     citations: list[Citation]
+
+
+KnowledgeBaseStatus = Literal["active", "archived"]
+KnowledgeIndexStatus = Literal["queued", "indexing", "indexed", "failed"]
+
+
+class KnowledgeBaseCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class KnowledgeBaseUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    description: str | None = Field(default=None, max_length=500)
+    status: KnowledgeBaseStatus | None = None
+
+
+class KnowledgeBasePublic(BaseModel):
+    id: str
+    name: str
+    description: str
+    status: KnowledgeBaseStatus
+    document_count: int
+    chunk_count: int
+    updated_at: datetime
+
+
+class KnowledgeBaseListResponse(BaseModel):
+    items: list[KnowledgeBasePublic]
+
+
+class KnowledgeDocumentCreate(BaseModel):
+    file_id: str = Field(min_length=1)
+
+
+class KnowledgeDocumentPublic(BaseModel):
+    id: str
+    kb_id: str
+    file_id: str
+    file_name: str
+    index_status: KnowledgeIndexStatus
+    chunk_count: int
+    updated_at: datetime
+
+
+class KnowledgeDocumentListResponse(BaseModel):
+    items: list[KnowledgeDocumentPublic]
 
 
 class ToolDefinition(BaseModel):
@@ -187,6 +269,56 @@ class AgentTaskResponse(BaseModel):
     final_answer: str
 
 
+WorkflowNodeType = Literal["trigger", "tool", "condition", "loop", "aggregate", "output"]
+
+
+class WorkflowNodeDefinition(BaseModel):
+    id: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=128)
+    type: WorkflowNodeType
+    tool_name: str | None = Field(default=None, max_length=80)
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    position: dict[str, float] = Field(default_factory=dict)
+
+
+class WorkflowEdgeDefinition(BaseModel):
+    id: str = Field(min_length=1, max_length=80)
+    source: str = Field(min_length=1, max_length=64)
+    target: str = Field(min_length=1, max_length=64)
+    source_handle: str | None = None
+    target_handle: str | None = None
+
+
+class WorkflowCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    description: str | None = Field(default=None, max_length=500)
+    trigger: str = Field(default="manual", min_length=1, max_length=80)
+    nodes: list[WorkflowNodeDefinition] = Field(default_factory=list)
+    edges: list[WorkflowEdgeDefinition] = Field(default_factory=list)
+
+
+class WorkflowUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    description: str | None = Field(default=None, max_length=500)
+    trigger: str | None = Field(default=None, min_length=1, max_length=80)
+    nodes: list[WorkflowNodeDefinition] | None = None
+    edges: list[WorkflowEdgeDefinition] | None = None
+
+
+class WorkflowValidationIssue(BaseModel):
+    code: str
+    message: str
+    node_id: str | None = None
+    edge_id: str | None = None
+
+
+class WorkflowValidationResponse(BaseModel):
+    valid: bool
+    issues: list[WorkflowValidationIssue]
+    node_count: int
+    edge_count: int
+
+
 class WorkflowDefinition(BaseModel):
     id: str
     name: str
@@ -195,6 +327,8 @@ class WorkflowDefinition(BaseModel):
     version: str
     node_count: int
     status: Literal["draft", "published"]
+    nodes: list[WorkflowNodeDefinition] = Field(default_factory=list)
+    edges: list[WorkflowEdgeDefinition] = Field(default_factory=list)
 
 
 class WorkflowListResponse(BaseModel):
