@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, shallowRef, watch } from 'vue'
-import { ArrowLeft, Save, ShieldCheck } from '@lucide/vue'
+import { ArrowLeft, LogOut, Save, ShieldCheck } from '@lucide/vue'
+import { useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
+const router = useRouter()
 const savedNotice = shallowRef('')
 
 const form = reactive({
@@ -12,7 +14,7 @@ const form = reactive({
   email: '',
 })
 
-const roleLabel = computed(() => auth.roles.join(' / ') || 'user')
+const roleLabel = computed(() => auth.selectedAccessRoleLabel)
 
 watch(
   () => auth.currentUser,
@@ -36,6 +38,11 @@ async function submitProfile() {
     email: form.email,
   })
   savedNotice.value = '个人资料已更新'
+}
+
+async function logoutAccount() {
+  auth.logout()
+  await router.replace('/login')
 }
 </script>
 
@@ -78,6 +85,13 @@ async function submitProfile() {
                 </strong>
               </div>
             </div>
+
+            <NButton class="mt-4" block secondary type="error" @click="logoutAccount">
+              <template #icon>
+                <NIcon aria-hidden="true"><LogOut /></NIcon>
+              </template>
+              退出登录
+            </NButton>
           </aside>
 
           <NForm class="grid gap-3 p-5" @submit.prevent="submitProfile">

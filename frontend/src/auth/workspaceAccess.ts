@@ -1,6 +1,8 @@
 export type WorkspacePermissionScope = '个人' | '团队' | '系统'
+export type WorkspaceAccessRole = 'super_admin' | 'admin' | 'user' | 'readonly'
 
 export interface WorkspaceAuthSession {
+  accessRole?: WorkspaceAccessRole
   accessToken?: string
   displayName: string
   permissionScope: WorkspacePermissionScope
@@ -9,8 +11,10 @@ export interface WorkspaceAuthSession {
 }
 
 export const workspaceSessionStorageKey = 'whu-workspace-session'
+export const defaultWorkspaceAccessRole: WorkspaceAccessRole = 'user'
 
 export const demoWorkspaceAuthSession: WorkspaceAuthSession = {
+  accessRole: defaultWorkspaceAccessRole,
   displayName: '演示用户',
   permissionScope: '个人',
   userId: 'demo-user',
@@ -22,6 +26,10 @@ export function createAuthorizationHeader(token: string) {
 
 export function resolveWorkspaceToken(session: WorkspaceAuthSession = demoWorkspaceAuthSession) {
   return session.accessToken
+}
+
+export function normalizeWorkspaceAccessRole(value: unknown): WorkspaceAccessRole {
+  return value === 'super_admin' || value === 'admin' || value === 'readonly' || value === 'user' ? value : defaultWorkspaceAccessRole
 }
 
 function canUseLocalStorage() {
@@ -45,6 +53,7 @@ export function loadStoredWorkspaceSession(): WorkspaceAuthSession | null {
     }
 
     return {
+      accessRole: normalizeWorkspaceAccessRole(session.accessRole),
       accessToken: session.accessToken,
       displayName: session.displayName,
       permissionScope: session.permissionScope ?? '个人',

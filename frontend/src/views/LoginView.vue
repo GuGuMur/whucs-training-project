@@ -3,13 +3,15 @@ import { computed, reactive, shallowRef } from 'vue'
 import { LogIn } from '@lucide/vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { useAuthStore } from '@/stores/auth'
+import type { WorkspaceAccessRole } from '@/auth'
+import { accessRoleLabels, useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
 const form = reactive({
+  accessRole: 'user' as WorkspaceAccessRole,
   account: 'xiaoming',
   email: 'xiaoming@example.com',
   password: 'Str0ngPass!',
@@ -17,14 +19,29 @@ const form = reactive({
 })
 const mode = shallowRef<'login' | 'register'>('login')
 
+const isGuestLogin = computed(() => mode.value === 'login' && form.accessRole === 'readonly')
+const roleOptions = [
+  { label: accessRoleLabels.super_admin, value: 'super_admin', description: '可查看全部资源、权限和审计日志' },
+  { label: accessRoleLabels.admin, value: 'admin', description: '可管理团队资源、权限规则和多数审计日志' },
+  { label: accessRoleLabels.user, value: 'user', description: '可使用授权文件、知识库、团队协作和工具流，审计中保留自己的操作记录' },
+  { label: accessRoleLabels.readonly, value: 'readonly', description: '游客无需密码，仅可查看授权资源和自己的只读操作记录' },
+] satisfies Array<{ label: string; value: WorkspaceAccessRole; description: string }>
+
+const selectedRoleDescription = computed(() => roleOptions.find((option) => option.value === form.accessRole)?.description ?? '')
 const redirectTarget = computed(() => (typeof route.query.redirect === 'string' ? route.query.redirect : '/'))
-const submitLabel = computed(() => (mode.value === 'login' ? '进入工作台' : '注册并进入'))
+const submitLabel = computed(() => {
+  if (isGuestLogin.value) return '\u6e38\u5ba2\u767b\u9646'
+  return mode.value === 'login' ? '进入工作台' : '注册并进入'
+})
 
 async function submitLogin() {
-  if (mode.value === 'login') {
-    await auth.loginWithPassword({ account: form.account, password: form.password })
+  if (isGuestLogin.value) {
+    await auth.loginAsGuest()
+  } else if (mode.value === 'login') {
+    await auth.loginWithPassword({ account: form.account, password: form.password, accessRole: form.accessRole })
   } else {
     await auth.registerWithPassword({
+      accessRole: form.accessRole,
       email: form.email,
       password: form.password,
       username: form.username,
@@ -47,7 +64,7 @@ async function submitLogin() {
         <div class="mt-6 grid grid-cols-3 gap-3 max-sm:grid-cols-1">
           <div class="border border-line rounded-2 bg-muted p-3">
             <strong class="block text-ink text-14px">JWT 鉴权</strong>
-            <span class="mt-1 block text-sub text-12px leading-[1.5]">登录后签发访问令牌和刷新令牌</span>
+            <span class="mt-1 block text-sub text-12px leading-[1.5]">账号登录后签发访问令牌和刷新令牌</span>
           </div>
           <div class="border border-line rounded-2 bg-muted p-3">
             <strong class="block text-ink text-14px">权限前置</strong>
@@ -55,7 +72,7 @@ async function submitLogin() {
           </div>
           <div class="border border-line rounded-2 bg-muted p-3">
             <strong class="block text-ink text-14px">审计追踪</strong>
-            <span class="mt-1 block text-sub text-12px leading-[1.5]">关键操作写入审计日志</span>
+            <span class="mt-1 block text-sub text-12px leading-[1.5]">普通用户和游客操作也会进入审计</span>
           </div>
         </div>
       </div>
@@ -66,16 +83,23 @@ async function submitLogin() {
           <NRadioButton value="register" label="注册账号" />
         </NRadioGroup>
 
+        <NFormItem label="权限角色" path="accessRole">
+          <NSelect v-model:value="form.accessRole" :options="roleOptions" />
+        </NFormItem>
+        <NAlert type="info" :bordered="false">
+          {{ selectedRoleDescription }}
+        </NAlert>
+
         <NFormItem v-if="mode === 'register'" label="用户名" path="username">
           <NInput v-model:value="form.username" autocomplete="username" placeholder="3-50 位用户名" />
         </NFormItem>
         <NFormItem v-if="mode === 'register'" label="邮箱" path="email">
           <NInput v-model:value="form.email" autocomplete="email" placeholder="用于登录和通知" />
         </NFormItem>
-        <NFormItem v-if="mode === 'login'" label="账号" path="account">
+        <NFormItem v-if="mode === 'login' && !isGuestLogin" label="账号" path="account">
           <NInput v-model:value="form.account" autocomplete="username" placeholder="用户名或邮箱" />
         </NFormItem>
-        <NFormItem label="密码" path="password">
+        <NFormItem v-if="!isGuestLogin" label="密码" path="password">
           <NInput
             v-model:value="form.password"
             autocomplete="current-password"
@@ -84,6 +108,9 @@ async function submitLogin() {
             type="password"
           />
         </NFormItem>
+        <NAlert v-else type="success" :bordered="false">
+          游客登录无需输入账号和密码，直接点击登录即可进入只读工作台。
+        </NAlert>
         <NAlert v-if="auth.errorMessage" type="error" :bordered="false">
           {{ auth.errorMessage }}
         </NAlert>
