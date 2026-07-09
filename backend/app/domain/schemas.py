@@ -29,7 +29,8 @@ class RefreshTokenRequest(BaseModel):
 
 class UserUpdate(BaseModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=80)
-    email: str | None = Field(default=None, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    email: str | None = Field(
+        default=None, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class UserPublic(BaseModel):
@@ -58,7 +59,6 @@ class FolderItem(BaseModel):
     parent_id: str | None = None
     scope: Literal["personal", "team"]
     permission: str
-<<<<<<< HEAD
     team_id: str | None = None
     children: list["FolderItem"] = Field(default_factory=list)
 
@@ -74,11 +74,6 @@ class FolderUpdate(BaseModel):
     parent_id: str | None = None
 
 
-=======
-    children: list["FolderItem"] = Field(default_factory=list)
-
-
->>>>>>> permission-backend
 class FolderTreeResponse(BaseModel):
     items: list[FolderItem]
 
@@ -97,7 +92,6 @@ class FileItem(BaseModel):
     knowledge_base_ids: list[str]
 
 
-<<<<<<< HEAD
 class FileUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     folder_id: str | None = None
@@ -126,15 +120,14 @@ class FileVersionListResponse(BaseModel):
     items: list[FileVersionItem]
 
 
-=======
->>>>>>> permission-backend
 class FileListResponse(BaseModel):
     items: list[FileItem]
     total: int
 
 
 PermissionSubjectType = Literal["user", "team", "role"]
-PermissionResourceType = Literal["file", "folder", "knowledge_base", "tool", "workflow"]
+PermissionResourceType = Literal["file",
+                                 "folder", "knowledge_base", "tool", "workflow"]
 PermissionAction = Literal["read", "write", "delete", "manage", "execute"]
 PermissionEffect = Literal["allow", "deny"]
 
@@ -278,7 +271,8 @@ class AgentTaskResponse(BaseModel):
     final_answer: str
 
 
-WorkflowNodeType = Literal["trigger", "tool", "condition", "loop", "aggregate", "output"]
+WorkflowNodeType = Literal["trigger", "tool",
+                           "condition", "loop", "aggregate", "output"]
 
 
 class WorkflowNodeDefinition(BaseModel):
@@ -369,24 +363,17 @@ class WorkflowExecutionResponse(BaseModel):
 class TeamSummary(BaseModel):
     id: str
     name: str
-<<<<<<< HEAD
     description: str = ""
     role: str
     member_count: int
     unread_count: int
     root_folder_id: str | None = None
-=======
-    role: str
-    member_count: int
-    unread_count: int
->>>>>>> permission-backend
 
 
 class TeamListResponse(BaseModel):
     items: list[TeamSummary]
 
 
-<<<<<<< HEAD
 TeamRole = Literal["owner", "admin", "member", "guest"]
 TeamMemberStatus = Literal["active", "invited", "removed"]
 TeamInviteStatus = Literal["pending", "accepted", "revoked", "expired"]
@@ -445,8 +432,6 @@ class TeamDetail(BaseModel):
     invites: list[TeamInvitePublic]
 
 
-=======
->>>>>>> permission-backend
 class AuditLogEntry(BaseModel):
     id: str
     actor: str
