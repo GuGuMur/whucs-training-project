@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import UTC, datetime, timedelta
 from itertools import count
 
 from fastapi.testclient import TestClient
@@ -241,6 +242,139 @@ def test_file_listing_filtering_and_upload_expose_parse_state() -> None:
     assert uploaded["tags"] == ["实验", "观察"]
 
 
+def test_file_listing_filters_by_updated_time_range() -> None:
+    headers = auth_headers()
+    window_start = datetime.now(UTC) - timedelta(seconds=1)
+
+    first_upload_response = client.post(
+        "/api/v1/files/upload",
+        headers=headers,
+        files={"file": ("时间范围-命中.md", "命中时间范围".encode(), "text/markdown")},
+        data={"folder_id": "personal-root", "tags": "时间范围"},
+    )
+    assert first_upload_response.status_code == 201
+    first_upload = first_upload_response.json()
+    window_end = datetime.now(UTC)
+
+    second_upload_response = client.post(
+        "/api/v1/files/upload",
+        headers=headers,
+        files={"file": ("时间范围-排除.md", "排除时间范围".encode(), "text/markdown")},
+        data={"folder_id": "personal-root", "tags": "时间范围"},
+    )
+    assert second_upload_response.status_code == 201
+
+    range_response = client.get(
+        "/api/v1/files",
+        params={
+            "tag": "时间范围",
+            "updated_from": window_start.isoformat(),
+            "updated_to": window_end.isoformat(),
+        },
+        headers=headers,
+    )
+
+    assert range_response.status_code == 200
+    assert [item["id"] for item in range_response.json()["items"]] == [first_upload["id"]]
+
+
+def test_multipart_upload_tracks_chunks_and_completes_as_regular_file() -> None:
+    headers = auth_headers()
+    first_chunk = "第一部分：显微镜低倍镜定位。".encode()
+    second_chunk = "第二部分：高倍镜观察细胞壁。".encode()
+    full_content = first_chunk + second_chunk
+
+    init_response = client.post(
+        "/api/v1/files/multipart-uploads",
+        headers=headers,
+        json={
+            "filename": "分片观察记录.md",
+            "folder_id": "personal-root",
+            "size": len(full_content),
+            "sha256": hashlib.sha256(full_content).hexdigest(),
+            "chunk_size": len(first_chunk),
+            "tags": ["实验", "分片"],
+        },
+    )
+    assert init_response.status_code == 201
+    session = init_response.json()
+    assert session["status"] == "uploading"
+    assert session["received_chunks"] == []
+    assert session["total_chunks"] == 2
+
+    first_chunk_response = client.put(
+        f"/api/v1/files/multipart-uploads/{session['id']}/chunks/0",
+        headers=headers,
+        files={"chunk": ("chunk-0", first_chunk, "application/octet-stream")},
+        data={"sha256": hashlib.sha256(first_chunk).hexdigest()},
+    )
+    assert first_chunk_response.status_code == 200
+    assert first_chunk_response.json()["received_chunks"] == [0]
+
+    status_response = client.get(f"/api/v1/files/multipart-uploads/{session['id']}", headers=headers)
+    assert status_response.status_code == 200
+    assert status_response.json()["received_chunks"] == [0]
+
+    second_chunk_response = client.put(
+        f"/api/v1/files/multipart-uploads/{session['id']}/chunks/1",
+        headers=headers,
+        files={"chunk": ("chunk-1", second_chunk, "application/octet-stream")},
+        data={"sha256": hashlib.sha256(second_chunk).hexdigest()},
+    )
+    assert second_chunk_response.status_code == 200
+    assert second_chunk_response.json()["received_chunks"] == [0, 1]
+
+    complete_response = client.post(f"/api/v1/files/multipart-uploads/{session['id']}/complete", headers=headers)
+    assert complete_response.status_code == 201
+    completed = complete_response.json()
+    assert completed["name"] == "分片观察记录.md"
+    assert completed["folder_id"] == "personal-root"
+    assert completed["size"] == len(full_content)
+    assert completed["sha256"] == hashlib.sha256(full_content).hexdigest()
+    assert completed["parse_status"] == "queued"
+    assert completed["tags"] == ["实验", "分片"]
+
+    download_response = client.get(f"/api/v1/files/{completed['id']}/download", headers=headers)
+    assert download_response.status_code == 200
+    assert download_response.content == full_content
+
+    audit_response = client.get("/api/v1/audit-logs", headers=headers)
+    assert audit_response.status_code == 200
+    actions = [entry["action"] for entry in audit_response.json()["items"]]
+    assert "file.multipart_init" in actions
+    assert "file.multipart_complete" in actions
+
+
+def test_multipart_upload_rejects_invalid_chunk_hash() -> None:
+    headers = auth_headers()
+    content = "错误哈希分片".encode()
+
+    init_response = client.post(
+        "/api/v1/files/multipart-uploads",
+        headers=headers,
+        json={
+            "filename": "错误分片.md",
+            "folder_id": "personal-root",
+            "size": len(content),
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "chunk_size": len(content),
+            "tags": [],
+        },
+    )
+    assert init_response.status_code == 201
+    session_id = init_response.json()["id"]
+
+    chunk_response = client.put(
+        f"/api/v1/files/multipart-uploads/{session_id}/chunks/0",
+        headers=headers,
+        files={"chunk": ("chunk-0", content, "application/octet-stream")},
+        data={"sha256": hashlib.sha256(b"different").hexdigest()},
+    )
+
+    assert chunk_response.status_code == 409
+    assert chunk_response.json()["code"] == "CHUNK_HASH_MISMATCH"
+
+
 def test_file_download_returns_original_content_and_audit_event() -> None:
     headers = auth_headers()
     upload_response = client.post(
@@ -265,12 +399,92 @@ def test_file_download_returns_original_content_and_audit_event() -> None:
     assert "file.download" in actions
 
 
-def test_file_delete_removes_file_from_listing_and_audit_log() -> None:
+def test_share_link_requires_password_respects_download_limit_and_audits() -> None:
+    headers = auth_headers()
+    content = "共享链接资料内容。".encode()
+    upload_response = client.post(
+        "/api/v1/files/upload",
+        headers=headers,
+        files={"file": ("共享资料.md", content, "text/markdown")},
+        data={"folder_id": "personal-root", "tags": "共享"},
+    )
+    assert upload_response.status_code == 201
+    file_id = upload_response.json()["id"]
+
+    create_response = client.post(
+        f"/api/v1/files/{file_id}/share-links",
+        headers=headers,
+        json={
+            "password": "view-pass",
+            "expires_in_seconds": 900,
+            "download_limit": 1,
+        },
+    )
+    assert create_response.status_code == 201
+    share_link = create_response.json()
+    assert share_link["file_id"] == file_id
+    assert share_link["has_password"] is True
+    assert share_link["download_limit"] == 1
+    assert share_link["download_count"] == 0
+    assert share_link["token"]
+    assert share_link["url"].endswith(f"/api/v1/share-links/{share_link['token']}/download")
+
+    wrong_password_response = client.post(
+        f"/api/v1/share-links/{share_link['token']}/download",
+        json={"password": "wrong-pass"},
+    )
+    assert wrong_password_response.status_code == 403
+    assert wrong_password_response.json()["code"] == "SHARE_LINK_PASSWORD_INVALID"
+
+    download_response = client.post(
+        f"/api/v1/share-links/{share_link['token']}/download",
+        json={"password": "view-pass"},
+    )
+    assert download_response.status_code == 200
+    assert download_response.content == content
+    assert download_response.headers["content-disposition"].startswith("attachment;")
+
+    limited_response = client.post(
+        f"/api/v1/share-links/{share_link['token']}/download",
+        json={"password": "view-pass"},
+    )
+    assert limited_response.status_code == 410
+    assert limited_response.json()["code"] == "SHARE_LINK_LIMIT_REACHED"
+
+    audit_response = client.get("/api/v1/audit-logs", headers=headers)
+    assert audit_response.status_code == 200
+    actions = [entry["action"] for entry in audit_response.json()["items"]]
+    assert "file.share_create" in actions
+    assert "file.share_download" in actions
+
+
+def test_share_link_expiry_cannot_exceed_one_hour() -> None:
     headers = auth_headers()
     upload_response = client.post(
         "/api/v1/files/upload",
         headers=headers,
-        files={"file": ("待删除.txt", "临时资料".encode(), "text/plain")},
+        files={"file": ("超时分享.md", "短期签名链接验证".encode(), "text/markdown")},
+        data={"folder_id": "personal-root", "tags": "安全"},
+    )
+    assert upload_response.status_code == 201
+
+    create_response = client.post(
+        f"/api/v1/files/{upload_response.json()['id']}/share-links",
+        headers=headers,
+        json={"expires_in_seconds": 3601},
+    )
+
+    assert create_response.status_code == 422
+    assert create_response.json()["code"] == "SHARE_LINK_EXPIRY_TOO_LONG"
+
+
+def test_file_delete_moves_file_to_recycle_bin_and_restore_recovers_content() -> None:
+    headers = auth_headers()
+    content = "临时资料".encode()
+    upload_response = client.post(
+        "/api/v1/files/upload",
+        headers=headers,
+        files={"file": ("待删除.txt", content, "text/plain")},
         data={"folder_id": "personal-root", "tags": "临时"},
     )
     assert upload_response.status_code == 201
@@ -283,14 +497,40 @@ def test_file_delete_removes_file_from_listing_and_audit_log() -> None:
     assert list_response.status_code == 200
     assert file_id not in {item["id"] for item in list_response.json()["items"]}
 
+    deleted_download_response = client.get(f"/api/v1/files/{file_id}/download", headers=headers)
+    assert deleted_download_response.status_code == 404
+    assert deleted_download_response.json()["code"] == "FILE_NOT_FOUND"
+
+    recycle_response = client.get("/api/v1/files/recycle-bin", headers=headers)
+    assert recycle_response.status_code == 200
+    recycled_items = recycle_response.json()["items"]
+    assert [item["file"]["id"] for item in recycled_items] == [file_id]
+    assert recycled_items[0]["deleted_at"]
+    assert recycled_items[0]["deleted_by"]
+
     second_delete_response = client.delete(f"/api/v1/files/{file_id}", headers=headers)
     assert second_delete_response.status_code == 404
     assert second_delete_response.json()["code"] == "FILE_NOT_FOUND"
+
+    restore_response = client.post(f"/api/v1/files/{file_id}/restore", headers=headers)
+    assert restore_response.status_code == 200
+    restored = restore_response.json()
+    assert restored["id"] == file_id
+    assert restored["name"] == "待删除.txt"
+
+    restored_download_response = client.get(f"/api/v1/files/{file_id}/download", headers=headers)
+    assert restored_download_response.status_code == 200
+    assert restored_download_response.content == content
+
+    empty_recycle_response = client.get("/api/v1/files/recycle-bin", headers=headers)
+    assert empty_recycle_response.status_code == 200
+    assert file_id not in {item["file"]["id"] for item in empty_recycle_response.json()["items"]}
 
     audit_response = client.get("/api/v1/audit-logs", headers=headers)
     assert audit_response.status_code == 200
     actions = [entry["action"] for entry in audit_response.json()["items"]]
     assert "file.delete" in actions
+    assert "file.restore" in actions
 
 
 def test_file_update_copy_and_folder_validation_are_audited() -> None:
@@ -610,6 +850,102 @@ def test_team_invites_role_updates_and_removal_are_audited() -> None:
     assert "team.member_remove" in actions
 
 
+def test_team_messages_persist_history_permissions_mentions_and_audit() -> None:
+    owner_session = auth_session()
+    member_session = auth_session()
+    outsider_headers = auth_headers()
+    owner_headers = session_headers(owner_session)
+    member_headers = session_headers(member_session)
+    member_user = member_session["user"]
+    assert isinstance(member_user, dict)
+    member_email = member_user["email"]
+    member_username = member_user["username"]
+    assert isinstance(member_email, str)
+    assert isinstance(member_username, str)
+
+    create_team_response = client.post(
+        "/api/v1/teams",
+        headers=owner_headers,
+        json={"name": "聊天协作小组", "description": "验证群聊历史与权限"},
+    )
+    assert create_team_response.status_code == 201
+    team = create_team_response.json()
+
+    empty_history_response = client.get(f"/api/v1/teams/{team['id']}/messages", headers=owner_headers)
+    assert empty_history_response.status_code == 200
+    assert empty_history_response.json() == {"items": [], "total": 0}
+
+    denied_history_response = client.get(f"/api/v1/teams/{team['id']}/messages", headers=outsider_headers)
+    assert denied_history_response.status_code == 403
+    assert denied_history_response.json()["code"] == "TEAM_ACCESS_DENIED"
+
+    denied_send_response = client.post(
+        f"/api/v1/teams/{team['id']}/messages",
+        headers=outsider_headers,
+        json={"content": "我不在团队，不能进入频道。"},
+    )
+    assert denied_send_response.status_code == 403
+    assert denied_send_response.json()["code"] == "TEAM_ACCESS_DENIED"
+
+    invite_response = client.post(
+        f"/api/v1/teams/{team['id']}/invites",
+        headers=owner_headers,
+        json={"email": member_email, "role": "member"},
+    )
+    assert invite_response.status_code == 201
+    join_response = client.post(
+        f"/api/v1/teams/{team['id']}/members",
+        headers=member_headers,
+        json={"invite_token": invite_response.json()["token"]},
+    )
+    assert join_response.status_code == 201
+
+    first_send_response = client.post(
+        f"/api/v1/teams/{team['id']}/messages",
+        headers=owner_headers,
+        json={"content": f"请 @{member_username} 汇总今天的实验文件。"},
+    )
+    assert first_send_response.status_code == 201
+    first_message = first_send_response.json()
+    assert first_message["team_id"] == team["id"]
+    assert first_message["sender_name"] == owner_session["user"]["username"]
+    assert first_message["receiver_id"] is None
+    assert first_message["message_type"] == "text"
+    assert first_message["content"].startswith("请 @")
+
+    second_send_response = client.post(
+        f"/api/v1/teams/{team['id']}/messages",
+        headers=member_headers,
+        json={"content": "收到，已同步到团队周报。"},
+    )
+    assert second_send_response.status_code == 201
+
+    member_history_response = client.get(f"/api/v1/teams/{team['id']}/messages", headers=member_headers)
+    assert member_history_response.status_code == 200
+    history = member_history_response.json()
+    assert history["total"] == 2
+    assert [item["id"] for item in history["items"]] == [first_message["id"], second_send_response.json()["id"]]
+    assert [item["content"] for item in history["items"]] == [
+        f"请 @{member_username} 汇总今天的实验文件。",
+        "收到，已同步到团队周报。",
+    ]
+
+    notifications_response = client.get("/api/v1/notifications", headers=member_headers)
+    assert notifications_response.status_code == 200
+    unread_notifications = [item for item in notifications_response.json()["items"] if not item["is_read"]]
+    assert any(
+        item["type"] == "mention"
+        and item["target_type"] == "team_message"
+        and item["target_id"] == first_message["id"]
+        for item in unread_notifications
+    )
+
+    audit_response = client.get("/api/v1/audit-logs", headers=owner_headers)
+    assert audit_response.status_code == 200
+    actions = [entry["action"] for entry in audit_response.json()["items"]]
+    assert "team.message_create" in actions
+
+
 def test_team_folder_permissions_enforce_guest_read_only_and_member_write() -> None:
     owner_session = auth_session()
     member_session = auth_session()
@@ -767,6 +1103,235 @@ def test_team_file_read_and_write_permissions_are_enforced_across_resources() ->
     )
     assert outsider_workflow_response.status_code == 403
     assert outsider_workflow_response.json()["code"] == "FILE_READ_FORBIDDEN"
+
+
+def test_team_file_annotations_support_replies_permissions_and_notifications() -> None:
+    owner_session = auth_session()
+    member_session = auth_session()
+    outsider_headers = auth_headers()
+    owner_headers = session_headers(owner_session)
+    member_headers = session_headers(member_session)
+
+    create_team_response = client.post(
+        "/api/v1/teams",
+        headers=owner_headers,
+        json={"name": "批注协作小组", "description": "围绕团队资料讨论"},
+    )
+    assert create_team_response.status_code == 201
+    team = create_team_response.json()
+    team_folder_id = team["root_folder"]["id"]
+
+    member_email = member_session["user"]["email"]
+    assert isinstance(member_email, str)
+    invite_response = client.post(
+        f"/api/v1/teams/{team['id']}/invites",
+        headers=owner_headers,
+        json={"email": member_email, "role": "member"},
+    )
+    assert invite_response.status_code == 201
+    join_response = client.post(
+        f"/api/v1/teams/{team['id']}/members",
+        headers=member_headers,
+        json={"invite_token": invite_response.json()["token"]},
+    )
+    assert join_response.status_code == 201
+
+    upload_response = client.post(
+        "/api/v1/files/upload",
+        headers=member_headers,
+        files={"file": ("批注样本.md", "团队成员围绕资料批注。".encode(), "text/markdown")},
+        data={"folder_id": team_folder_id, "tags": "批注,团队"},
+    )
+    assert upload_response.status_code == 201
+    team_file = upload_response.json()
+
+    create_annotation_response = client.post(
+        f"/api/v1/files/{team_file['id']}/annotations",
+        headers=member_headers,
+        json={
+            "content": "这里需要补充实验样本来源 @owner",
+            "position": {"page": 2, "selected_text": "样本来源"},
+        },
+    )
+    assert create_annotation_response.status_code == 201
+    annotation = create_annotation_response.json()
+    assert annotation["file_id"] == team_file["id"]
+    assert annotation["author_name"] == member_session["user"]["username"]
+    assert annotation["content"] == "这里需要补充实验样本来源 @owner"
+    assert annotation["position"]["page"] == 2
+    assert annotation["replies"] == []
+
+    owner_list_response = client.get(f"/api/v1/files/{team_file['id']}/annotations", headers=owner_headers)
+    assert owner_list_response.status_code == 200
+    assert owner_list_response.json()["total"] == 1
+    assert owner_list_response.json()["items"][0]["id"] == annotation["id"]
+
+    outsider_list_response = client.get(f"/api/v1/files/{team_file['id']}/annotations", headers=outsider_headers)
+    assert outsider_list_response.status_code == 403
+    assert outsider_list_response.json()["code"] == "FILE_READ_FORBIDDEN"
+
+    before_snapshot_response = client.get("/api/v1/workspace/snapshot", headers=member_headers)
+    assert before_snapshot_response.status_code == 200
+    before_unread = before_snapshot_response.json()["summary"]["unread_notifications"]
+
+    reply_response = client.post(
+        f"/api/v1/annotations/{annotation['id']}/replies",
+        headers=owner_headers,
+        json={"content": "已补充数据采集说明，请复核。"},
+    )
+    assert reply_response.status_code == 201
+    reply = reply_response.json()
+    assert reply["annotation_id"] == annotation["id"]
+    assert reply["author_name"] == owner_session["user"]["username"]
+    assert reply["content"] == "已补充数据采集说明，请复核。"
+
+    after_snapshot_response = client.get("/api/v1/workspace/snapshot", headers=member_headers)
+    assert after_snapshot_response.status_code == 200
+    assert after_snapshot_response.json()["summary"]["unread_notifications"] == before_unread + 1
+
+    member_list_response = client.get(f"/api/v1/files/{team_file['id']}/annotations", headers=member_headers)
+    assert member_list_response.status_code == 200
+    listed_annotation = member_list_response.json()["items"][0]
+    assert listed_annotation["replies"][0]["id"] == reply["id"]
+
+    denied_delete_response = client.delete(
+        f"/api/v1/files/{team_file['id']}/annotations/{reply['id']}",
+        headers=member_headers,
+    )
+    assert denied_delete_response.status_code == 403
+    assert denied_delete_response.json()["code"] == "ANNOTATION_DELETE_FORBIDDEN"
+
+    owner_delete_response = client.delete(
+        f"/api/v1/files/{team_file['id']}/annotations/{annotation['id']}",
+        headers=owner_headers,
+    )
+    assert owner_delete_response.status_code == 204
+
+    empty_list_response = client.get(f"/api/v1/files/{team_file['id']}/annotations", headers=owner_headers)
+    assert empty_list_response.status_code == 200
+    assert empty_list_response.json()["items"] == []
+
+    audit_response = client.get("/api/v1/audit-logs", headers=owner_headers)
+    assert audit_response.status_code == 200
+    actions = [entry["action"] for entry in audit_response.json()["items"]]
+    assert "file.annotation_create" in actions
+    assert "file.annotation_reply" in actions
+    assert "file.annotation_delete" in actions
+
+
+def test_notifications_list_and_mark_read_for_invites_mentions_and_annotation_replies() -> None:
+    owner_session = auth_session()
+    member_session = auth_session()
+    outsider_headers = auth_headers()
+    owner_headers = session_headers(owner_session)
+    member_headers = session_headers(member_session)
+
+    create_team_response = client.post(
+        "/api/v1/teams",
+        headers=owner_headers,
+        json={"name": "通知协作小组", "description": "验证通知收件箱"},
+    )
+    assert create_team_response.status_code == 201
+    team = create_team_response.json()
+
+    member_email = member_session["user"]["email"]
+    assert isinstance(member_email, str)
+    invite_response = client.post(
+        f"/api/v1/teams/{team['id']}/invites",
+        headers=owner_headers,
+        json={"email": member_email, "role": "member"},
+    )
+    assert invite_response.status_code == 201
+
+    invite_notifications_response = client.get("/api/v1/notifications", headers=member_headers)
+    assert invite_notifications_response.status_code == 200
+    invite_notifications = invite_notifications_response.json()
+    assert invite_notifications["unread_count"] == 1
+    invite_notification = invite_notifications["items"][0]
+    assert invite_notification["type"] == "invite"
+    assert invite_notification["title"] == "团队邀请"
+    assert invite_notification["target_type"] == "team"
+    assert invite_notification["target_id"] == team["id"]
+    assert invite_notification["is_read"] is False
+
+    outsider_read_response = client.patch(
+        f"/api/v1/notifications/{invite_notification['id']}/read",
+        headers=outsider_headers,
+    )
+    assert outsider_read_response.status_code == 404
+    assert outsider_read_response.json()["code"] == "NOTIFICATION_NOT_FOUND"
+
+    read_invite_response = client.patch(
+        f"/api/v1/notifications/{invite_notification['id']}/read",
+        headers=member_headers,
+    )
+    assert read_invite_response.status_code == 200
+    assert read_invite_response.json()["is_read"] is True
+
+    join_response = client.post(
+        f"/api/v1/teams/{team['id']}/members",
+        headers=member_headers,
+        json={"invite_token": invite_response.json()["token"]},
+    )
+    assert join_response.status_code == 201
+
+    upload_response = client.post(
+        "/api/v1/files/upload",
+        headers=member_headers,
+        files={"file": ("通知批注.md", "需要通知协作。".encode(), "text/markdown")},
+        data={"folder_id": team["root_folder"]["id"], "tags": "通知,批注"},
+    )
+    assert upload_response.status_code == 201
+    team_file = upload_response.json()
+
+    create_annotation_response = client.post(
+        f"/api/v1/files/{team_file['id']}/annotations",
+        headers=member_headers,
+        json={"content": "请 @owner 检查这段实验结论", "position": {"page": 1}},
+    )
+    assert create_annotation_response.status_code == 201
+    annotation = create_annotation_response.json()
+
+    owner_notifications_response = client.get("/api/v1/notifications", headers=owner_headers)
+    assert owner_notifications_response.status_code == 200
+    owner_notifications = owner_notifications_response.json()
+    mention_notification = owner_notifications["items"][0]
+    assert owner_notifications["unread_count"] == 1
+    assert mention_notification["type"] == "mention"
+    assert mention_notification["target_type"] == "file"
+    assert mention_notification["target_id"] == team_file["id"]
+    assert "通知批注.md" in mention_notification["content"]
+
+    reply_response = client.post(
+        f"/api/v1/annotations/{annotation['id']}/replies",
+        headers=owner_headers,
+        json={"content": "已检查，结论可以保留。"},
+    )
+    assert reply_response.status_code == 201
+
+    member_snapshot_response = client.get("/api/v1/workspace/snapshot", headers=member_headers)
+    assert member_snapshot_response.status_code == 200
+    assert member_snapshot_response.json()["summary"]["unread_notifications"] == 1
+
+    member_notifications_response = client.get("/api/v1/notifications", headers=member_headers)
+    assert member_notifications_response.status_code == 200
+    member_notifications = member_notifications_response.json()
+    unread_member_notifications = [item for item in member_notifications["items"] if not item["is_read"]]
+    assert member_notifications["unread_count"] == 1
+    assert unread_member_notifications[0]["type"] == "annotation"
+    assert unread_member_notifications[0]["target_type"] == "file"
+    assert unread_member_notifications[0]["target_id"] == team_file["id"]
+
+    read_reply_response = client.patch(
+        f"/api/v1/notifications/{unread_member_notifications[0]['id']}/read",
+        headers=member_headers,
+    )
+    assert read_reply_response.status_code == 200
+    assert read_reply_response.json()["is_read"] is True
+
+    after_read_snapshot_response = client.get("/api/v1/workspace/snapshot", headers=member_headers)
+    assert after_read_snapshot_response.status_code == 200
+    assert after_read_snapshot_response.json()["summary"]["unread_notifications"] == 0
 
 
 def test_permission_rules_support_inheritance_overrides_and_audit_events() -> None:

@@ -3,7 +3,11 @@ import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import naive, { NConfigProvider } from 'naive-ui'
 
-import { demoWorkspaceSnapshot, type WorkspaceFileVersion } from '@/client/workspace'
+import {
+  demoWorkspaceSnapshot,
+  type WorkspaceFileAnnotation,
+  type WorkspaceFileVersion,
+} from '@/client/workspace'
 import FileWorkbench from '../FileWorkbench.vue'
 
 describe('FileWorkbench', () => {
@@ -35,12 +39,16 @@ describe('FileWorkbench', () => {
     const workbench = wrapper.getComponent(FileWorkbench)
 
     await wrapper.get('input[placeholder="搜索文件名"]').setValue(' 显微镜 ')
+    await wrapper.get('input[placeholder="更新时间起"]').setValue('2026-07-08T00:00:00+08:00')
+    await wrapper.get('input[placeholder="更新时间止"]').setValue('2026-07-09T00:00:00+08:00')
     await wrapper.get('[data-testid="search-files"]').trigger('click')
 
     expect(workbench.emitted('search-files')?.[0]?.[0]).toEqual({
       fileType: '',
       query: '显微镜',
       tag: '',
+      updatedFrom: '2026-07-08T00:00:00+08:00',
+      updatedTo: '2026-07-09T00:00:00+08:00',
     })
   })
 
@@ -137,5 +145,43 @@ describe('FileWorkbench', () => {
       },
     ])
     expect(workbench.emitted('restore-file-version')?.[0]).toEqual(['file-microscope', 'version-1'])
+  })
+
+  it('opens the annotation panel and forwards annotation actions', async () => {
+    const annotations: WorkspaceFileAnnotation[] = [
+      {
+        author_id: 2,
+        author_name: 'team-owner',
+        content: '补充团队周报结论',
+        created_at: '2026-07-09T08:00:00+08:00',
+        file_id: 'file-weekly',
+        id: 'anno-1',
+        position: null,
+        replies: [],
+        updated_at: '2026-07-09T08:00:00+08:00',
+      },
+    ]
+    const TestHost = defineComponent({
+      setup: () => () =>
+        h(NConfigProvider, null, {
+          default: () =>
+            h(FileWorkbench, {
+              fileAnnotationsById: { 'file-weekly': annotations },
+              files: demoWorkspaceSnapshot.files,
+            }),
+        }),
+    })
+    const wrapper = mount(TestHost, { global: { plugins: [naive] } })
+    const workbench = wrapper.getComponent(FileWorkbench)
+
+    await wrapper.get('[data-testid="annotate-file-file-weekly"]').trigger('click')
+    await wrapper.get('textarea[placeholder="添加文件批注"]').setValue(' 请确认周报日期 ')
+    await wrapper.get('[data-testid="submit-file-annotation"]').trigger('click')
+
+    expect(workbench.emitted('load-file-annotations')?.[0]).toEqual(['file-weekly'])
+    expect(workbench.emitted('create-file-annotation')?.[0]).toEqual([
+      'file-weekly',
+      { content: '请确认周报日期', position: null },
+    ])
   })
 })

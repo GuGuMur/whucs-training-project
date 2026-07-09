@@ -461,6 +461,32 @@
   - `backend/app/domain/schemas.py` — permission schemas (merged)
   - `backend/app/services/workspace.py` — `_seed_demo_user`, permission backend (merged)
 
+### Phase 24: Notification Inbox API/UI
+- **Status:** complete
+- Actions taken:
+  - Added backend notification schemas, in-memory notification entities, list/read service methods, and `/api/v1/notifications` routes.
+  - Created notification records for team invites to existing users, annotation mentions, annotation replies, and workflow completion on team files.
+  - Changed workspace/team unread counts to derive from unread notification entities for the current user.
+  - Regenerated the OpenAPI client and added notification adapters/state/actions in `frontend/src/client/workspace.ts` and `frontend/src/stores/workspace.ts`.
+  - Added `NotificationInboxPanel.vue` and wired it into `TeamAuditPanel.vue` and `WorkspaceView.vue`.
+  - Verified focused notification behavior plus full backend/frontend suites, type checking, build, JSON validation, and diff whitespace.
+- Files created/modified:
+  - `backend/app/domain/schemas.py`
+  - `backend/app/api/routes.py`
+  - `backend/app/services/workspace.py`
+  - `backend/tests/test_workspace_api.py`
+  - `backend/tests/test_openapi_export.py`
+  - `frontend/src/client/openapi/workspace.openapi.json`
+  - `frontend/src/client/generated/*`
+  - `frontend/src/client/workspace.ts`
+  - `frontend/src/stores/workspace.ts`
+  - `frontend/src/stores/__tests__/workspace.spec.ts`
+  - `frontend/src/components/workspace/NotificationInboxPanel.vue`
+  - `frontend/src/components/workspace/__tests__/NotificationInboxPanel.spec.ts`
+  - `frontend/src/components/workspace/TeamAuditPanel.vue`
+  - `frontend/src/components/workspace/__tests__/TeamAuditPanel.spec.ts`
+  - `frontend/src/views/WorkspaceView.vue`
+
 ## Test Results
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
@@ -595,6 +621,39 @@
 | Phase 20 JSON validation | `python3 -m json.tool .wolf/buglog.json` | OpenWolf bug log remains valid JSON | exit 0 | Pass |
 | Phase 20 whitespace check | `git diff --check` | No whitespace errors in the worktree diff | exit 0 | Pass |
 | Phase 20 services-boundary check | `rg --files frontend/src \| rg '(^|/)services/'` | Frontend `services/` directory remains deleted | no output, exit 1 | Pass |
+| Phase 22 FR-F07 backend red test | `cd backend && PYTHONPATH=. uv run python -m pytest tests/test_workspace_api.py -q -k "updated_time_range"` | New updated-time range test fails before implementation because `/api/v1/files` ignores `updated_from`/`updated_to` | failed with both tagged uploads returned | Expected Fail |
+| Phase 22 FR-F07 frontend red tests | `cd frontend && pnpm vitest run src/stores/__tests__/workspace.spec.ts src/components/workspace/__tests__/FileWorkbench.spec.ts -t "search"` | Store drops updated-time filter fields and FileWorkbench has no updated-time inputs before implementation | 2 expected failures | Expected Fail |
+| Phase 22 backend focused test | `cd backend && PYTHONPATH=. uv run python -m pytest tests/test_workspace_api.py -q -k "updated_time_range"` | File listing filters by inclusive `updated_from`/`updated_to` bounds | `1 passed, 27 deselected, 1 warning` | Pass |
+| Phase 22 frontend focused tests | `cd frontend && pnpm vitest run src/stores/__tests__/workspace.spec.ts src/components/workspace/__tests__/FileWorkbench.spec.ts -t "search"` | Store forwards updated-time filters and FileWorkbench emits toolbar bounds | `2 files passed, 2 tests passed` | Pass |
+| Phase 22 OpenAPI client generation | `cd frontend && pnpm generate:client` | Generated OpenAPI schema/types expose `updated_from` and `updated_to` on `GET /api/v1/files` | generated 4 files under `src/client/generated` | Pass |
+| Phase 22 backend tests | `cd backend && PYTHONPATH=. uv run python -m pytest -q` | Backend API contracts remain green after updated-time filtering | `29 passed, 1 warning` | Pass |
+| Phase 22 frontend unit tests | `cd frontend && pnpm vitest run` | Frontend tests remain green after filter UI/store changes | `13 files passed, 54 tests passed` | Pass |
+| Phase 22 frontend type check | `cd frontend && pnpm type-check` | Vue/TypeScript project type-checks after filter type expansion | exit 0 | Pass |
+| Phase 22 frontend production build | `cd frontend && pnpm build` | `vue-tsc --build` and `vite build` pass after filter UI changes | build passed | Pass |
+| Phase 22 JSON validation | `python3 -m json.tool .wolf/buglog.json >/dev/null` | OpenWolf bug log remains valid JSON | exit 0 | Pass |
+| Phase 22 whitespace check | `git diff --check` | No whitespace errors in the worktree diff | exit 0 | Pass |
+| Phase 23 annotations backend red test | `cd backend && PYTHONPATH=. uv run python -m pytest tests/test_workspace_api.py -q -k annotation` | New annotation test fails before implementation because `/api/v1/files/{file_id}/annotations` is missing | failed with 404 on annotation create | Expected Fail |
+| Phase 23 annotations OpenAPI red test | `cd backend && PYTHONPATH=. uv run python -m pytest tests/test_openapi_export.py -q` | OpenAPI contract lacks annotation paths before implementation | failed missing `/api/v1/files/{file_id}/annotations` | Expected Fail |
+| Phase 23 annotations frontend red tests | `cd frontend && pnpm vitest run src/stores/__tests__/workspace.spec.ts src/components/workspace/__tests__/FileAnnotationPanel.spec.ts -t annotation` | Store adapter functions and `FileAnnotationPanel.vue` are missing before implementation | failed on missing `listWorkspaceFileAnnotations` and missing panel import | Expected Fail |
+| Phase 23 OpenAPI client generation | `cd frontend && pnpm generate:client` | Backend schema export and hey-api generation expose file annotation SDK/types | generated `fileAnnotations...`, `createFileAnnotation...`, `replyFileAnnotation...`, and `deleteFileAnnotation...` | Pass |
+| Phase 23 backend focused tests | `cd backend && PYTHONPATH=. uv run python -m pytest tests/test_workspace_api.py -q -k annotation && PYTHONPATH=. uv run python -m pytest tests/test_openapi_export.py -q` | Annotation list/create/reply/delete, outsider denial, unread-count increment, audit events, and OpenAPI paths pass | 2 focused commands passed with known Starlette warning on API test | Pass |
+| Phase 23 frontend focused tests | `cd frontend && pnpm vitest run src/stores/__tests__/workspace.spec.ts src/components/workspace/__tests__/FileAnnotationPanel.spec.ts -t annotation` | Store annotation actions and FileAnnotationPanel interactions pass | 2 files passed, 2 tests passed | Pass |
+| Phase 23 workbench annotation tests | `cd frontend && pnpm vitest run src/components/workspace/__tests__/FileWorkbench.spec.ts src/components/workspace/__tests__/FileAnnotationPanel.spec.ts` | FileWorkbench opens annotation panel and forwards create events; panel render/create/reply/delete remains green | 2 files passed, 6 tests passed | Pass |
+| Phase 23 backend tests | `cd backend && PYTHONPATH=. uv run python -m pytest -q` | Backend API contracts remain green after annotations | 30 passed, 1 warning | Pass |
+| Phase 23 frontend unit tests | `cd frontend && pnpm vitest run` | Frontend tests remain green after annotation panel/store/view wiring | 14 files passed, 57 tests passed | Pass |
+| Phase 23 frontend type check | `cd frontend && pnpm type-check` | Vue/TypeScript project type-checks after annotation wiring | exit 0 | Pass |
+| Phase 23 frontend production build | `cd frontend && pnpm build` | `vue-tsc --build` and `vite build` pass after annotation wiring | build passed | Pass |
+| Phase 23 JSON validation | `python3 -m json.tool .wolf/buglog.json >/dev/null` | OpenWolf bug log remains valid JSON | exit 0 | Pass |
+| Phase 23 whitespace check | `git diff --check` | No whitespace errors in the worktree diff | exit 0 | Pass |
+| Phase 24 backend focused notification tests | `cd backend && PYTHONPATH=. uv run python -m pytest tests/test_workspace_api.py::test_notifications_list_and_mark_read_for_invites_mentions_and_annotation_replies tests/test_workspace_api.py::test_team_file_annotations_support_replies_permissions_and_notifications tests/test_openapi_export.py -q` | Notification list/read behavior, invite/mention/reply signals, annotation notification compatibility, and OpenAPI paths pass | 3 passed, 1 warning | Pass |
+| Phase 24 OpenAPI client generation | `cd frontend && pnpm generate:client` | Backend schema export and hey-api generation expose notification SDK/types | generated notification list/read contracts under `src/client/generated` | Pass |
+| Phase 24 frontend focused notification tests | `cd frontend && pnpm vitest run src/stores/__tests__/workspace.spec.ts src/components/workspace/__tests__/NotificationInboxPanel.spec.ts src/components/workspace/__tests__/TeamAuditPanel.spec.ts -t notification` | Store notification actions, inbox panel render/read emits, and TeamAuditPanel forwarding pass | 3 files passed, 3 tests passed | Pass |
+| Phase 24 backend tests | `cd backend && PYTHONPATH=. uv run python -m pytest -q` | Backend API contracts remain green after notification inbox | 31 passed, 1 warning | Pass |
+| Phase 24 frontend unit tests | `cd frontend && pnpm vitest run` | Frontend tests remain green after notification panel/store/view wiring | 15 files passed, 60 tests passed | Pass |
+| Phase 24 frontend type check | `cd frontend && pnpm type-check` | Vue/TypeScript project type-checks after notification wiring | exit 0 | Pass |
+| Phase 24 frontend production build | `cd frontend && pnpm build` | `vue-tsc --build` and `vite build` pass after notification wiring | build passed | Pass |
+| Phase 24 JSON validation | `python3 -m json.tool .wolf/buglog.json >/dev/null` | OpenWolf bug log remains valid JSON | exit 0 | Pass |
+| Phase 24 whitespace check | `git diff --check` | No whitespace errors in the worktree diff | exit 0 | Pass |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
@@ -643,8 +702,8 @@
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 21 complete — remote merge with full-page views, guest auth, and permission audit integrated |
-| Where am I going? | Persistent storage/vector indexing, persistent permission repositories/admin policy matrix, drag/drop workflow node editing (remote WorkflowBuilderView provides foundation), WebSocket collaboration, and live LLM/tool integrations |
+| Where am I? | Phase 24 complete — notification inbox API/UI integrated after file annotations |
+| Where am I going? | Persistent storage/vector indexing, persistent permission repositories/admin policy matrix, persisted team chat/WebSocket collaboration, WebSocket notification delivery, and live LLM/tool integrations |
 | What's the goal? | Build the report-aligned intelligent file management and agent collaboration platform |
 | What have I learned? | See `findings.md` |
-| What have I done? | Completed a tested backend API skeleton with 24 tests, Vue/Naive UI workbench MVP, OpenAPI-to-generated-client workflow, auth guard/refresh/profile slices, login lockout, file CRUD/lifecycle/version UI, folder tree, team membership/invites/permissions, knowledge-base/RAG CRUD, editable workflow definitions, cross-resource RBAC, resource ACL rules with permission panel. Merged remote contributions: WorkflowBuilderView, TeamChatView, RagQaView, PermissionAuditView, guest login with role-based routing, and demo user seeding |
+| What have I done? | Completed a tested backend API skeleton with 31 backend tests, Vue/Naive UI workbench MVP, OpenAPI-to-generated-client workflow, auth guard/refresh/profile slices, login lockout, file CRUD/lifecycle/version UI, folder tree, team membership/invites/permissions, knowledge-base/RAG CRUD, editable workflow definitions, cross-resource RBAC, resource ACL rules with permission panel, file annotations/replies, and notification inbox list/read UI. Merged remote contributions: WorkflowBuilderView, TeamChatView, RagQaView, PermissionAuditView, guest login with role-based routing, and demo user seeding |

@@ -9,6 +9,8 @@ import SummaryStrip from '@/components/workspace/SummaryStrip.vue'
 import TeamAuditPanel from '@/components/workspace/TeamAuditPanel.vue'
 import type {
   WorkspaceFile,
+  WorkspaceFileAnnotationCreateInput,
+  WorkspaceFileAnnotationReplyInput,
   WorkspaceFileCopyInput,
   WorkspaceFileFilters,
   WorkspaceFileUpdateInput,
@@ -41,16 +43,20 @@ const {
   activeWorkflowId,
   activeWorkflowValidation,
   addingKnowledgeDocument,
+  annotationFileIdLoading,
+  annotationSaving,
   apiState,
   askingQuestion,
   auditLogs,
   creatingFolder,
   copyingFileId,
+  deletingAnnotationId,
   deletingFileId,
   deletingFolderId,
   deletingPermissionRuleId,
   downloadingFileId,
   fileFilters,
+  fileAnnotationsById,
   fileListLoading,
   fileVersionsById,
   files,
@@ -60,7 +66,10 @@ const {
   indexedFiles,
   knowledgeBases,
   knowledgeOperationLoading,
+  markingNotificationId,
   narrative,
+  notifications,
+  notificationsLoading,
   permissionRuleSaving,
   permissionRules,
   permissionRulesLoading,
@@ -103,6 +112,26 @@ async function handleCopyFile(fileId: string, payload: WorkspaceFileCopyInput) {
 
 async function handleLoadFileVersions(fileId: string) {
   await workspace.loadFileVersions(fileId)
+}
+
+async function handleLoadFileAnnotations(fileId: string) {
+  await workspace.loadFileAnnotations(fileId)
+}
+
+async function handleCreateFileAnnotation(fileId: string, payload: WorkspaceFileAnnotationCreateInput) {
+  await workspace.createFileAnnotation(fileId, payload)
+}
+
+async function handleReplyFileAnnotation(annotationId: string, payload: WorkspaceFileAnnotationReplyInput) {
+  await workspace.replyFileAnnotation(annotationId, payload)
+}
+
+async function handleDeleteFileAnnotation(fileId: string, annotationId: string) {
+  await workspace.deleteFileAnnotation(fileId, annotationId)
+}
+
+async function handleMarkNotificationRead(notificationId: string) {
+  await workspace.markNotificationRead(notificationId)
 }
 
 async function handleRestoreFileVersion(fileId: string, versionId: string) {
@@ -235,13 +264,17 @@ function saveBlob(file: WorkspaceFile, blob: Blob) {
           id="files"
           :active-folder-id="activeFolderId"
           :active-team-detail="activeTeamDetail"
+          :annotation-file-id-loading="annotationFileIdLoading"
+          :annotation-saving="annotationSaving"
           :copying-file-id="copyingFileId"
           :creating-folder="creatingFolder"
           :deleting-file-id="deletingFileId"
+          :deleting-annotation-id="deletingAnnotationId"
           :deleting-folder-id="deletingFolderId"
           :deleting-permission-rule-id="deletingPermissionRuleId"
           :downloading-file-id="downloadingFileId"
           :filters="fileFilters"
+          :file-annotations-by-id="fileAnnotationsById"
           :file-versions-by-id="fileVersionsById"
           :files="files"
           :folder-options="folderOptions"
@@ -257,13 +290,17 @@ function saveBlob(file: WorkspaceFile, blob: Blob) {
           :uploading-file="uploadingFile"
           :version-file-id="versionFileId"
           @copy-file="handleCopyFile"
+          @create-file-annotation="handleCreateFileAnnotation"
           @create-folder="handleCreateFolder"
           @create-permission-rule="handleCreatePermissionRule"
           @delete-file="handleDeleteFile"
+          @delete-file-annotation="handleDeleteFileAnnotation"
           @delete-folder="handleDeleteFolder"
           @delete-permission-rule="handleDeletePermissionRule"
           @download-file="handleDownloadFile"
+          @load-file-annotations="handleLoadFileAnnotations"
           @load-file-versions="handleLoadFileVersions"
+          @reply-file-annotation="handleReplyFileAnnotation"
           @restore-file-version="handleRestoreFileVersion"
           @search-files="handleSearchFiles"
           @select-folder="workspace.selectFolder"
@@ -311,11 +348,15 @@ function saveBlob(file: WorkspaceFile, blob: Blob) {
           id="teams"
           :active-team-detail="activeTeamDetail"
           :audit-logs="auditLogs"
+          :marking-notification-id="markingNotificationId"
+          :notifications="notifications"
+          :notifications-loading="notificationsLoading"
           :team-operation-loading="teamOperationLoading"
           :teams="teams"
           @create-team="handleCreateTeam"
           @invite-team-member="handleInviteTeamMember"
           @load-team-detail="handleLoadTeamDetail"
+          @mark-notification-read="handleMarkNotificationRead"
           @remove-team-member="handleRemoveTeamMember"
           @update-team-member-role="handleUpdateTeamMemberRole"
         />

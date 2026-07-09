@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, h, shallowRef, watch } from 'vue'
-import { Download, PenLine, RefreshCw, Search, Trash2, Upload } from '@lucide/vue'
+import { Download, MessageSquareText, PenLine, RefreshCw, Search, Trash2, Upload } from '@lucide/vue'
 import type { DataTableColumns } from 'naive-ui'
 import { NButton, NDataTable, NIcon, NTag } from 'naive-ui'
 
 import type {
   WorkspaceFile,
+  WorkspaceFileAnnotation,
+  WorkspaceFileAnnotationCreateInput,
+  WorkspaceFileAnnotationReplyInput,
   WorkspaceFileCopyInput,
   WorkspaceFileFilters,
   WorkspaceFileUpdateInput,
@@ -19,6 +22,7 @@ import type {
   WorkspacePermissionRuleCreateInput,
   WorkspaceTeamDetail,
 } from '@/client/workspace'
+import FileAnnotationPanel from './FileAnnotationPanel.vue'
 import FileLifecyclePanel from './FileLifecyclePanel.vue'
 import FileUploadPanel from './FileUploadPanel.vue'
 import FolderTreePanel from './FolderTreePanel.vue'
@@ -29,12 +33,17 @@ const emptyFilters: WorkspaceFileFilters = {
   fileType: '',
   query: '',
   tag: '',
+  updatedFrom: '',
+  updatedTo: '',
 }
 
 const props = withDefaults(defineProps<{
   activeFolderId?: string | null
   activeTeamDetail?: WorkspaceTeamDetail | null
+  annotationFileIdLoading?: string | null
+  annotationSaving?: boolean
   creatingFolder?: boolean
+  deletingAnnotationId?: string | null
   deletingFileId?: string | null
   deletingFolderId?: string | null
   deletingPermissionRuleId?: string | null
@@ -42,6 +51,7 @@ const props = withDefaults(defineProps<{
   filters?: WorkspaceFileFilters
   copyingFileId?: string | null
   files: WorkspaceFile[]
+  fileAnnotationsById?: Record<string, WorkspaceFileAnnotation[]>
   fileVersionsById?: Record<string, WorkspaceFileVersion[]>
   folderOptions?: WorkspaceFolderOption[]
   folderTreeLoading?: boolean
@@ -58,8 +68,11 @@ const props = withDefaults(defineProps<{
 }>(), {
   activeFolderId: null,
   activeTeamDetail: null,
+  annotationFileIdLoading: null,
+  annotationSaving: false,
   copyingFileId: null,
   creatingFolder: false,
+  deletingAnnotationId: null,
   deletingFileId: null,
   deletingFolderId: null,
   deletingPermissionRuleId: null,
@@ -68,7 +81,10 @@ const props = withDefaults(defineProps<{
     fileType: '',
     query: '',
     tag: '',
+    updatedFrom: '',
+    updatedTo: '',
   }),
+  fileAnnotationsById: () => ({}),
   fileVersionsById: () => ({}),
   folderOptions: () => [],
   folderTreeLoading: false,
@@ -86,13 +102,17 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'copy-file': [fileId: string, payload: WorkspaceFileCopyInput]
+  'create-file-annotation': [fileId: string, payload: WorkspaceFileAnnotationCreateInput]
   'create-permission-rule': [payload: WorkspacePermissionRuleCreateInput]
   'create-folder': [payload: WorkspaceFolderCreateInput]
   'delete-file': [file: WorkspaceFile]
+  'delete-file-annotation': [fileId: string, annotationId: string]
   'delete-folder': [folderId: string]
   'delete-permission-rule': [ruleId: string]
   'download-file': [file: WorkspaceFile]
+  'load-file-annotations': [fileId: string]
   'load-file-versions': [fileId: string]
+  'reply-file-annotation': [annotationId: string, payload: WorkspaceFileAnnotationReplyInput]
   'restore-file-version': [fileId: string, versionId: string]
   'search-files': [filters: WorkspaceFileFilters]
   'select-folder': [folderId: string]
@@ -104,7 +124,10 @@ const emit = defineEmits<{
 const queryText = shallowRef('')
 const selectedFileType = shallowRef('')
 const selectedTag = shallowRef('')
+const updatedFromText = shallowRef('')
+const updatedToText = shallowRef('')
 const uploadPanelOpen = shallowRef(false)
+const annotationFileId = shallowRef<string | null>(null)
 const lifecycleFileId = shallowRef<string | null>(null)
 
 watch(
@@ -113,6 +136,8 @@ watch(
     queryText.value = filters.query
     selectedFileType.value = filters.fileType
     selectedTag.value = filters.tag
+    updatedFromText.value = filters.updatedFrom
+    updatedToText.value = filters.updatedTo
   },
   { immediate: true },
 )
@@ -173,6 +198,18 @@ const lifecycleVersions = computed(() => {
   }
   return props.fileVersionsById[lifecycleFile.value.id] ?? []
 })
+const annotationFile = computed(() => {
+  if (!annotationFileId.value) {
+    return null
+  }
+  return props.files.find((file) => file.id === annotationFileId.value) ?? null
+})
+const annotationItems = computed(() => {
+  if (!annotationFile.value) {
+    return []
+  }
+  return props.fileAnnotationsById[annotationFile.value.id] ?? []
+})
 
 function parseLabel(status: WorkspaceFile['parse_status']) {
   return {
@@ -226,6 +263,20 @@ function renderActionButtons(row: WorkspaceFile) {
     h(
       NButton,
       {
+        'data-testid': `annotate-file-${row.id}`,
+        disabled: props.deletingFileId === row.id,
+        quaternary: true,
+        size: 'tiny',
+        onClick: () => handleOpenAnnotationPanel(row),
+      },
+      {
+        default: () => '批注',
+        icon: () => h(NIcon, { 'aria-hidden': 'true' }, { default: () => h(MessageSquareText) }),
+      },
+    ),
+    h(
+      NButton,
+      {
         'data-testid': `delete-file-${row.id}`,
         disabled: props.downloadingFileId === row.id,
         loading: props.deletingFileId === row.id,
@@ -247,11 +298,18 @@ function handleOpenLifecyclePanel(file: WorkspaceFile) {
   emit('load-file-versions', file.id)
 }
 
+function handleOpenAnnotationPanel(file: WorkspaceFile) {
+  annotationFileId.value = file.id
+  emit('load-file-annotations', file.id)
+}
+
 function handleSearch() {
   emit('search-files', {
     fileType: selectedFileType.value,
     query: queryText.value.trim(),
     tag: selectedTag.value,
+    updatedFrom: updatedFromText.value.trim(),
+    updatedTo: updatedToText.value.trim(),
   })
 }
 
@@ -259,6 +317,8 @@ function handleResetFilters() {
   queryText.value = ''
   selectedFileType.value = ''
   selectedTag.value = ''
+  updatedFromText.value = ''
+  updatedToText.value = ''
   emit('search-files', { ...emptyFilters })
 }
 
@@ -361,7 +421,7 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
 
       <div class="min-w-0">
         <div class="border-b border-line bg-muted p-3">
-          <div class="grid grid-cols-[minmax(180px,1fr)_150px_150px_auto] items-center gap-2 max-lg:grid-cols-1">
+          <div class="grid grid-cols-[minmax(180px,1fr)_150px_150px_170px_170px_auto] items-center gap-2 max-xl:grid-cols-[minmax(180px,1fr)_150px_150px] max-lg:grid-cols-1">
             <NInput v-model:value="queryText" clearable placeholder="搜索文件名" @keyup.enter="handleSearch">
               <template #prefix>
                 <NIcon aria-hidden="true"><Search /></NIcon>
@@ -369,6 +429,8 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
             </NInput>
             <NSelect v-model:value="selectedTag" :options="tagOptions" />
             <NSelect v-model:value="selectedFileType" :options="fileTypeOptions" />
+            <NInput v-model:value="updatedFromText" clearable placeholder="更新时间起" @keyup.enter="handleSearch" />
+            <NInput v-model:value="updatedToText" clearable placeholder="更新时间止" @keyup.enter="handleSearch" />
             <NSpace class="justify-end" :wrap="false">
               <NButton data-testid="search-files" type="primary" :loading="listingFiles" @click="handleSearch">
                 <template #icon>
@@ -408,6 +470,20 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
           @copy-file="(fileId, payload) => emit('copy-file', fileId, payload)"
           @restore-file-version="(fileId, versionId) => emit('restore-file-version', fileId, versionId)"
           @update-file="(fileId, payload) => emit('update-file', fileId, payload)"
+        />
+
+        <FileAnnotationPanel
+          v-if="annotationFile"
+          :annotations="annotationItems"
+          :deleting-annotation-id="deletingAnnotationId"
+          :file="annotationFile"
+          :loading="annotationFileIdLoading === annotationFile.id"
+          :saving="annotationSaving"
+          @close="annotationFileId = null"
+          @create-annotation="(fileId, payload) => emit('create-file-annotation', fileId, payload)"
+          @delete-annotation="(fileId, annotationId) => emit('delete-file-annotation', fileId, annotationId)"
+          @load-annotations="(fileId) => emit('load-file-annotations', fileId)"
+          @reply-annotation="(annotationId, payload) => emit('reply-file-annotation', annotationId, payload)"
         />
 
         <NDataTable
@@ -462,6 +538,18 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
                     <NIcon aria-hidden="true"><Download /></NIcon>
                   </template>
                   下载
+                </NButton>
+                <NButton
+                  size="tiny"
+                  secondary
+                  :disabled="deletingFileId === file.id"
+                  :data-testid="`annotate-file-${file.id}`"
+                  @click="handleOpenAnnotationPanel(file)"
+                >
+                  <template #icon>
+                    <NIcon aria-hidden="true"><MessageSquareText /></NIcon>
+                  </template>
+                  批注
                 </NButton>
                 <NButton
                   size="tiny"

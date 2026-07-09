@@ -5,11 +5,15 @@ import { saveWorkspaceSession } from '@/auth'
 import * as workspaceClient from '@/client/workspace'
 import {
   demoWorkspaceSnapshot,
+  type WorkspaceNotification,
   type WorkspacePermissionRule,
   type WorkspaceFileVersion,
   type WorkspaceFolder,
   type WorkspaceKnowledgeBase,
   type WorkspaceKnowledgeDocument,
+  type WorkspaceFileAnnotation,
+  type WorkspaceFileAnnotationReply,
+  type WorkspaceTeamMessage,
   type WorkspaceTeamDetail,
   type WorkspaceTeamInvite,
   type WorkspaceTeamMember,
@@ -53,6 +57,42 @@ describe('workspace store file actions', () => {
     expect(workspace.downloadingFileId).toBeNull()
   })
 
+  it('creates a share link through the generated-client adapter with the stored access token', async () => {
+    saveWorkspaceSession({
+      accessToken: 'access-token',
+      displayName: '小明',
+      permissionScope: '个人',
+      refreshToken: 'refresh-token',
+      userId: '1',
+    })
+    const shareLink = {
+      id: 'share-1',
+      file_id: 'file-microscope',
+      token: 'share-token',
+      url: '/api/v1/share-links/share-token/download',
+      expires_at: '2026-07-09T11:00:00+08:00',
+      download_limit: 3,
+      download_count: 0,
+      has_password: true,
+    }
+    const shareSpy = vi.spyOn(workspaceClient, 'createWorkspaceFileShareLink').mockResolvedValue(shareLink)
+    const workspace = useWorkspaceStore()
+
+    const result = await workspace.createFileShareLink('file-microscope', {
+      downloadLimit: 3,
+      expiresInSeconds: 900,
+      password: 'view-pass',
+    })
+
+    expect(shareSpy).toHaveBeenCalledWith('access-token', 'file-microscope', {
+      downloadLimit: 3,
+      expiresInSeconds: 900,
+      password: 'view-pass',
+    })
+    expect(result).toEqual(shareLink)
+    expect(workspace.sharingFileId).toBeNull()
+  })
+
   it('deletes a file through the generated-client adapter and removes it from the current snapshot', async () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
@@ -71,6 +111,41 @@ describe('workspace store file actions', () => {
     expect(workspace.deletingFileId).toBeNull()
   })
 
+  it('loads recycle-bin files and restores a soft-deleted file through generated-client adapters', async () => {
+    saveWorkspaceSession({
+      accessToken: 'access-token',
+      displayName: '小明',
+      permissionScope: '个人',
+      refreshToken: 'refresh-token',
+      userId: '1',
+    })
+    const deletedFile = getDemoFile('file-microscope')
+    const recycledItem = {
+      deleted_at: '2026-07-09T18:20:00+08:00',
+      deleted_by: 'xiaoming',
+      file: deletedFile,
+    }
+    vi.spyOn(workspaceClient, 'deleteWorkspaceFile').mockResolvedValue()
+    const listRecycleBinSpy = vi.spyOn(workspaceClient, 'listWorkspaceRecycleBin').mockResolvedValue({
+      items: [recycledItem],
+      total: 1,
+    })
+    const restoreSpy = vi.spyOn(workspaceClient, 'restoreWorkspaceDeletedFile').mockResolvedValue(deletedFile)
+    const workspace = useWorkspaceStore()
+
+    await workspace.deleteFile('file-microscope')
+    await workspace.loadRecycleBin()
+    await workspace.restoreDeletedFile('file-microscope')
+
+    expect(listRecycleBinSpy).toHaveBeenCalledWith('access-token')
+    expect(workspace.recycleBinItems).toEqual([])
+    expect(restoreSpy).toHaveBeenCalledWith('access-token', 'file-microscope')
+    expect(workspace.files[0]).toEqual(deletedFile)
+    expect(workspace.summary.file_count).toBe(demoWorkspaceSnapshot.summary.file_count)
+    expect(workspace.recycleBinLoading).toBe(false)
+    expect(workspace.restoringDeletedFileId).toBeNull()
+  })
+
   it('searches files through the generated-client adapter and stores active filters', async () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
@@ -86,14 +161,28 @@ describe('workspace store file actions', () => {
     })
     const workspace = useWorkspaceStore()
 
-    await workspace.searchFiles({ fileType: 'pdf', query: '显微镜', tag: '实验' })
+    await workspace.searchFiles({
+      fileType: 'pdf',
+      query: '显微镜',
+      tag: '实验',
+      updatedFrom: '2026-07-08T00:00:00+08:00',
+      updatedTo: '2026-07-09T00:00:00+08:00',
+    })
 
     expect(listSpy).toHaveBeenCalledWith('access-token', {
       fileType: 'pdf',
       query: '显微镜',
       tag: '实验',
+      updatedFrom: '2026-07-08T00:00:00+08:00',
+      updatedTo: '2026-07-09T00:00:00+08:00',
     })
-    expect(workspace.fileFilters).toEqual({ fileType: 'pdf', query: '显微镜', tag: '实验' })
+    expect(workspace.fileFilters).toEqual({
+      fileType: 'pdf',
+      query: '显微镜',
+      tag: '实验',
+      updatedFrom: '2026-07-08T00:00:00+08:00',
+      updatedTo: '2026-07-09T00:00:00+08:00',
+    })
     expect(workspace.files).toEqual([searchedFile])
     expect(workspace.fileListLoading).toBe(false)
   })
@@ -124,6 +213,44 @@ describe('workspace store file actions', () => {
       file: uploadFile,
       folderId: 'personal-root',
       tags: ['实验', '观察'],
+    })
+    expect(workspace.files[0]).toEqual(uploaded)
+    expect(workspace.summary.file_count).toBe(demoWorkspaceSnapshot.summary.file_count + 1)
+    expect(workspace.uploadingFile).toBe(false)
+  })
+
+  it('uploads a large file through the multipart adapter and prepends it to the snapshot', async () => {
+    saveWorkspaceSession({
+      accessToken: 'access-token',
+      displayName: '小明',
+      permissionScope: '个人',
+      refreshToken: 'refresh-token',
+      userId: '1',
+    })
+    const uploadFile = new File(['第一片', '第二片'], '大文件观察记录.md', { type: 'text/markdown' })
+    const uploaded = {
+      ...getDemoFile('file-microscope'),
+      id: 'file-large-uploaded',
+      name: '大文件观察记录.md',
+      parse_status: 'queued' as const,
+      tags: ['实验', '分片'],
+      type: 'markdown',
+    }
+    const uploadSpy = vi.spyOn(workspaceClient, 'uploadWorkspaceMultipartFile').mockResolvedValue(uploaded)
+    const workspace = useWorkspaceStore()
+
+    await workspace.uploadLargeFile({
+      chunkSize: 3,
+      file: uploadFile,
+      folderId: 'personal-root',
+      tags: ['实验', '分片'],
+    })
+
+    expect(uploadSpy).toHaveBeenCalledWith('access-token', {
+      chunkSize: 3,
+      file: uploadFile,
+      folderId: 'personal-root',
+      tags: ['实验', '分片'],
     })
     expect(workspace.files[0]).toEqual(uploaded)
     expect(workspace.summary.file_count).toBe(demoWorkspaceSnapshot.summary.file_count + 1)
@@ -393,6 +520,37 @@ describe('workspace store file actions', () => {
     expect(workspace.teamOperationLoading).toBe(false)
   })
 
+  it('loads and sends team messages through generated-client adapters', async () => {
+    saveWorkspaceSession({
+      accessToken: 'access-token',
+      displayName: '小明',
+      permissionScope: '个人',
+      refreshToken: 'refresh-token',
+      userId: '1',
+    })
+    const historyMessage = createTeamMessage('msg-1', 'xiaohong', '已上传实验记录。')
+    const sentMessage = createTeamMessage('msg-2', 'xiaoming', '请 @xiaohong 看一下实验记录。')
+    const listSpy = vi.spyOn(workspaceClient, 'listWorkspaceTeamMessages').mockResolvedValue({
+      items: [historyMessage],
+      total: 1,
+    })
+    const sendSpy = vi.spyOn(workspaceClient, 'sendWorkspaceTeamMessage').mockResolvedValue(sentMessage)
+    const workspace = useWorkspaceStore()
+
+    await workspace.loadTeamMessages('team-algo')
+    await workspace.sendTeamMessage('team-algo', { content: ' 请 @xiaohong 看一下实验记录。 ' })
+
+    expect(listSpy).toHaveBeenCalledWith('access-token', 'team-algo')
+    expect(sendSpy).toHaveBeenCalledWith('access-token', 'team-algo', {
+      content: '请 @xiaohong 看一下实验记录。',
+      message_type: 'text',
+      receiver_id: null,
+    })
+    expect(workspace.teamMessagesById['team-algo']).toEqual([historyMessage, sentMessage])
+    expect(workspace.teamMessageTeamIdLoading).toBeNull()
+    expect(workspace.teamMessageSending).toBe(false)
+  })
+
   it('manages knowledge bases, indexed documents, and RAG questions through generated-client adapters', async () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
@@ -642,6 +800,87 @@ describe('workspace store file actions', () => {
     expect(workspace.permissionRuleSaving).toBe(false)
     expect(workspace.deletingPermissionRuleId).toBeNull()
   })
+
+  it('manages file annotations and replies through generated-client adapters', async () => {
+    saveWorkspaceSession({
+      accessToken: 'access-token',
+      displayName: '小明',
+      permissionScope: '个人',
+      refreshToken: 'refresh-token',
+      userId: '1',
+    })
+    const annotation = createAnnotation('anno-1', 'file-weekly', '需要补充数据来源')
+    const createdAnnotation = createAnnotation('anno-2', 'file-weekly', '请确认图表单位')
+    const reply = createReply('reply-1', 'anno-1', 'file-weekly', '已补充')
+    const listSpy = vi.spyOn(workspaceClient, 'listWorkspaceFileAnnotations').mockResolvedValue({
+      items: [annotation],
+      total: 1,
+    })
+    const createSpy = vi.spyOn(workspaceClient, 'createWorkspaceFileAnnotation').mockResolvedValue(createdAnnotation)
+    const replySpy = vi.spyOn(workspaceClient, 'replyWorkspaceFileAnnotation').mockResolvedValue(reply)
+    const deleteSpy = vi.spyOn(workspaceClient, 'deleteWorkspaceFileAnnotation').mockResolvedValue()
+    const workspace = useWorkspaceStore()
+
+    await workspace.loadFileAnnotations('file-weekly')
+    await workspace.createFileAnnotation('file-weekly', {
+      content: ' 请确认图表单位 ',
+      position: { page: 3 },
+    })
+    await workspace.replyFileAnnotation('anno-1', { content: ' 已补充 ' })
+    await workspace.deleteFileAnnotation('file-weekly', 'reply-1')
+
+    expect(listSpy).toHaveBeenCalledWith('access-token', 'file-weekly')
+    expect(createSpy).toHaveBeenCalledWith('access-token', 'file-weekly', {
+      content: '请确认图表单位',
+      position: { page: 3 },
+    })
+    expect(replySpy).toHaveBeenCalledWith('access-token', 'anno-1', { content: '已补充' })
+    expect(deleteSpy).toHaveBeenCalledWith('access-token', 'file-weekly', 'reply-1')
+    expect(workspace.fileAnnotationsById['file-weekly']).toEqual([createdAnnotation, annotation])
+    expect(workspace.annotationFileIdLoading).toBeNull()
+    expect(workspace.annotationSaving).toBe(false)
+    expect(workspace.deletingAnnotationId).toBeNull()
+  })
+
+  it('loads notifications and marks a notification read through generated-client adapters', async () => {
+    saveWorkspaceSession({
+      accessToken: 'access-token',
+      displayName: '小明',
+      permissionScope: '个人',
+      refreshToken: 'refresh-token',
+      userId: '1',
+    })
+    const unreadNotification = createNotification('noti-1', {
+      content: '李老师回复了 小组周报.docx 的批注',
+      is_read: false,
+      title: '批注收到回复',
+      type: 'annotation',
+    })
+    const readNotification = createNotification('noti-2', {
+      content: '王老师邀请你加入算法课程小组',
+      is_read: true,
+      title: '团队邀请',
+      type: 'invite',
+    })
+    const markedNotification = { ...unreadNotification, is_read: true }
+    const listSpy = vi.spyOn(workspaceClient, 'listWorkspaceNotifications').mockResolvedValue({
+      items: [unreadNotification, readNotification],
+      total: 2,
+      unread_count: 1,
+    })
+    const markSpy = vi.spyOn(workspaceClient, 'markWorkspaceNotificationRead').mockResolvedValue(markedNotification)
+    const workspace = useWorkspaceStore()
+
+    await workspace.loadNotifications()
+    await workspace.markNotificationRead('noti-1')
+
+    expect(listSpy).toHaveBeenCalledWith('access-token')
+    expect(markSpy).toHaveBeenCalledWith('access-token', 'noti-1')
+    expect(workspace.notifications).toEqual([markedNotification, readNotification])
+    expect(workspace.summary.unread_notifications).toBe(0)
+    expect(workspace.notificationsLoading).toBe(false)
+    expect(workspace.markingNotificationId).toBeNull()
+  })
 })
 
 function createFolderTree(): WorkspaceFolder[] {
@@ -696,6 +935,48 @@ function createVersion(id: string, versionNo: number, isCurrent: boolean): Works
   }
 }
 
+function createAnnotation(id: string, fileId: string, content: string): WorkspaceFileAnnotation {
+  return {
+    author_id: 1,
+    author_name: 'xiaoming',
+    content,
+    created_at: '2026-07-09T08:00:00+08:00',
+    file_id: fileId,
+    id,
+    position: null,
+    replies: [],
+    updated_at: '2026-07-09T08:00:00+08:00',
+  }
+}
+
+function createReply(id: string, annotationId: string, fileId: string, content: string): WorkspaceFileAnnotationReply {
+  return {
+    annotation_id: annotationId,
+    author_id: 2,
+    author_name: 'team-owner',
+    content,
+    created_at: '2026-07-09T08:10:00+08:00',
+    file_id: fileId,
+    id,
+    updated_at: '2026-07-09T08:10:00+08:00',
+  }
+}
+
+function createNotification(id: string, overrides: Partial<WorkspaceNotification>): WorkspaceNotification {
+  return {
+    content: null,
+    created_at: '2026-07-09T12:00:00Z',
+    id,
+    is_read: false,
+    target_id: 'file-weekly',
+    target_type: 'file',
+    title: '通知',
+    type: 'system',
+    user_id: 1,
+    ...overrides,
+  }
+}
+
 function createPermissionRule(
   id: string,
   overrides: Omit<WorkspacePermissionRule, 'created_at' | 'created_by' | 'id'>,
@@ -741,6 +1022,19 @@ function createTeamMember(id: string, role: WorkspaceTeamMember['role']): Worksp
     team_id: 'team-algo',
     user_id: id === 'member-1' ? 1 : 2,
     username: id === 'member-1' ? 'xiaoming' : 'xiaohong',
+  }
+}
+
+function createTeamMessage(id: string, senderName: string, content: string): WorkspaceTeamMessage {
+  return {
+    content,
+    created_at: '2026-07-09T08:00:00+08:00',
+    id,
+    message_type: 'text',
+    receiver_id: null,
+    sender_id: senderName === 'xiaoming' ? 1 : 2,
+    sender_name: senderName,
+    team_id: 'team-algo',
   }
 }
 

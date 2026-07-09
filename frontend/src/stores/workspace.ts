@@ -6,7 +6,9 @@ import {
   addKnowledgeDocument,
   askWorkspaceQuestion,
   copyWorkspaceFile,
+  createWorkspaceFileAnnotation,
   createKnowledgeBase,
+  createWorkspaceFileShareLink,
   createWorkspacePermissionRule,
   createWorkspaceWorkflow,
   createWorkspaceTeam,
@@ -16,11 +18,13 @@ import {
   demoWorkspaceKnowledgeDocuments,
   demoWorkspaceNarrative,
   demoWorkspacePermissionRules,
+  demoWorkspaceTeamMessages,
   demoWorkspaceFolders,
   demoWorkspaceSnapshot,
   demoWorkspaceTeamDetail,
   deleteWorkspacePermissionRule,
   deleteWorkspaceFile,
+  deleteWorkspaceFileAnnotation,
   deleteWorkspaceFolder,
   downloadWorkspaceFile,
   executeWorkspaceWorkflow,
@@ -29,27 +33,42 @@ import {
   joinWorkspaceTeam,
   listKnowledgeBases,
   listKnowledgeDocuments,
+  listWorkspaceTeamMessages,
   listWorkspaceTeams,
   listWorkspaceFileVersions,
+  listWorkspaceFileAnnotations,
+  listWorkspaceNotifications,
   listWorkspacePermissionRules,
+  listWorkspaceRecycleBin,
   listWorkspaceFolders,
   listWorkspaceFiles,
   loadWorkspaceTeamDetail,
+  markWorkspaceNotificationRead,
   publishWorkspaceWorkflow,
   removeWorkspaceTeamMember,
+  replyWorkspaceFileAnnotation,
+  restoreWorkspaceDeletedFile,
   restoreWorkspaceFileVersion,
+  sendWorkspaceTeamMessage,
   updateWorkspaceTeamMember,
   updateWorkspaceFile,
   updateWorkspaceFolder,
   updateWorkspaceWorkflow,
+  uploadWorkspaceMultipartFile,
   uploadWorkspaceFile,
   validateWorkspaceWorkflow,
   type AgentStep,
   type WorkspaceFile,
+  type WorkspaceFileAnnotation,
+  type WorkspaceFileAnnotationCreateInput,
+  type WorkspaceFileAnnotationReplyInput,
   type WorkspaceFileCopyInput,
   type WorkspaceFileFilters,
   type WorkspaceFileUpdateInput,
   type WorkspaceFileUploadInput,
+  type WorkspaceShareLink,
+  type WorkspaceShareLinkCreateInput,
+  type WorkspaceMultipartUploadInput,
   type WorkspaceFileVersion,
   type WorkspaceFolder,
   type WorkspaceFolderCreateInput,
@@ -59,15 +78,19 @@ import {
   type WorkspaceKnowledgeBaseCreateInput,
   type WorkspaceKnowledgeDocument,
   type WorkspaceNarrative,
+  type WorkspaceNotification,
   type WorkspacePermissionRule,
   type WorkspacePermissionRuleCreateInput,
   type WorkspaceQuestionInput,
+  type WorkspaceRecycleBinItem,
   type WorkspaceSnapshot,
   type TeamSummary,
   type WorkspaceTeamCreateInput,
   type WorkspaceTeamDetail,
   type WorkspaceTeamInviteInput,
   type WorkspaceTeamMember,
+  type WorkspaceTeamMessage,
+  type WorkspaceTeamMessageCreateInput,
   type WorkspaceTeamRole,
   type WorkspaceWorkflow,
   type WorkspaceWorkflowCreateInput,
@@ -84,12 +107,17 @@ const emptyFileFilters: WorkspaceFileFilters = {
   fileType: '',
   query: '',
   tag: '',
+  updatedFrom: '',
+  updatedTo: '',
 }
 
 export const useWorkspaceStore = defineStore('workspace', () => {
   const snapshot = shallowRef<WorkspaceSnapshot>(demoWorkspaceSnapshot)
   const folders = shallowRef<WorkspaceFolder[]>(cloneFolderTree(demoWorkspaceFolders.items))
   const fileVersionsById = shallowRef<Record<string, WorkspaceFileVersion[]>>(cloneVersionMap(demoWorkspaceFileVersions))
+  const fileAnnotationsById = shallowRef<Record<string, WorkspaceFileAnnotation[]>>({})
+  const notifications = shallowRef<WorkspaceNotification[]>([])
+  const teamMessagesById = shallowRef<Record<string, WorkspaceTeamMessage[]>>(cloneTeamMessageMap(demoWorkspaceTeamMessages))
   const knowledgeBases = shallowRef<WorkspaceKnowledgeBase[]>(cloneKnowledgeBases(demoWorkspaceKnowledgeBases))
   const activeKnowledgeBaseId = shallowRef<string | null>(demoWorkspaceKnowledgeBases[0]?.id ?? null)
   const knowledgeDocumentsByKbId = shallowRef<Record<string, WorkspaceKnowledgeDocument[]>>(
@@ -98,6 +126,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const narrative = shallowRef<WorkspaceNarrative>(demoWorkspaceNarrative)
   const activeTeamDetail = shallowRef<WorkspaceTeamDetail | null>(demoWorkspaceTeamDetail)
   const permissionRules = shallowRef<WorkspacePermissionRule[]>(clonePermissionRules(demoWorkspacePermissionRules))
+  const recycleBinItems = shallowRef<WorkspaceRecycleBinItem[]>([])
   const activeWorkflowId = shallowRef<string | null>(demoWorkspaceSnapshot.workflows[0]?.id ?? null)
   const activeWorkflowValidation = shallowRef<WorkspaceWorkflowValidation | null>(null)
   const activeWorkflowExecution = shallowRef<WorkspaceWorkflowExecution | null>(null)
@@ -109,10 +138,20 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const deletingFolderId = shallowRef<string | null>(null)
   const deletingFileId = shallowRef<string | null>(null)
   const downloadingFileId = shallowRef<string | null>(null)
+  const sharingFileId = shallowRef<string | null>(null)
   const updatingFileId = shallowRef<string | null>(null)
   const copyingFileId = shallowRef<string | null>(null)
   const versionFileId = shallowRef<string | null>(null)
   const restoringVersionId = shallowRef<string | null>(null)
+  const annotationFileIdLoading = shallowRef<string | null>(null)
+  const annotationSaving = shallowRef(false)
+  const deletingAnnotationId = shallowRef<string | null>(null)
+  const notificationsLoading = shallowRef(false)
+  const markingNotificationId = shallowRef<string | null>(null)
+  const teamMessageTeamIdLoading = shallowRef<string | null>(null)
+  const teamMessageSending = shallowRef(false)
+  const recycleBinLoading = shallowRef(false)
+  const restoringDeletedFileId = shallowRef<string | null>(null)
   const fileFilters = shallowRef<WorkspaceFileFilters>({ ...emptyFileFilters })
   const fileListLoading = shallowRef(false)
   const uploadingFile = shallowRef(false)
@@ -154,8 +193,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       fileFilters.value = { ...emptyFileFilters }
       resetFoldersToDemo()
       resetVersionsToDemo()
+      resetAnnotations()
+      resetNotifications()
+      resetTeamMessagesToDemo()
       resetKnowledgeToDemo()
       resetPermissionRulesToDemo()
+      resetRecycleBinToDemo()
       snapshot.value = demoWorkspaceSnapshot
       narrative.value = demoWorkspaceNarrative
       activeTeamDetail.value = demoWorkspaceTeamDetail
@@ -167,15 +210,22 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
     loading.value = true
     try {
-      const [nextSnapshot, folderTree, ruleList] = await Promise.all([
+      const [nextSnapshot, folderTree, ruleList, recycleBin, notificationList] = await Promise.all([
         fetchWorkspaceSnapshot(accessToken),
         listWorkspaceFolders(accessToken),
         listWorkspacePermissionRules(accessToken),
+        listWorkspaceRecycleBin(accessToken),
+        listWorkspaceNotifications(accessToken),
       ])
       snapshot.value = nextSnapshot
       folders.value = cloneFolderTree(folderTree.items)
       permissionRules.value = clonePermissionRules(ruleList.items)
+      recycleBinItems.value = cloneRecycleBinItems(recycleBin.items)
+      notifications.value = [...notificationList.items]
+      syncUnreadNotificationSummary(notificationList.unread_count)
       fileVersionsById.value = {}
+      resetAnnotations()
+      teamMessagesById.value = {}
       await loadKnowledgeBases(accessToken)
       activeTeamDetail.value = null
       ensureActiveFolderSelection()
@@ -190,8 +240,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       narrative.value = demoWorkspaceNarrative
       resetFoldersToDemo()
       resetVersionsToDemo()
+      resetAnnotations()
+      resetNotifications()
+      resetTeamMessagesToDemo()
       resetKnowledgeToDemo()
       resetPermissionRulesToDemo()
+      resetRecycleBinToDemo()
       activeTeamDetail.value = demoWorkspaceTeamDetail
       activeWorkflowValidation.value = null
       activeWorkflowExecution.value = null
@@ -399,6 +453,25 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   }
 
+  async function uploadLargeFile(payload: WorkspaceMultipartUploadInput) {
+    const accessToken = requireAccessToken()
+
+    uploadingFile.value = true
+    errorMessage.value = ''
+    try {
+      const uploaded = await uploadWorkspaceMultipartFile(accessToken, payload)
+      fileFilters.value = { ...emptyFileFilters }
+      insertFileIntoSnapshot(uploaded)
+      apiState.value = 'live'
+      return uploaded
+    } catch (error) {
+      errorMessage.value = '分片上传失败，请检查文件完整性和目录权限后重试'
+      throw error
+    } finally {
+      uploadingFile.value = false
+    }
+  }
+
   async function updateFile(fileId: string, payload: WorkspaceFileUpdateInput) {
     const accessToken = requireAccessToken()
     const nextPayload = normalizeFileUpdatePayload(payload)
@@ -464,6 +537,208 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   }
 
+  async function createFileShareLink(
+    fileId: string,
+    payload: WorkspaceShareLinkCreateInput,
+  ): Promise<WorkspaceShareLink> {
+    const accessToken = requireAccessToken()
+    const nextPayload: WorkspaceShareLinkCreateInput = {
+      downloadLimit: payload.downloadLimit ?? null,
+      expiresInSeconds: payload.expiresInSeconds ?? 3600,
+      password: payload.password?.trim() || null,
+    }
+
+    sharingFileId.value = fileId
+    errorMessage.value = ''
+    try {
+      const shareLink = await createWorkspaceFileShareLink(accessToken, fileId, nextPayload)
+      apiState.value = 'live'
+      return shareLink
+    } catch (error) {
+      errorMessage.value = '分享链接创建失败，请检查权限和有效期'
+      throw error
+    } finally {
+      sharingFileId.value = null
+    }
+  }
+
+  async function loadFileAnnotations(fileId: string) {
+    const accessToken = requireAccessToken()
+
+    annotationFileIdLoading.value = fileId
+    errorMessage.value = ''
+    try {
+      const response = await listWorkspaceFileAnnotations(accessToken, fileId)
+      fileAnnotationsById.value = {
+        ...fileAnnotationsById.value,
+        [fileId]: response.items,
+      }
+      apiState.value = 'live'
+      return response
+    } catch (error) {
+      errorMessage.value = '文件批注加载失败，请稍后重试'
+      throw error
+    } finally {
+      annotationFileIdLoading.value = null
+    }
+  }
+
+  async function createFileAnnotation(fileId: string, payload: WorkspaceFileAnnotationCreateInput) {
+    const accessToken = requireAccessToken()
+    const content = payload.content.trim()
+
+    annotationSaving.value = true
+    errorMessage.value = ''
+    try {
+      const annotation = await createWorkspaceFileAnnotation(accessToken, fileId, {
+        content,
+        position: payload.position ?? null,
+      })
+      upsertFileAnnotation(fileId, annotation, true)
+      apiState.value = 'live'
+      return annotation
+    } catch (error) {
+      errorMessage.value = '文件批注创建失败，请检查权限后重试'
+      throw error
+    } finally {
+      annotationSaving.value = false
+    }
+  }
+
+  async function replyFileAnnotation(annotationId: string, payload: WorkspaceFileAnnotationReplyInput) {
+    const accessToken = requireAccessToken()
+    const content = payload.content.trim()
+
+    annotationSaving.value = true
+    errorMessage.value = ''
+    try {
+      const reply = await replyWorkspaceFileAnnotation(accessToken, annotationId, { content })
+      insertFileAnnotationReply(reply.file_id, annotationId, reply)
+      apiState.value = 'live'
+      return reply
+    } catch (error) {
+      errorMessage.value = '批注回复失败，请检查权限后重试'
+      throw error
+    } finally {
+      annotationSaving.value = false
+    }
+  }
+
+  async function deleteFileAnnotation(fileId: string, annotationId: string) {
+    const accessToken = requireAccessToken()
+
+    deletingAnnotationId.value = annotationId
+    errorMessage.value = ''
+    try {
+      await deleteWorkspaceFileAnnotation(accessToken, fileId, annotationId)
+      removeFileAnnotation(fileId, annotationId)
+      apiState.value = 'live'
+    } catch (error) {
+      errorMessage.value = '批注删除失败，请检查权限后重试'
+      throw error
+    } finally {
+      deletingAnnotationId.value = null
+    }
+  }
+
+  async function loadNotifications(token?: string) {
+    const accessToken = resolveOptionalAccessToken(token)
+
+    if (!accessToken) {
+      resetNotifications()
+      return { items: notifications.value, total: 0, unread_count: 0 }
+    }
+
+    notificationsLoading.value = true
+    errorMessage.value = ''
+    try {
+      const response = await listWorkspaceNotifications(accessToken)
+      notifications.value = [...response.items]
+      syncUnreadNotificationSummary(response.unread_count)
+      apiState.value = 'live'
+      return response
+    } catch (error) {
+      errorMessage.value = '通知列表加载失败，请稍后重试'
+      throw error
+    } finally {
+      notificationsLoading.value = false
+    }
+  }
+
+  async function markNotificationRead(notificationId: string, token?: string) {
+    const accessToken = requireAccessToken(token)
+    markingNotificationId.value = notificationId
+    errorMessage.value = ''
+    try {
+      const notification = await markWorkspaceNotificationRead(accessToken, notificationId)
+      upsertNotification(notification)
+      syncUnreadNotificationSummary(notifications.value.filter((item) => !item.is_read).length)
+      apiState.value = 'live'
+      return notification
+    } catch (error) {
+      errorMessage.value = '通知状态更新失败，请稍后重试'
+      throw error
+    } finally {
+      markingNotificationId.value = null
+    }
+  }
+
+  async function loadTeamMessages(teamId: string, token?: string) {
+    const accessToken = resolveOptionalAccessToken(token)
+
+    if (!accessToken) {
+      const messages = demoWorkspaceTeamMessages[teamId] ?? teamMessagesById.value[teamId] ?? []
+      teamMessagesById.value = {
+        ...teamMessagesById.value,
+        [teamId]: messages.map((message) => ({ ...message })),
+      }
+      return { items: teamMessagesById.value[teamId] ?? [], total: teamMessagesById.value[teamId]?.length ?? 0 }
+    }
+
+    teamMessageTeamIdLoading.value = teamId
+    errorMessage.value = ''
+    try {
+      const response = await listWorkspaceTeamMessages(accessToken, teamId)
+      teamMessagesById.value = {
+        ...teamMessagesById.value,
+        [teamId]: [...response.items],
+      }
+      apiState.value = 'live'
+      return response
+    } catch (error) {
+      errorMessage.value = '团队聊天记录加载失败，请检查权限后重试'
+      throw error
+    } finally {
+      teamMessageTeamIdLoading.value = null
+    }
+  }
+
+  async function sendTeamMessage(teamId: string, payload: WorkspaceTeamMessageCreateInput) {
+    const accessToken = requireAccessToken()
+    const nextPayload: WorkspaceTeamMessageCreateInput = {
+      content: payload.content.trim(),
+      message_type: payload.message_type ?? 'text',
+      receiver_id: payload.receiver_id ?? null,
+    }
+    if (!nextPayload.content) {
+      return null
+    }
+
+    teamMessageSending.value = true
+    errorMessage.value = ''
+    try {
+      const message = await sendWorkspaceTeamMessage(accessToken, teamId, nextPayload)
+      upsertTeamMessage(teamId, message)
+      apiState.value = 'live'
+      return message
+    } catch (error) {
+      errorMessage.value = '团队消息发送失败，请检查频道权限后重试'
+      throw error
+    } finally {
+      teamMessageSending.value = false
+    }
+  }
+
   async function deleteFile(fileId: string) {
     const accessToken = requireAccessToken()
 
@@ -478,6 +753,29 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       throw error
     } finally {
       deletingFileId.value = null
+    }
+  }
+
+  async function loadRecycleBin(token?: string) {
+    const accessToken = resolveOptionalAccessToken(token)
+
+    if (!accessToken) {
+      resetRecycleBinToDemo()
+      return { items: recycleBinItems.value, total: recycleBinItems.value.length }
+    }
+
+    recycleBinLoading.value = true
+    errorMessage.value = ''
+    try {
+      const response = await listWorkspaceRecycleBin(accessToken)
+      recycleBinItems.value = cloneRecycleBinItems(response.items)
+      apiState.value = 'live'
+      return response
+    } catch (error) {
+      errorMessage.value = '回收站加载失败，请稍后重试'
+      throw error
+    } finally {
+      recycleBinLoading.value = false
     }
   }
 
@@ -741,6 +1039,25 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       throw error
     } finally {
       restoringVersionId.value = null
+    }
+  }
+
+  async function restoreDeletedFile(fileId: string) {
+    const accessToken = requireAccessToken()
+
+    restoringDeletedFileId.value = fileId
+    errorMessage.value = ''
+    try {
+      const restored = await restoreWorkspaceDeletedFile(accessToken, fileId)
+      replaceFileInSnapshot(restored, true)
+      recycleBinItems.value = recycleBinItems.value.filter((item) => item.file.id !== fileId)
+      apiState.value = 'live'
+      return restored
+    } catch (error) {
+      errorMessage.value = '文件恢复失败，请检查权限后重试'
+      throw error
+    } finally {
+      restoringDeletedFileId.value = null
     }
   }
 
@@ -1027,6 +1344,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       fileType: filters.fileType?.trim() ?? '',
       query: filters.query?.trim() ?? '',
       tag: filters.tag?.trim() ?? '',
+      updatedFrom: filters.updatedFrom?.trim() ?? '',
+      updatedTo: filters.updatedTo?.trim() ?? '',
     }
   }
 
@@ -1089,6 +1408,19 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     fileVersionsById.value = cloneVersionMap(demoWorkspaceFileVersions)
   }
 
+  function resetAnnotations() {
+    fileAnnotationsById.value = {}
+  }
+
+  function resetNotifications() {
+    notifications.value = []
+    syncUnreadNotificationSummary(0)
+  }
+
+  function resetTeamMessagesToDemo() {
+    teamMessagesById.value = cloneTeamMessageMap(demoWorkspaceTeamMessages)
+  }
+
   function resetKnowledgeToDemo() {
     knowledgeBases.value = cloneKnowledgeBases(demoWorkspaceKnowledgeBases)
     knowledgeDocumentsByKbId.value = cloneKnowledgeDocumentMap(demoWorkspaceKnowledgeDocuments)
@@ -1097,6 +1429,10 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   function resetPermissionRulesToDemo() {
     permissionRules.value = clonePermissionRules(demoWorkspacePermissionRules)
+  }
+
+  function resetRecycleBinToDemo() {
+    recycleBinItems.value = []
   }
 
   function ensureActiveFolderSelection() {
@@ -1128,6 +1464,82 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     snapshot.value = {
       ...snapshot.value,
       workflows: nextWorkflows,
+    }
+  }
+
+  function upsertFileAnnotation(fileId: string, annotation: WorkspaceFileAnnotation, moveToFront = false) {
+    const current = fileAnnotationsById.value[fileId] ?? []
+    const exists = current.some((item) => item.id === annotation.id)
+    fileAnnotationsById.value = {
+      ...fileAnnotationsById.value,
+      [fileId]: moveToFront
+        ? [annotation, ...current.filter((item) => item.id !== annotation.id)]
+        : exists
+          ? current.map((item) => (item.id === annotation.id ? annotation : item))
+          : [...current, annotation],
+    }
+  }
+
+  function upsertNotification(notification: WorkspaceNotification) {
+    const exists = notifications.value.some((item) => item.id === notification.id)
+    notifications.value = exists
+      ? notifications.value.map((item) => (item.id === notification.id ? notification : item))
+      : [notification, ...notifications.value]
+  }
+
+  function upsertTeamMessage(teamId: string, message: WorkspaceTeamMessage) {
+    const current = teamMessagesById.value[teamId] ?? []
+    const exists = current.some((item) => item.id === message.id)
+    teamMessagesById.value = {
+      ...teamMessagesById.value,
+      [teamId]: exists
+        ? current.map((item) => (item.id === message.id ? message : item))
+        : [...current, message],
+    }
+  }
+
+  function syncUnreadNotificationSummary(unreadCount: number) {
+    snapshot.value = {
+      ...snapshot.value,
+      summary: {
+        ...snapshot.value.summary,
+        unread_notifications: unreadCount,
+      },
+    }
+  }
+
+  function insertFileAnnotationReply(
+    fileId: string,
+    annotationId: string,
+    reply: NonNullable<WorkspaceFileAnnotation['replies']>[number],
+  ) {
+    const current = fileAnnotationsById.value[fileId] ?? []
+    fileAnnotationsById.value = {
+      ...fileAnnotationsById.value,
+      [fileId]: current.map((annotation) =>
+        annotation.id === annotationId
+          ? {
+              ...annotation,
+              replies: [
+                ...(annotation.replies ?? []).filter((item) => item.id !== reply.id),
+                reply,
+              ],
+            }
+          : annotation,
+      ),
+    }
+  }
+
+  function removeFileAnnotation(fileId: string, annotationId: string) {
+    const current = fileAnnotationsById.value[fileId] ?? []
+    fileAnnotationsById.value = {
+      ...fileAnnotationsById.value,
+      [fileId]: current
+        .filter((annotation) => annotation.id !== annotationId)
+        .map((annotation) => ({
+          ...annotation,
+          replies: (annotation.replies ?? []).filter((reply) => reply.id !== annotationId),
+        })),
     }
   }
 
@@ -1249,6 +1661,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     activeTeamDetail,
     activeBreadcrumbs,
     activeFolderId,
+    annotationFileIdLoading,
+    annotationSaving,
     apiState,
     addKnowledgeDocument: addKnowledgeDocumentAction,
     addingKnowledgeDocument,
@@ -1257,6 +1671,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     askingQuestion,
     copyFile,
     copyingFileId,
+    createFileAnnotation,
     createFolder,
     createKnowledgeBase: createKnowledgeBaseAction,
     createPermissionRule,
@@ -1265,6 +1680,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     deletePermissionRule,
     deleteFolder,
     deleteFile,
+    deleteFileAnnotation,
+    deletingAnnotationId,
     deletingPermissionRuleId,
     deletingFolderId,
     deletingFileId,
@@ -1272,6 +1689,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     downloadingFileId,
     errorMessage,
     executeWorkflow,
+    fileAnnotationsById,
     fileFilters,
     fileListLoading,
     fileVersionsById,
@@ -1286,37 +1704,57 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     loadKnowledgeBases,
     loadKnowledgeDocuments,
     loadFolders,
+    loadFileAnnotations,
     loadFileVersions,
+    loadNotifications,
     loadPermissionRules,
+    loadRecycleBin,
     loadTeamDetail,
+    loadTeamMessages,
     loadTeams,
     loadWorkspace,
     loading,
+    markNotificationRead,
+    markingNotificationId,
     narrative,
+    notifications,
+    notificationsLoading,
     permissionRuleSaving,
     permissionRules,
     permissionRulesLoading,
+    recycleBinItems,
+    recycleBinLoading,
+    replyFileAnnotation,
     resetFileFilters,
+    restoreDeletedFile,
     restoreFileVersion,
+    restoringDeletedFileId,
     restoringVersionId,
     searchFiles,
     selectFolder,
     selectKnowledgeBase,
     selectWorkflow,
+    sharingFileId,
     summary,
     teams,
     createTeam,
     inviteTeamMember,
     joinTeam,
     removeTeamMember,
+    sendTeamMessage,
     teamOperationLoading,
+    teamMessagesById,
+    teamMessageSending,
+    teamMessageTeamIdLoading,
     tools,
     updateTeamMemberRole,
     updateFile,
+    createFileShareLink,
     updateFolder,
     updateWorkflow,
     updatingFileId,
     updatingFolderId,
+    uploadLargeFile,
     uploadFile,
     uploadingFile,
     validateWorkflow,
@@ -1401,6 +1839,19 @@ function cloneKnowledgeDocumentMap(
 
 function clonePermissionRules(rules: WorkspacePermissionRule[]): WorkspacePermissionRule[] {
   return rules.map((rule) => ({ ...rule }))
+}
+
+function cloneTeamMessageMap(messagesById: Record<string, WorkspaceTeamMessage[]>): Record<string, WorkspaceTeamMessage[]> {
+  return Object.fromEntries(
+    Object.entries(messagesById).map(([teamId, messages]) => [
+      teamId,
+      messages.map((message) => ({ ...message })),
+    ]),
+  )
+}
+
+function cloneRecycleBinItems(items: WorkspaceRecycleBinItem[]): WorkspaceRecycleBinItem[] {
+  return items.map((item) => ({ ...item, file: { ...item.file } }))
 }
 
 function flattenFolderOptions(folders: WorkspaceFolder[]): WorkspaceFolderOption[] {

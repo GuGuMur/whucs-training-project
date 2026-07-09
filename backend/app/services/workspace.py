@@ -18,6 +18,10 @@ from app.domain.schemas import (
     AuditLogEntry,
     Citation,
     DashboardSummary,
+    FileAnnotationCreate,
+    FileAnnotationItem,
+    FileAnnotationReplyCreate,
+    FileAnnotationReplyItem,
     FileCopyRequest,
     FileItem,
     FileUpdate,
@@ -30,14 +34,24 @@ from app.domain.schemas import (
     KnowledgeBaseUpdate,
     KnowledgeDocumentCreate,
     KnowledgeDocumentPublic,
+    MultipartChunkResponse,
+    MultipartUploadInitRequest,
+    MultipartUploadSession,
+    NotificationItem,
+    NotificationType,
     PermissionRuleCreate,
     PermissionRulePublic,
     QARequest,
     QAResponse,
+    RecycleBinItem,
+    ShareLinkCreateRequest,
+    ShareLinkPublic,
     TeamCreate,
     TeamDetail,
     TeamInviteCreate,
     TeamInvitePublic,
+    TeamMessageCreate,
+    TeamMessageItem,
     TeamSummary,
     TeamMemberJoin,
     TeamMemberPublic,
@@ -71,6 +85,7 @@ class WorkspaceError(Exception):
 
 LOGIN_FAILURE_LIMIT = 5
 LOGIN_LOCKOUT_DURATION = timedelta(minutes=5)
+MAX_SHARE_LINK_TTL_SECONDS = 3600
 
 
 @dataclass
@@ -144,6 +159,31 @@ class StoredTeamInvite:
 
 
 @dataclass
+class StoredTeamMessage:
+    id: str
+    team_id: str
+    sender_id: int
+    receiver_id: int | None
+    content: str
+    message_type: str
+    created_at: datetime
+
+
+@dataclass
+class StoredNotification:
+    id: str
+    user_id: int
+    type: NotificationType
+    title: str
+    content: str | None
+    target_type: str | None
+    target_id: str | None
+    team_id: str | None
+    is_read: bool
+    created_at: datetime
+
+
+@dataclass
 class StoredKnowledgeChunk:
     id: str
     content: str
@@ -201,6 +241,55 @@ class StoredPermissionRule:
     created_by: str
 
 
+@dataclass
+class StoredMultipartUpload:
+    id: str
+    filename: str
+    folder_id: str
+    size: int
+    sha256: str
+    chunk_size: int
+    total_chunks: int
+    tags: list[str]
+    created_by: int
+    created_at: datetime
+    expires_at: datetime
+    chunks: dict[int, bytes] = field(default_factory=dict)
+    status: str = "uploading"
+
+
+@dataclass
+class StoredShareLink:
+    id: str
+    file_id: str
+    token: str
+    password_hash: str | None
+    expires_at: datetime
+    download_limit: int | None
+    download_count: int
+    created_by: int
+    created_at: datetime
+
+
+@dataclass
+class StoredFileAnnotation:
+    id: str
+    file_id: str
+    author_id: int
+    content: str
+    position: dict[str, Any] | None
+    parent_id: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass
+class StoredDeletedFile:
+    file: FileItem
+    deleted_at: datetime
+    deleted_by: str
+
+
 class WorkspaceService:
     def __init__(self) -> None:
         self._secret = "dev-workspace-secret"
@@ -218,7 +307,13 @@ class WorkspaceService:
         self._teams = self._seed_teams()
         self._team_members: dict[str, StoredTeamMember] = {}
         self._team_invites: dict[str, StoredTeamInvite] = {}
+        self._team_messages: dict[str, StoredTeamMessage] = {}
         self._permission_rules: dict[str, StoredPermissionRule] = {}
+        self._multipart_uploads: dict[str, StoredMultipartUpload] = {}
+        self._share_links: dict[str, StoredShareLink] = {}
+        self._file_annotations: dict[str, StoredFileAnnotation] = {}
+        self._notifications: dict[str, StoredNotification] = {}
+        self._deleted_files: dict[str, StoredDeletedFile] = {}
         self._audit_logs: list[AuditLogEntry] = []
 
     def register_user(self, payload: UserCreate) -> tuple[UserPublic, str, str]:
@@ -375,6 +470,8 @@ class WorkspaceService:
         query: str | None = None,
         tag: str | None = None,
         file_type: str | None = None,
+        updated_from: datetime | None = None,
+        updated_to: datetime | None = None,
     ) -> list[FileItem]:
         files = [file for file in self._files if self._can_read_file(file, actor)]
         if query:
@@ -383,52 +480,126 @@ class WorkspaceService:
             files = [file for file in files if tag in file.tags]
         if file_type:
             files = [file for file in files if file.type == file_type]
+        if updated_from:
+            files = [file for file in files if file.updated_at >= updated_from]
+        if updated_to:
+            files = [file for file in files if file.updated_at <= updated_to]
         return files
 
     async def upload_file(self, upload: UploadFile, folder_id: str, tags: str | None, actor: UserPublic) -> FileItem:
         folder = self._find_folder(folder_id)
         self._ensure_can_write_folder(folder, actor)
         content = await upload.read()
-        digest = hashlib.sha256(content).hexdigest()
         clean_tags = self._normalize_tags((tags or "").split(","))
         filename = self._clean_file_name(upload.filename or "未命名文件")
-        existing_file = self._find_file_by_name_in_folder(filename, folder_id)
-        if existing_file:
-            self._append_file_version(existing_file, filename, content, actor.username)
-            updated = existing_file.model_copy(
-                update={
-                    "name": filename,
-                    "type": self._file_type(filename),
-                    "size": len(content),
-                    "sha256": digest,
-                    "parse_status": "queued",
-                    "tags": clean_tags,
-                    "updated_at": datetime.now(UTC),
-                    "permission_scope": self._permission_scope_for_folder(folder),
-                }
-            )
-            self._file_contents[updated.id] = content
-            self._replace_file(updated, move_to_front=True)
-            self._record_audit(actor.username, "file.upload", "file", updated.name)
-            return updated
+        return self._save_file_content(filename, folder, content, clean_tags, actor, "file.upload")
 
-        item = FileItem(
-            id=self._new_file_id(digest),
-            name=filename,
-            folder_id=folder_id,
-            type=self._file_type(filename),
-            size=len(content),
-            sha256=digest,
-            parse_status="queued",
-            tags=clean_tags,
-            updated_at=datetime.now(UTC),
-            permission_scope=self._permission_scope_for_folder(folder),
-            knowledge_base_ids=[],
+    def init_multipart_upload(self, payload: MultipartUploadInitRequest, actor: UserPublic) -> MultipartUploadSession:
+        folder = self._find_folder(payload.folder_id)
+        self._ensure_can_write_folder(folder, actor)
+        filename = self._clean_file_name(payload.filename)
+        tags = self._normalize_tags(payload.tags)
+        total_chunks = (payload.size + payload.chunk_size - 1) // payload.chunk_size
+        now = datetime.now(UTC)
+        session = StoredMultipartUpload(
+            id=f"upload-{secrets.token_hex(8)}",
+            filename=filename,
+            folder_id=folder.id,
+            size=payload.size,
+            sha256=payload.sha256,
+            chunk_size=payload.chunk_size,
+            total_chunks=total_chunks,
+            tags=tags,
+            created_by=actor.id,
+            created_at=now,
+            expires_at=now + timedelta(hours=1),
         )
-        self._files.insert(0, item)
-        self._file_contents[item.id] = content
-        self._append_file_version(item, item.name, content, actor.username)
-        self._record_audit(actor.username, "file.upload", "file", item.name)
+        self._multipart_uploads[session.id] = session
+        self._record_audit(actor.username, "file.multipart_init", "file", filename)
+        return self._multipart_upload_session(session)
+
+    async def upload_multipart_chunk(
+        self,
+        session_id: str,
+        chunk_index: int,
+        upload: UploadFile,
+        chunk_sha256: str,
+        actor: UserPublic,
+    ) -> MultipartChunkResponse:
+        session = self._find_multipart_upload(session_id, actor)
+        self._ensure_multipart_uploading(session)
+        if chunk_index < 0 or chunk_index >= session.total_chunks:
+            raise WorkspaceError(
+                422,
+                "CHUNK_INDEX_INVALID",
+                "分片序号超出上传会话范围",
+                {"chunk_index": chunk_index, "total_chunks": session.total_chunks},
+            )
+        content = await upload.read()
+        digest = hashlib.sha256(content).hexdigest()
+        if digest != chunk_sha256:
+            raise WorkspaceError(
+                409,
+                "CHUNK_HASH_MISMATCH",
+                "分片 SHA256 校验失败",
+                {"chunk_index": chunk_index, "expected": chunk_sha256, "actual": digest},
+            )
+        if chunk_index < session.total_chunks - 1 and len(content) != session.chunk_size:
+            raise WorkspaceError(
+                409,
+                "CHUNK_SIZE_MISMATCH",
+                "非末尾分片大小必须等于会话 chunk_size",
+                {"chunk_index": chunk_index, "expected_size": session.chunk_size, "actual_size": len(content)},
+            )
+        session.chunks[chunk_index] = content
+        return MultipartChunkResponse(
+            session_id=session.id,
+            chunk_index=chunk_index,
+            received_chunks=sorted(session.chunks),
+            total_chunks=session.total_chunks,
+            status=session.status,  # type: ignore[arg-type]
+        )
+
+    def get_multipart_upload(self, session_id: str, actor: UserPublic) -> MultipartUploadSession:
+        return self._multipart_upload_session(self._find_multipart_upload(session_id, actor))
+
+    def complete_multipart_upload(self, session_id: str, actor: UserPublic) -> FileItem:
+        session = self._find_multipart_upload(session_id, actor)
+        self._ensure_multipart_uploading(session)
+        missing_chunks = [index for index in range(session.total_chunks) if index not in session.chunks]
+        if missing_chunks:
+            raise WorkspaceError(
+                409,
+                "MULTIPART_UPLOAD_INCOMPLETE",
+                "仍有分片未上传，不能完成合并",
+                {"missing_chunks": missing_chunks},
+            )
+        folder = self._find_folder(session.folder_id)
+        self._ensure_can_write_folder(folder, actor)
+        content = b"".join(session.chunks[index] for index in range(session.total_chunks))
+        digest = hashlib.sha256(content).hexdigest()
+        if len(content) != session.size or digest != session.sha256:
+            raise WorkspaceError(
+                409,
+                "MULTIPART_HASH_MISMATCH",
+                "合并后的文件大小或 SHA256 与初始化信息不一致",
+                {
+                    "expected_size": session.size,
+                    "actual_size": len(content),
+                    "expected_sha256": session.sha256,
+                    "actual_sha256": digest,
+                },
+            )
+        session.status = "completed"
+        item = self._save_file_content(
+            session.filename,
+            folder,
+            content,
+            session.tags,
+            actor,
+            "file.multipart_complete",
+        )
+        self._multipart_uploads.pop(session.id, None)
         return item
 
     def update_file(self, file_id: str, payload: FileUpdate, actor: UserPublic) -> FileItem:
@@ -505,6 +676,155 @@ class WorkspaceService:
         self._record_audit(actor.username, "file.download", "file", file_item.name)
         return file_item, content
 
+    def create_share_link(self, file_id: str, payload: ShareLinkCreateRequest, actor: UserPublic) -> ShareLinkPublic:
+        if payload.expires_in_seconds > MAX_SHARE_LINK_TTL_SECONDS:
+            raise WorkspaceError(
+                422,
+                "SHARE_LINK_EXPIRY_TOO_LONG",
+                "分享链接有效期不能超过 1 小时",
+                {"max_expires_in_seconds": MAX_SHARE_LINK_TTL_SECONDS},
+            )
+        file_item = self._find_file(file_id)
+        self._ensure_can_read_file(file_item, actor)
+        now = datetime.now(UTC)
+        token = self._create_share_token(file_id, actor.id)
+        share_link = StoredShareLink(
+            id=f"share-{secrets.token_hex(8)}",
+            file_id=file_id,
+            token=token,
+            password_hash=self._hash_password(payload.password) if payload.password else None,
+            expires_at=now + timedelta(seconds=payload.expires_in_seconds),
+            download_limit=payload.download_limit,
+            download_count=0,
+            created_by=actor.id,
+            created_at=now,
+        )
+        self._share_links[token] = share_link
+        self._record_audit(actor.username, "file.share_create", "file", file_item.name)
+        return self._share_link_public(share_link)
+
+    def list_file_annotations(self, file_id: str, actor: UserPublic) -> list[FileAnnotationItem]:
+        file_item = self._find_file(file_id)
+        self._ensure_can_read_file(file_item, actor)
+        annotations = [
+            annotation
+            for annotation in self._file_annotations.values()
+            if annotation.file_id == file_id and annotation.parent_id is None
+        ]
+        return [self._file_annotation_item(annotation) for annotation in sorted(annotations, key=lambda item: item.created_at)]
+
+    def create_file_annotation(
+        self,
+        file_id: str,
+        payload: FileAnnotationCreate,
+        actor: UserPublic,
+    ) -> FileAnnotationItem:
+        file_item = self._find_file(file_id)
+        self._ensure_can_read_file(file_item, actor)
+        now = datetime.now(UTC)
+        annotation = StoredFileAnnotation(
+            id=f"anno-{secrets.token_hex(8)}",
+            file_id=file_id,
+            author_id=actor.id,
+            content=payload.content.strip(),
+            position=payload.position,
+            parent_id=None,
+            created_at=now,
+            updated_at=now,
+        )
+        if not annotation.content:
+            raise WorkspaceError(422, "ANNOTATION_CONTENT_REQUIRED", "批注内容不能为空", {"file_id": file_id})
+        self._file_annotations[annotation.id] = annotation
+        if "@" in annotation.content:
+            self._notify_team_members_for_file(
+                file_item,
+                exclude_user_id=actor.id,
+                notification_type="mention",
+                title="文件批注提到了你",
+                content=f"{actor.display_name} 在 {file_item.name} 的批注中提到了你",
+                target_type="file",
+                target_id=file_item.id,
+            )
+        self._record_audit(actor.username, "file.annotation_create", "file", file_item.name)
+        return self._file_annotation_item(annotation)
+
+    def reply_file_annotation(
+        self,
+        annotation_id: str,
+        payload: FileAnnotationReplyCreate,
+        actor: UserPublic,
+    ) -> FileAnnotationReplyItem:
+        parent = self._find_root_annotation(annotation_id)
+        file_item = self._find_file(parent.file_id)
+        self._ensure_can_read_file(file_item, actor)
+        content = payload.content.strip()
+        if not content:
+            raise WorkspaceError(422, "ANNOTATION_CONTENT_REQUIRED", "回复内容不能为空", {"annotation_id": annotation_id})
+        now = datetime.now(UTC)
+        reply = StoredFileAnnotation(
+            id=f"anno-{secrets.token_hex(8)}",
+            file_id=parent.file_id,
+            author_id=actor.id,
+            content=content,
+            position=None,
+            parent_id=parent.id,
+            created_at=now,
+            updated_at=now,
+        )
+        self._file_annotations[reply.id] = reply
+        if parent.author_id != actor.id:
+            self._create_notification(
+                user_id=parent.author_id,
+                notification_type="annotation",
+                title="批注收到回复",
+                content=f"{actor.display_name} 回复了 {file_item.name} 的批注",
+                target_type="file",
+                target_id=file_item.id,
+                team_id=self._team_id_for_file(file_item),
+            )
+        self._record_audit(actor.username, "file.annotation_reply", "file", file_item.name)
+        return self._file_annotation_reply_item(reply)
+
+    def delete_file_annotation(self, file_id: str, annotation_id: str, actor: UserPublic) -> None:
+        file_item = self._find_file(file_id)
+        self._ensure_can_read_file(file_item, actor)
+        annotation = self._file_annotations.get(annotation_id)
+        if not annotation or annotation.file_id != file_id:
+            raise WorkspaceError(404, "ANNOTATION_NOT_FOUND", "批注不存在或无权访问", {"annotation_id": annotation_id})
+        if not self._can_delete_annotation(file_item, annotation, actor):
+            raise WorkspaceError(
+                403,
+                "ANNOTATION_DELETE_FORBIDDEN",
+                "只能删除自己的批注，团队管理员可删除团队文件批注",
+                {"annotation_id": annotation_id},
+            )
+        if annotation.parent_id is None:
+            reply_ids = [
+                reply.id
+                for reply in self._file_annotations.values()
+                if reply.parent_id == annotation.id
+            ]
+            for reply_id in reply_ids:
+                self._file_annotations.pop(reply_id, None)
+        self._file_annotations.pop(annotation.id, None)
+        self._record_audit(actor.username, "file.annotation_delete", "file", file_item.name)
+
+    def download_shared_file(self, token: str, password: str | None) -> tuple[FileItem, bytes]:
+        share_link = self._find_share_link(token)
+        now = datetime.now(UTC)
+        if now >= share_link.expires_at:
+            raise WorkspaceError(410, "SHARE_LINK_EXPIRED", "分享链接已过期", {"token": token})
+        if share_link.download_limit is not None and share_link.download_count >= share_link.download_limit:
+            raise WorkspaceError(410, "SHARE_LINK_LIMIT_REACHED", "分享链接下载次数已用尽", {"token": token})
+        if share_link.password_hash and self._hash_password(password or "") != share_link.password_hash:
+            raise WorkspaceError(403, "SHARE_LINK_PASSWORD_INVALID", "分享密码不正确", {"token": token})
+
+        file_item = self._find_file(share_link.file_id)
+        content = self._read_file_content(file_item.id)
+        share_link.download_count += 1
+        self._record_audit("public-share", "file.share_download", "file", file_item.name)
+        return file_item, content
+
     def list_file_versions(self, file_id: str, actor: UserPublic) -> list[FileVersionItem]:
         file_item = self._find_file(file_id)
         self._ensure_can_read_file(file_item, actor)
@@ -533,13 +853,39 @@ class WorkspaceService:
         self._record_audit(actor.username, "file.version_restore", "file", restored.name)
         return restored
 
+    def list_deleted_files(self, actor: UserPublic) -> list[RecycleBinItem]:
+        return [
+            RecycleBinItem(
+                file=deleted.file,
+                deleted_at=deleted.deleted_at,
+                deleted_by=deleted.deleted_by,
+            )
+            for deleted in sorted(self._deleted_files.values(), key=lambda item: item.deleted_at, reverse=True)
+            if self._can_read_file(deleted.file, actor)
+        ]
+
     def delete_file(self, file_id: str, actor: UserPublic) -> None:
         file_item = self._find_file(file_id)
         self._ensure_can_write_file(file_item, actor)
         self._files = [candidate for candidate in self._files if candidate.id != file_id]
-        self._file_contents.pop(file_id, None)
-        self._file_versions.pop(file_id, None)
+        self._deleted_files[file_id] = StoredDeletedFile(
+            file=file_item,
+            deleted_at=datetime.now(UTC),
+            deleted_by=actor.username,
+        )
         self._record_audit(actor.username, "file.delete", "file", file_item.name)
+
+    def restore_deleted_file(self, file_id: str, actor: UserPublic) -> FileItem:
+        deleted = self._deleted_files.get(file_id)
+        if not deleted:
+            raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
+        self._ensure_can_write_file(deleted.file, actor)
+        if any(file_item.id == file_id for file_item in self._files):
+            raise WorkspaceError(409, "FILE_RESTORE_CONFLICT", "同名文件已恢复或存在冲突", {"file_id": file_id})
+        self._files.insert(0, deleted.file)
+        self._deleted_files.pop(file_id, None)
+        self._record_audit(actor.username, "file.restore", "file", deleted.file.name)
+        return deleted.file
 
     def list_knowledge_bases(self, actor: UserPublic) -> list[KnowledgeBasePublic]:
         return [
@@ -790,6 +1136,15 @@ class WorkspaceService:
             summary = f"{file_item.name} 已完成自动摘要：文档围绕显微镜实验步骤、观察记录和结论整理。"
         else:
             summary = f"{workflow.name} 已完成：基于 {file_item.name} 生成流程输出。"
+        self._notify_team_members_for_file(
+            file_item,
+            exclude_user_id=actor.id,
+            notification_type="workflow",
+            title="流程执行完成",
+            content=f"{workflow.name} 已基于 {file_item.name} 执行完成",
+            target_type="workflow",
+            target_id=workflow_id,
+        )
         self._record_audit(actor.username, "workflow.execute", "workflow", workflow_id)
         return WorkflowExecutionResponse(
             id=f"exec-{secrets.token_hex(4)}",
@@ -836,7 +1191,7 @@ class WorkspaceService:
             for member in self._team_members.values()
             if member.user_id == actor.id and member.status == "active"
         ]
-        return [self._team_summary(self._find_team(member.team_id), member.role) for member in memberships]
+        return [self._team_summary(self._find_team(member.team_id), member.role, actor.id) for member in memberships]
 
     def get_team_detail(self, team_id: str, actor: UserPublic) -> TeamDetail:
         team = self._find_team(team_id)
@@ -847,7 +1202,7 @@ class WorkspaceService:
             description=team.description,
             role=membership.role,  # type: ignore[arg-type]
             member_count=self._active_team_member_count(team.id),
-            unread_count=team.unread_count,
+            unread_count=self._notification_unread_count(actor.id, team.id),
             root_folder=self._folder_item(self._find_folder(team.root_folder_id), actor),
             members=[
                 self._team_member_public(member)
@@ -876,6 +1231,17 @@ class WorkspaceService:
             expires_at=datetime.now(UTC) + timedelta(days=7),
         )
         self._team_invites[invite.id] = invite
+        invited_user = self._users_by_email.get(invite.email)
+        if invited_user:
+            self._create_notification(
+                user_id=invited_user.public.id,
+                notification_type="invite",
+                title="团队邀请",
+                content=f"{actor.display_name} 邀请你加入团队 {team.name}",
+                target_type="team",
+                target_id=team.id,
+                team_id=team.id,
+            )
         self._record_audit(actor.username, "team.invite_create", "team", team.name)
         return self._team_invite_public(invite)
 
@@ -923,6 +1289,51 @@ class WorkspaceService:
         member.status = "removed"
         self._record_audit(actor.username, "team.member_remove", "team", team.name)
 
+    def list_team_messages(self, team_id: str, actor: UserPublic) -> list[TeamMessageItem]:
+        self._find_team(team_id)
+        self._require_team_member(team_id, actor)
+        messages = [
+            message
+            for message in self._team_messages.values()
+            if message.team_id == team_id
+            and (message.receiver_id is None or message.sender_id == actor.id or message.receiver_id == actor.id)
+        ]
+        return [self._team_message_item(message) for message in sorted(messages, key=lambda item: item.created_at)]
+
+    def create_team_message(self, team_id: str, payload: TeamMessageCreate, actor: UserPublic) -> TeamMessageItem:
+        team = self._find_team(team_id)
+        membership = self._require_team_member(team_id, actor)
+        content = payload.content.strip()
+        if not content:
+            raise WorkspaceError(422, "TEAM_MESSAGE_EMPTY", "消息内容不能为空", {"team_id": team_id})
+        if payload.receiver_id is not None:
+            receiver_member = self._team_membership(team_id, self._require_user_by_id(payload.receiver_id))
+            if not receiver_member:
+                raise WorkspaceError(404, "TEAM_MESSAGE_RECEIVER_NOT_FOUND", "私聊接收者不是团队成员", {"team_id": team_id})
+
+        message = StoredTeamMessage(
+            id=f"msg-{secrets.token_hex(8)}",
+            team_id=team.id,
+            sender_id=actor.id,
+            receiver_id=payload.receiver_id,
+            content=content,
+            message_type=payload.message_type,
+            created_at=datetime.now(UTC),
+        )
+        self._team_messages[message.id] = message
+        for mentioned_member in self._mentioned_team_members(team.id, content, actor.id, membership.role):
+            self._create_notification(
+                user_id=mentioned_member.user_id,
+                notification_type="mention",
+                title="团队聊天提到了你",
+                content=f"{actor.display_name} 在 {team.name} 中提到了你：{content}",
+                target_type="team_message",
+                target_id=message.id,
+                team_id=team.id,
+            )
+        self._record_audit(actor.username, "team.message_create", "team_message", team.name)
+        return self._team_message_item(message)
+
     def list_permission_rules(self, actor: UserPublic) -> list[PermissionRulePublic]:
         return [
             self._permission_rule_public(rule)
@@ -957,6 +1368,30 @@ class WorkspaceService:
         self._permission_rules.pop(rule_id)
         self._record_audit(actor.username, "permission.rule_delete", "permission_rule", rule.id)
 
+    def list_notifications(self, actor: UserPublic) -> list[NotificationItem]:
+        notifications = [
+            notification
+            for notification in self._notifications.values()
+            if notification.user_id == actor.id
+        ]
+        return [
+            self._notification_item(notification)
+            for notification in sorted(notifications, key=lambda item: item.created_at, reverse=True)
+        ]
+
+    def mark_notification_read(self, notification_id: str, actor: UserPublic) -> NotificationItem:
+        notification = self._notifications.get(notification_id)
+        if not notification or notification.user_id != actor.id:
+            raise WorkspaceError(
+                404,
+                "NOTIFICATION_NOT_FOUND",
+                "通知不存在或无权访问",
+                {"notification_id": notification_id},
+            )
+        notification.is_read = True
+        self._record_audit(actor.username, "notification.read", "notification", notification.title)
+        return self._notification_item(notification)
+
     def list_audit_logs(self) -> list[AuditLogEntry]:
         seeded = [
             AuditLogEntry(
@@ -979,7 +1414,7 @@ class WorkspaceService:
                 indexed_count=sum(1 for file in files if file.parse_status == "indexed"),
                 knowledge_base_count=len(self.list_knowledge_bases(actor)),
                 running_workflows=0,
-                unread_notifications=sum(team.unread_count for team in teams),
+                unread_notifications=self._notification_unread_count(actor.id),
                 tools_enabled=sum(1 for tool in self.list_tools() if tool.enabled),
             ),
             files=files[:5],
@@ -1149,16 +1584,181 @@ class WorkspaceService:
         snippets = "；".join(citation.snippet for citation in citations[:2])
         return f"根据知识库「{knowledge_base.name}」的已索引片段，{snippets}"
 
-    def _team_summary(self, team: StoredTeam, role: str) -> TeamSummary:
+    def _team_summary(self, team: StoredTeam, role: str, actor_id: int | None = None) -> TeamSummary:
         return TeamSummary(
             id=team.id,
             name=team.name,
             description=team.description,
             role=role,
             member_count=self._active_team_member_count(team.id),
-            unread_count=team.unread_count,
+            unread_count=self._notification_unread_count(actor_id, team.id) if actor_id is not None else team.unread_count,
             root_folder_id=team.root_folder_id,
         )
+
+    def _create_notification(
+        self,
+        *,
+        user_id: int,
+        notification_type: NotificationType,
+        title: str,
+        content: str | None,
+        target_type: str | None,
+        target_id: str | None,
+        team_id: str | None,
+    ) -> StoredNotification:
+        notification = StoredNotification(
+            id=f"noti-{secrets.token_hex(8)}",
+            user_id=user_id,
+            type=notification_type,
+            title=title,
+            content=content,
+            target_type=target_type,
+            target_id=target_id,
+            team_id=team_id,
+            is_read=False,
+            created_at=datetime.now(UTC),
+        )
+        self._notifications[notification.id] = notification
+        return notification
+
+    def _notification_item(self, notification: StoredNotification) -> NotificationItem:
+        return NotificationItem(
+            id=notification.id,
+            user_id=notification.user_id,
+            type=notification.type,
+            title=notification.title,
+            content=notification.content,
+            target_type=notification.target_type,
+            target_id=notification.target_id,
+            is_read=notification.is_read,
+            created_at=notification.created_at,
+        )
+
+    def _notification_unread_count(self, user_id: int | None, team_id: str | None = None) -> int:
+        if user_id is None:
+            return 0
+        return sum(
+            1
+            for notification in self._notifications.values()
+            if notification.user_id == user_id
+            and not notification.is_read
+            and (team_id is None or notification.team_id == team_id)
+        )
+
+    def _team_message_item(self, message: StoredTeamMessage) -> TeamMessageItem:
+        sender = self._users_by_id.get(message.sender_id)
+        return TeamMessageItem(
+            id=message.id,
+            team_id=message.team_id,
+            sender_id=message.sender_id,
+            sender_name=sender.public.username if sender else "unknown",
+            receiver_id=message.receiver_id,
+            content=message.content,
+            message_type=message.message_type,  # type: ignore[arg-type]
+            created_at=message.created_at,
+        )
+
+    def _file_annotation_item(self, annotation: StoredFileAnnotation) -> FileAnnotationItem:
+        return FileAnnotationItem(
+            id=annotation.id,
+            file_id=annotation.file_id,
+            author_id=annotation.author_id,
+            author_name=self._annotation_author_name(annotation.author_id),
+            content=annotation.content,
+            position=annotation.position,
+            created_at=annotation.created_at,
+            updated_at=annotation.updated_at,
+            replies=[
+                self._file_annotation_reply_item(reply)
+                for reply in sorted(
+                    (
+                        candidate
+                        for candidate in self._file_annotations.values()
+                        if candidate.parent_id == annotation.id
+                    ),
+                    key=lambda item: item.created_at,
+                )
+            ],
+        )
+
+    def _file_annotation_reply_item(self, annotation: StoredFileAnnotation) -> FileAnnotationReplyItem:
+        if annotation.parent_id is None:
+            raise WorkspaceError(500, "ANNOTATION_REPLY_INVALID", "批注回复结构异常", {"annotation_id": annotation.id})
+        return FileAnnotationReplyItem(
+            id=annotation.id,
+            annotation_id=annotation.parent_id,
+            file_id=annotation.file_id,
+            author_id=annotation.author_id,
+            author_name=self._annotation_author_name(annotation.author_id),
+            content=annotation.content,
+            created_at=annotation.created_at,
+            updated_at=annotation.updated_at,
+        )
+
+    def _annotation_author_name(self, user_id: int) -> str:
+        stored = self._users_by_id.get(user_id)
+        if not stored:
+            return "unknown"
+        return stored.public.username
+
+    def _require_user_by_id(self, user_id: int) -> UserPublic:
+        stored = self._users_by_id.get(user_id)
+        if not stored:
+            raise WorkspaceError(404, "USER_NOT_FOUND", "用户不存在", {"user_id": user_id})
+        return stored.public
+
+    def _find_root_annotation(self, annotation_id: str) -> StoredFileAnnotation:
+        annotation = self._file_annotations.get(annotation_id)
+        if not annotation or annotation.parent_id is not None:
+            raise WorkspaceError(404, "ANNOTATION_NOT_FOUND", "批注不存在或无权访问", {"annotation_id": annotation_id})
+        return annotation
+
+    def _can_delete_annotation(
+        self,
+        file_item: FileItem,
+        annotation: StoredFileAnnotation,
+        actor: UserPublic,
+    ) -> bool:
+        if annotation.author_id == actor.id:
+            return True
+        folder = self._folders.get(file_item.folder_id)
+        if not folder or folder.scope != "team" or not folder.team_id:
+            return False
+        membership = self._team_membership(folder.team_id, actor)
+        return bool(membership and membership.role in {"owner", "admin"})
+
+    def _team_id_for_file(self, file_item: FileItem) -> str | None:
+        folder = self._folders.get(file_item.folder_id)
+        if not folder:
+            return None
+        return folder.team_id
+
+    def _notify_team_members_for_file(
+        self,
+        file_item: FileItem,
+        *,
+        exclude_user_id: int,
+        notification_type: NotificationType,
+        title: str,
+        content: str,
+        target_type: str,
+        target_id: str,
+    ) -> None:
+        team_id = self._team_id_for_file(file_item)
+        if not team_id:
+            return
+        for member in self._team_members.values():
+            if member.team_id != team_id or member.status != "active" or member.user_id == exclude_user_id:
+                continue
+            self._create_notification(
+                user_id=member.user_id,
+                notification_type=notification_type,
+                title=title,
+                content=content,
+                target_type=target_type,
+                target_id=target_id,
+                team_id=team_id,
+            )
 
     def _team_member_public(self, member: StoredTeamMember) -> TeamMemberPublic:
         stored = self._users_by_id.get(member.user_id)
@@ -1187,6 +1787,28 @@ class WorkspaceService:
             created_at=invite.created_at,
             expires_at=invite.expires_at,
         )
+
+    def _mentioned_team_members(
+        self,
+        team_id: str,
+        content: str,
+        actor_id: int,
+        actor_role: str,
+    ) -> list[StoredTeamMember]:
+        mention_all = "@all" in content and actor_role in {"owner", "admin"}
+        mentioned: list[StoredTeamMember] = []
+        seen_user_ids: set[int] = set()
+        for member in self._team_members.values():
+            if member.team_id != team_id or member.status != "active" or member.user_id == actor_id:
+                continue
+            user = self._users_by_id.get(member.user_id)
+            if not user:
+                continue
+            if mention_all or f"@{user.public.username}" in content or f"@{user.public.display_name}" in content:
+                if member.user_id not in seen_user_ids:
+                    mentioned.append(member)
+                    seen_user_ids.add(member.user_id)
+        return mentioned
 
     def _workflow_definition(self, workflow: StoredWorkflow) -> WorkflowDefinition:
         return WorkflowDefinition(
@@ -1507,7 +2129,7 @@ class WorkspaceService:
             folder = self._folders.get(resource_id)
             return folder.name if folder else resource_id
         if resource_type == "file":
-            for file_item in self._files:
+            for file_item in [*self._files, *(deleted.file for deleted in self._deleted_files.values())]:
                 if file_item.id == resource_id:
                     return file_item.name
             return resource_id
@@ -1536,7 +2158,7 @@ class WorkspaceService:
 
     def _permission_resource_chain(self, resource_type: str, resource_id: str) -> list[tuple[str, str, bool]]:
         if resource_type == "file":
-            file_item = self._find_file(resource_id)
+            file_item = self._find_file_for_permission(resource_id)
             chain = [("file", file_item.id, True)]
             folder = self._folders.get(file_item.folder_id)
             while folder:
@@ -1746,17 +2368,141 @@ class WorkspaceService:
                 return file_item
         raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
 
+    def _find_file_for_permission(self, file_id: str) -> FileItem:
+        for file_item in self._files:
+            if file_item.id == file_id:
+                return file_item
+        deleted = self._deleted_files.get(file_id)
+        if deleted:
+            return deleted.file
+        raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
+
     def _read_file_content(self, file_id: str) -> bytes:
         content = self._file_contents.get(file_id)
         if content is None:
             raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
         return content
 
+    def _create_share_token(self, file_id: str, actor_id: int) -> str:
+        payload = {
+            "file_id": file_id,
+            "sub": str(actor_id),
+            "jti": secrets.token_hex(8),
+            "iat": int(datetime.now(UTC).timestamp()),
+        }
+        signing_input = self._b64(payload)
+        signature = hmac.new(self._secret.encode(), signing_input.encode(), hashlib.sha256).digest()
+        return f"{signing_input}.{self._b64_bytes(signature)}"
+
+    def _find_share_link(self, token: str) -> StoredShareLink:
+        share_link = self._share_links.get(token)
+        if not share_link:
+            raise WorkspaceError(404, "SHARE_LINK_NOT_FOUND", "分享链接不存在或已失效", {"token": token})
+        return share_link
+
+    def _share_link_public(self, share_link: StoredShareLink) -> ShareLinkPublic:
+        return ShareLinkPublic(
+            id=share_link.id,
+            file_id=share_link.file_id,
+            token=share_link.token,
+            url=f"/api/v1/share-links/{share_link.token}/download",
+            expires_at=share_link.expires_at,
+            download_limit=share_link.download_limit,
+            download_count=share_link.download_count,
+            has_password=share_link.password_hash is not None,
+        )
+
     def _find_file_by_name_in_folder(self, name: str, folder_id: str) -> FileItem | None:
         for file_item in self._files:
             if file_item.folder_id == folder_id and file_item.name == name:
                 return file_item
         return None
+
+    def _save_file_content(
+        self,
+        filename: str,
+        folder: StoredFolder,
+        content: bytes,
+        tags: list[str],
+        actor: UserPublic,
+        audit_action: str,
+    ) -> FileItem:
+        digest = hashlib.sha256(content).hexdigest()
+        existing_file = self._find_file_by_name_in_folder(filename, folder.id)
+        if existing_file:
+            self._append_file_version(existing_file, filename, content, actor.username)
+            updated = existing_file.model_copy(
+                update={
+                    "name": filename,
+                    "type": self._file_type(filename),
+                    "size": len(content),
+                    "sha256": digest,
+                    "parse_status": "queued",
+                    "tags": tags,
+                    "updated_at": datetime.now(UTC),
+                    "permission_scope": self._permission_scope_for_folder(folder),
+                }
+            )
+            self._file_contents[updated.id] = content
+            self._replace_file(updated, move_to_front=True)
+            self._record_audit(actor.username, audit_action, "file", updated.name)
+            return updated
+
+        item = FileItem(
+            id=self._new_file_id(digest),
+            name=filename,
+            folder_id=folder.id,
+            type=self._file_type(filename),
+            size=len(content),
+            sha256=digest,
+            parse_status="queued",
+            tags=tags,
+            updated_at=datetime.now(UTC),
+            permission_scope=self._permission_scope_for_folder(folder),
+            knowledge_base_ids=[],
+        )
+        self._files.insert(0, item)
+        self._file_contents[item.id] = content
+        self._append_file_version(item, item.name, content, actor.username)
+        self._record_audit(actor.username, audit_action, "file", item.name)
+        return item
+
+    def _find_multipart_upload(self, session_id: str, actor: UserPublic) -> StoredMultipartUpload:
+        session = self._multipart_uploads.get(session_id)
+        if not session or session.created_by != actor.id:
+            raise WorkspaceError(404, "MULTIPART_UPLOAD_NOT_FOUND", "分片上传会话不存在", {"session_id": session_id})
+        return session
+
+    def _ensure_multipart_uploading(self, session: StoredMultipartUpload) -> None:
+        now = datetime.now(UTC)
+        if now >= session.expires_at:
+            session.status = "expired"
+        if session.status != "uploading":
+            raise WorkspaceError(
+                409,
+                "MULTIPART_UPLOAD_NOT_ACTIVE",
+                "分片上传会话已结束或过期",
+                {"session_id": session.id, "status": session.status},
+            )
+
+    def _multipart_upload_session(self, session: StoredMultipartUpload) -> MultipartUploadSession:
+        self._ensure_multipart_session_status(session)
+        return MultipartUploadSession(
+            id=session.id,
+            filename=session.filename,
+            folder_id=session.folder_id,
+            size=session.size,
+            sha256=session.sha256,
+            chunk_size=session.chunk_size,
+            total_chunks=session.total_chunks,
+            received_chunks=sorted(session.chunks),
+            status=session.status,  # type: ignore[arg-type]
+            expires_at=session.expires_at,
+        )
+
+    def _ensure_multipart_session_status(self, session: StoredMultipartUpload) -> None:
+        if session.status == "uploading" and datetime.now(UTC) >= session.expires_at:
+            session.status = "expired"
 
     def _replace_file(self, file_item: FileItem, move_to_front: bool = False) -> None:
         remaining = [candidate for candidate in self._files if candidate.id != file_item.id]
@@ -1878,6 +2624,7 @@ class WorkspaceService:
 
     def _new_file_id(self, digest: str) -> str:
         existing_ids = {file_item.id for file_item in self._files}
+        existing_ids.update(self._deleted_files)
         base_id = f"file-{digest[:12]}"
         candidate = base_id
         index = 2

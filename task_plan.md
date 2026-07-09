@@ -4,7 +4,7 @@
 Build a frontend-backend separated, well-structured intelligent file management and agent collaboration platform based on the documents under `report/`.
 
 ## Current Phase
-Phase 21 — Remote merge integration (complete)
+Phase 24 — Notification Inbox API/UI (complete)
 
 ## Phases
 
@@ -181,6 +181,31 @@ Phase 21 — Remote merge integration (complete)
 - [x] Update findings, task_plan, and progress documentation.
 - **Status:** complete
 
+### Phase 22: File Search Updated-Time Range
+- [x] Add backend TDD coverage for FR-F07 updated-time filtering on `GET /api/v1/files`.
+- [x] Add inclusive `updated_from`/`updated_to` query params and service filtering.
+- [x] Regenerate the OpenAPI client and map `updatedFrom`/`updatedTo` through the workspace adapter/store.
+- [x] Add visible FileWorkbench time-range controls and focused frontend tests.
+- [x] Re-run backend tests, frontend tests, type checking, build, JSON validation, and diff whitespace checks.
+- **Status:** complete
+
+### Phase 23: File Annotations & Replies
+- [x] Add backend TDD coverage for annotation list/create/reply/delete, permissions, audit events, and notification signals.
+- [x] Expose `/files/{file_id}/annotations`, `/annotations/{annotation_id}/replies`, and delete routes in the FastAPI/OpenAPI contract.
+- [x] Regenerate the OpenAPI client and add generated-client-backed annotation adapters/store actions.
+- [x] Add `FileAnnotationPanel.vue` and wire it through `FileWorkbench.vue` and `WorkspaceView.vue`.
+- [x] Re-run backend tests, frontend tests, type checking, build, JSON validation, and diff whitespace checks.
+- **Status:** complete
+
+### Phase 24: Notification Inbox API/UI
+- [x] Add backend TDD coverage for listing and marking notifications read across invites, mentions, annotation replies, and workflow completion.
+- [x] Add `/notifications` list and `/notifications/{notification_id}/read` routes with typed schemas and OpenAPI assertions.
+- [x] Replace derived unread counts with per-user in-memory notification entities and audit `notification.read`.
+- [x] Regenerate the OpenAPI client and add notification adapters/store state/actions.
+- [x] Add `NotificationInboxPanel.vue` and compose it inside `TeamAuditPanel.vue` via `WorkspaceView.vue`.
+- [x] Re-run focused and full backend/frontend verification, type checking, build, JSON validation, and diff whitespace checks.
+- **Status:** complete
+
 ## Key Questions
 1. Which report requirements define the initial MVP? Answer: section 7.1 of `report/requirements/requirements_specification.md`.
 2. Which architecture must the implementation follow? Answer: Vue 3 + Vite + TypeScript frontend and FastAPI backend under `/api/v1`, with module boundaries from `report/design/system_design_specification.md`.
@@ -207,6 +232,7 @@ Phase 21 — Remote merge integration (complete)
 | Implement editable workflow definitions before advanced visual editing | FR-W01/W04/W05/W06 require create/update/validate/publish/execute contracts. The MVP now stores DAG definitions in memory, previews them with Vue Flow, and keeps drag/drop node editing as a later workflow-editor refinement. |
 | Enforce team-file RBAC at shared file read/write boundaries before adding ACL configuration UI | FR-C08/C09/NFR-S04 require resource access to pass RBAC before file, knowledge, agent, and workflow operations. Phase 19 applies role-aware checks across existing runtime paths without expanding the OpenAPI surface into a full permission-matrix editor yet. |
 | Add ACL rules before persistent permission repositories | FR-C08/C09/C10 require resource-level allow/deny, inheritance, overrides, and audit events. Phase 20 keeps the rules in memory and wires them into existing shared file/folder permission helpers so later MySQL repositories can replace storage without changing API/UI contracts. |
+| Add notification inbox entities before WebSocket delivery | FR-C07 requires durable notification records and read state. Phase 24 keeps notification storage in memory for now, exposes stable API/OpenAPI/generated-client/store/UI contracts, and leaves live push delivery as a later WebSocket slice. |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
@@ -242,6 +268,8 @@ Phase 21 — Remote merge integration (complete)
 | Permission-rule backend tests initially lacked ACL routes and evaluation | 1 | Added permission rule schemas/routes, in-memory ACL storage, deny precedence, folder inheritance, file overrides, and audit events. |
 | Frontend permission-rule tests initially lacked adapters/store actions/panel wiring | 1 | Added generated-client-backed permission adapters, Pinia permission rule state/actions, `PermissionRulesPanel.vue`, and FileWorkbench/WorkspaceView props/events. |
 | `PermissionRulesPanel.vue` type check rejected first-option array indexing | 1 | Assigned the first select option to a local constant and guarded it before reading `.value`, satisfying strict TypeScript. |
+| Notification API tests initially returned 404 | 1 | Added notification schemas, service storage, list/read routes, unread-count derivation, and OpenAPI assertions. |
+| Frontend notification tests initially lacked adapters/store actions/panel wiring | 1 | Added generated-client-backed notification adapters, Pinia inbox state/actions, `NotificationInboxPanel.vue`, and TeamAuditPanel/WorkspaceView props/events. |
 
 ## Notes
 - This is a working report-aligned MVP vertical slice, not the full production platform.

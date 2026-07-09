@@ -1,38 +1,53 @@
 import { createAuthorizationHeader } from '@/auth/workspaceAccess'
 import {
   addKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPost,
+  completeMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePost,
   copyFileApiV1FilesFileIdCopyPost,
+  createFileAnnotationApiV1FilesFileIdAnnotationsPost,
+  createFileShareLinkApiV1FilesFileIdShareLinksPost,
   createFolderApiV1FoldersPost,
   createKnowledgeBaseApiV1KnowledgeBasesPost,
   createPermissionRuleApiV1PermissionsRulesPost,
   createTeamApiV1TeamsPost,
   createTeamInviteApiV1TeamsTeamIdInvitesPost,
+  createTeamMessageApiV1TeamsTeamIdMessagesPost,
   createWorkflowApiV1WorkflowsPost,
+  deleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDelete,
   deleteFileApiV1FilesFileIdDelete,
   deleteFolderApiV1FoldersFolderIdDelete,
   deletePermissionRuleApiV1PermissionsRulesRuleIdDelete,
   downloadFileApiV1FilesFileIdDownloadGet,
   executeWorkflowApiV1WorkflowsWorkflowIdExecutionsPost,
+  fileAnnotationsApiV1FilesFileIdAnnotationsGet,
   filesApiV1FilesGet,
   fileVersionsApiV1FilesFileIdVersionsGet,
   foldersApiV1FoldersTreeGet,
   joinTeamApiV1TeamsTeamIdMembersPost,
   knowledgeBasesApiV1KnowledgeBasesGet,
   knowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGet,
+  markNotificationReadApiV1NotificationsNotificationIdReadPatch,
+  multipartUploadStatusApiV1FilesMultipartUploadsSessionIdGet,
+  notificationsApiV1NotificationsGet,
   permissionRulesApiV1PermissionsRulesGet,
   publishWorkflowApiV1WorkflowsWorkflowIdPublishPost,
   removeTeamMemberApiV1TeamsTeamIdMembersMemberIdDelete,
+  replyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPost,
   restoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePost,
   teamDetailApiV1TeamsTeamIdGet,
+  teamMessagesApiV1TeamsTeamIdMessagesGet,
   teamsApiV1TeamsGet,
   updateFileApiV1FilesFileIdPatch,
   updateFolderApiV1FoldersFolderIdPatch,
   updateKnowledgeBaseApiV1KnowledgeBasesKbIdPatch,
   updateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatch,
   updateWorkflowApiV1WorkflowsWorkflowIdPatch,
+  initMultipartUploadApiV1FilesMultipartUploadsPost,
   uploadFileApiV1FilesUploadPost,
+  uploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPut,
   qaQueryApiV1QaQueryPost,
+  recycleBinApiV1FilesRecycleBinGet,
   validateWorkflowApiV1WorkflowsWorkflowIdValidatePost,
+  restoreDeletedFileApiV1FilesFileIdRestorePost,
   workflowsApiV1WorkflowsGet,
   workspaceSnapshotApiV1WorkspaceSnapshotGet,
 } from '@/client/generated'
@@ -41,6 +56,11 @@ import type {
   AuditLogEntry,
   Citation,
   FileCopyRequest,
+  FileAnnotationCreate,
+  FileAnnotationItem,
+  FileAnnotationListResponse,
+  FileAnnotationReplyCreate,
+  FileAnnotationReplyItem,
   DashboardSummary,
   FileItem,
   FileListResponse,
@@ -55,15 +75,25 @@ import type {
   KnowledgeBaseUpdate,
   KnowledgeDocumentListResponse,
   KnowledgeDocumentPublic,
+  MultipartChunkResponse,
+  MultipartUploadSession,
+  NotificationItem,
+  NotificationListResponse,
   PermissionRuleCreate,
   PermissionRuleListResponse,
   PermissionRulePublic,
   QaResponse,
+  RecycleBinItem,
+  RecycleBinResponse,
+  ShareLinkPublic,
   TeamDetail,
   TeamInvitePublic,
   TeamListResponse,
   TeamMemberPublic,
   TeamMemberUpdate,
+  TeamMessageCreate,
+  TeamMessageItem,
+  TeamMessageListResponse,
   TeamSummary,
   ToolDefinition,
   WorkflowCreate,
@@ -79,8 +109,18 @@ import type {
 
 export type AgentStep = GeneratedAgentStep & { status: NonNullable<GeneratedAgentStep['status']> }
 export type WorkspaceFile = FileItem
+export type WorkspaceFileAnnotation = FileAnnotationItem
+export type WorkspaceFileAnnotationReply = FileAnnotationReplyItem
+export type WorkspaceFileAnnotationListResponse = FileAnnotationListResponse
 export type WorkspaceFileVersion = FileVersionItem
 export type WorkspaceFileVersionListResponse = FileVersionListResponse
+export type WorkspaceShareLink = ShareLinkPublic
+export type WorkspaceRecycleBinItem = RecycleBinItem
+export type WorkspaceRecycleBinResponse = RecycleBinResponse
+export type WorkspaceMultipartUploadSession = MultipartUploadSession
+export type WorkspaceMultipartChunkResponse = MultipartChunkResponse
+export type WorkspaceNotification = NotificationItem
+export type WorkspaceNotificationListResponse = NotificationListResponse
 export type WorkspaceFolder = FolderItem
 export type WorkspaceFolderScope = WorkspaceFolder['scope']
 export type WorkspaceFolderTreeResponse = FolderTreeResponse
@@ -95,6 +135,8 @@ export type WorkspaceTeamDetail = TeamDetail
 export type WorkspaceTeamInvite = TeamInvitePublic
 export type WorkspaceTeamMember = TeamMemberPublic
 export type WorkspaceTeamRole = TeamMemberUpdate['role']
+export type WorkspaceTeamMessage = TeamMessageItem
+export type WorkspaceTeamMessageListResponse = TeamMessageListResponse
 export type WorkspaceWorkflow = WorkflowDefinition
 export type WorkspaceWorkflowNode = WorkflowNodeDefinition
 export type WorkspaceWorkflowEdge = WorkflowEdgeDefinition
@@ -105,10 +147,23 @@ export interface WorkspaceFileFilters {
   fileType: string
   query: string
   tag: string
+  updatedFrom: string
+  updatedTo: string
 }
 export interface WorkspaceFileUploadInput {
   file: File
   folderId: string
+  tags: string[]
+}
+export interface WorkspaceMultipartUploadInput extends WorkspaceFileUploadInput {
+  chunkSize?: number
+}
+export interface WorkspaceMultipartUploadInitInput {
+  chunkSize: number
+  filename: string
+  folderId: string
+  sha256: string
+  size: number
   tags: string[]
 }
 export interface WorkspaceFileUpdateInput {
@@ -120,6 +175,18 @@ export interface WorkspaceFileCopyInput {
   name?: string | null
   tags?: string[] | null
   targetFolderId: string
+}
+export interface WorkspaceShareLinkCreateInput {
+  downloadLimit?: number | null
+  expiresInSeconds?: number
+  password?: string | null
+}
+export interface WorkspaceFileAnnotationCreateInput {
+  content: string
+  position?: FileAnnotationCreate['position']
+}
+export interface WorkspaceFileAnnotationReplyInput {
+  content: string
 }
 export interface WorkspaceFolderCreateInput {
   name: string
@@ -156,6 +223,11 @@ export interface WorkspaceTeamCreateInput {
 export interface WorkspaceTeamInviteInput {
   email: string
   role: WorkspaceTeamRole
+}
+export interface WorkspaceTeamMessageCreateInput {
+  content: string
+  message_type?: TeamMessageCreate['message_type']
+  receiver_id?: number | null
 }
 export interface WorkspacePermissionRuleCreateInput {
   action: PermissionRuleCreate['action']
@@ -461,6 +533,41 @@ export const demoWorkspaceTeamDetail: WorkspaceTeamDetail = {
     team_id: 'team-biology',
   },
   unread_count: 3,
+}
+
+export const demoWorkspaceTeamMessages: Record<string, WorkspaceTeamMessage[]> = {
+  'team-biology': [
+    {
+      content: '我把需求规格说明书放到团队文件夹了，今天先集中确认聊天、批注和周报生成这条流程。',
+      created_at: '2026-07-09T09:18:00+08:00',
+      id: 'msg-demo-1',
+      message_type: 'text',
+      receiver_id: null,
+      sender_id: 1,
+      sender_name: 'xiaoming',
+      team_id: 'team-biology',
+    },
+    {
+      content: '已看。团队协作这里需要能看到实时群聊、成员在线状态、文件引用和未读提醒，刷新后聊天记录还要保留。',
+      created_at: '2026-07-09T09:26:00+08:00',
+      id: 'msg-demo-2',
+      message_type: 'text',
+      receiver_id: null,
+      sender_id: 2,
+      sender_name: 'xiaohong',
+      team_id: 'team-biology',
+    },
+    {
+      content: '已根据团队文件生成待办摘要：补充 WebSocket 重连、消息持久化、@ 提醒和权限校验验收点。',
+      created_at: '2026-07-09T09:31:00+08:00',
+      id: 'msg-demo-3',
+      message_type: 'system',
+      receiver_id: null,
+      sender_id: 0,
+      sender_name: '智能助手',
+      team_id: 'team-biology',
+    },
+  ],
 }
 
 export const demoWorkspacePermissionRules: WorkspacePermissionRule[] = [
@@ -957,6 +1064,44 @@ export async function loadWorkspaceTeamDetail(token: string, teamId: string): Pr
   return response.data
 }
 
+export async function listWorkspaceTeamMessages(
+  token: string,
+  teamId: string,
+): Promise<WorkspaceTeamMessageListResponse> {
+  const response = await teamMessagesApiV1TeamsTeamIdMessagesGet({
+    headers: createAuthorizationHeader(token),
+    path: { team_id: teamId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function sendWorkspaceTeamMessage(
+  token: string,
+  teamId: string,
+  payload: WorkspaceTeamMessageCreateInput,
+): Promise<WorkspaceTeamMessage> {
+  const response = await createTeamMessageApiV1TeamsTeamIdMessagesPost({
+    body: {
+      content: payload.content,
+      message_type: payload.message_type ?? 'text',
+      receiver_id: payload.receiver_id ?? null,
+    },
+    headers: createAuthorizationHeader(token),
+    path: { team_id: teamId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
 export async function createWorkspaceTeamInvite(
   token: string,
   teamId: string,
@@ -1045,6 +1190,8 @@ export async function listWorkspaceFiles(token: string, filters: WorkspaceFileFi
       file_type: filters.fileType || null,
       query: filters.query || null,
       tag: filters.tag || null,
+      updated_from: filters.updatedFrom || null,
+      updated_to: filters.updatedTo || null,
     },
   })
 
@@ -1129,6 +1276,102 @@ export async function uploadWorkspaceFile(token: string, payload: WorkspaceFileU
   return response.data
 }
 
+export async function initWorkspaceMultipartUpload(
+  token: string,
+  payload: WorkspaceMultipartUploadInitInput,
+): Promise<WorkspaceMultipartUploadSession> {
+  const response = await initMultipartUploadApiV1FilesMultipartUploadsPost({
+    body: {
+      chunk_size: payload.chunkSize,
+      filename: payload.filename,
+      folder_id: payload.folderId,
+      sha256: payload.sha256,
+      size: payload.size,
+      tags: payload.tags,
+    },
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function uploadWorkspaceMultipartChunk(
+  token: string,
+  sessionId: string,
+  chunkIndex: number,
+  chunk: Blob,
+): Promise<WorkspaceMultipartChunkResponse> {
+  const response = await uploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPut({
+    body: {
+      chunk,
+      sha256: await sha256Blob(chunk),
+    },
+    headers: createAuthorizationHeader(token),
+    path: { chunk_index: chunkIndex, session_id: sessionId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function getWorkspaceMultipartUpload(
+  token: string,
+  sessionId: string,
+): Promise<WorkspaceMultipartUploadSession> {
+  const response = await multipartUploadStatusApiV1FilesMultipartUploadsSessionIdGet({
+    headers: createAuthorizationHeader(token),
+    path: { session_id: sessionId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function completeWorkspaceMultipartUpload(token: string, sessionId: string): Promise<WorkspaceFile> {
+  const response = await completeMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePost({
+    headers: createAuthorizationHeader(token),
+    path: { session_id: sessionId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function uploadWorkspaceMultipartFile(
+  token: string,
+  payload: WorkspaceMultipartUploadInput,
+): Promise<WorkspaceFile> {
+  const chunkSize = payload.chunkSize ?? 5 * 1024 * 1024
+  const session = await initWorkspaceMultipartUpload(token, {
+    chunkSize,
+    filename: payload.file.name,
+    folderId: payload.folderId,
+    sha256: await sha256Blob(payload.file),
+    size: payload.file.size,
+    tags: payload.tags,
+  })
+
+  for (let offset = 0, chunkIndex = 0; offset < payload.file.size; offset += chunkSize, chunkIndex += 1) {
+    const chunk = payload.file.slice(offset, Math.min(offset + chunkSize, payload.file.size))
+    await uploadWorkspaceMultipartChunk(token, session.id, chunkIndex, chunk)
+  }
+
+  return completeWorkspaceMultipartUpload(token, session.id)
+}
+
 export async function updateWorkspaceFile(
   token: string,
   fileId: string,
@@ -1158,6 +1401,13 @@ export async function updateWorkspaceFile(
   return response.data
 }
 
+async function sha256Blob(blob: Blob): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}
+
 export async function copyWorkspaceFile(
   token: string,
   fileId: string,
@@ -1177,6 +1427,128 @@ export async function copyWorkspaceFile(
     body,
     headers: createAuthorizationHeader(token),
     path: { file_id: fileId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function createWorkspaceFileShareLink(
+  token: string,
+  fileId: string,
+  payload: WorkspaceShareLinkCreateInput,
+): Promise<WorkspaceShareLink> {
+  const response = await createFileShareLinkApiV1FilesFileIdShareLinksPost({
+    body: {
+      download_limit: payload.downloadLimit ?? null,
+      expires_in_seconds: payload.expiresInSeconds ?? 3600,
+      password: payload.password ?? null,
+    },
+    headers: createAuthorizationHeader(token),
+    path: { file_id: fileId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function listWorkspaceFileAnnotations(
+  token: string,
+  fileId: string,
+): Promise<WorkspaceFileAnnotationListResponse> {
+  const response = await fileAnnotationsApiV1FilesFileIdAnnotationsGet({
+    headers: createAuthorizationHeader(token),
+    path: { file_id: fileId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function createWorkspaceFileAnnotation(
+  token: string,
+  fileId: string,
+  payload: WorkspaceFileAnnotationCreateInput,
+): Promise<WorkspaceFileAnnotation> {
+  const response = await createFileAnnotationApiV1FilesFileIdAnnotationsPost({
+    body: {
+      content: payload.content,
+      position: payload.position ?? null,
+    },
+    headers: createAuthorizationHeader(token),
+    path: { file_id: fileId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function replyWorkspaceFileAnnotation(
+  token: string,
+  annotationId: string,
+  payload: WorkspaceFileAnnotationReplyInput,
+): Promise<WorkspaceFileAnnotationReply> {
+  const response = await replyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPost({
+    body: {
+      content: payload.content,
+    },
+    headers: createAuthorizationHeader(token),
+    path: { annotation_id: annotationId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function deleteWorkspaceFileAnnotation(
+  token: string,
+  fileId: string,
+  annotationId: string,
+): Promise<void> {
+  const response = await deleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDelete({
+    headers: createAuthorizationHeader(token),
+    path: { annotation_id: annotationId, file_id: fileId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+}
+
+export async function listWorkspaceNotifications(token: string): Promise<WorkspaceNotificationListResponse> {
+  const response = await notificationsApiV1NotificationsGet({
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function markWorkspaceNotificationRead(
+  token: string,
+  notificationId: string,
+): Promise<WorkspaceNotification> {
+  const response = await markNotificationReadApiV1NotificationsNotificationIdReadPatch({
+    headers: createAuthorizationHeader(token),
+    path: { notification_id: notificationId },
   })
 
   if (response.error) {
@@ -1228,6 +1600,31 @@ export async function restoreWorkspaceFileVersion(
   const response = await restoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePost({
     headers: createAuthorizationHeader(token),
     path: { file_id: fileId, version_id: versionId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function listWorkspaceRecycleBin(token: string): Promise<WorkspaceRecycleBinResponse> {
+  const response = await recycleBinApiV1FilesRecycleBinGet({
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function restoreWorkspaceDeletedFile(token: string, fileId: string): Promise<WorkspaceFile> {
+  const response = await restoreDeletedFileApiV1FilesFileIdRestorePost({
+    headers: createAuthorizationHeader(token),
+    path: { file_id: fileId },
   })
 
   if (response.error) {

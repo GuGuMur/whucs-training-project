@@ -162,6 +162,20 @@ export type BodyUploadFileApiV1FilesUploadPost = {
 };
 
 /**
+ * Body_upload_multipart_chunk_api_v1_files_multipart_uploads__session_id__chunks__chunk_index__put
+ */
+export type BodyUploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPut = {
+    /**
+     * Chunk
+     */
+    chunk: Blob | File;
+    /**
+     * Sha256
+     */
+    sha256: string;
+};
+
+/**
  * Citation
  */
 export type Citation = {
@@ -250,6 +264,128 @@ export type ErrorResponse = {
      * Message
      */
     message: string;
+};
+
+/**
+ * FileAnnotationCreate
+ */
+export type FileAnnotationCreate = {
+    /**
+     * Content
+     */
+    content: string;
+    /**
+     * Position
+     */
+    position?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
+ * FileAnnotationItem
+ */
+export type FileAnnotationItem = {
+    /**
+     * Author Id
+     */
+    author_id: number;
+    /**
+     * Author Name
+     */
+    author_name: string;
+    /**
+     * Content
+     */
+    content: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * File Id
+     */
+    file_id: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Position
+     */
+    position: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Replies
+     */
+    replies?: Array<FileAnnotationReplyItem>;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
+ * FileAnnotationListResponse
+ */
+export type FileAnnotationListResponse = {
+    /**
+     * Items
+     */
+    items: Array<FileAnnotationItem>;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
+ * FileAnnotationReplyCreate
+ */
+export type FileAnnotationReplyCreate = {
+    /**
+     * Content
+     */
+    content: string;
+};
+
+/**
+ * FileAnnotationReplyItem
+ */
+export type FileAnnotationReplyItem = {
+    /**
+     * Annotation Id
+     */
+    annotation_id: string;
+    /**
+     * Author Id
+     */
+    author_id: number;
+    /**
+     * Author Name
+     */
+    author_name: string;
+    /**
+     * Content
+     */
+    content: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * File Id
+     */
+    file_id: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
 };
 
 /**
@@ -635,6 +771,168 @@ export type LoginRequest = {
 };
 
 /**
+ * MultipartChunkResponse
+ */
+export type MultipartChunkResponse = {
+    /**
+     * Chunk Index
+     */
+    chunk_index: number;
+    /**
+     * Received Chunks
+     */
+    received_chunks: Array<number>;
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Status
+     */
+    status: 'uploading' | 'completed' | 'expired';
+    /**
+     * Total Chunks
+     */
+    total_chunks: number;
+};
+
+/**
+ * MultipartUploadInitRequest
+ */
+export type MultipartUploadInitRequest = {
+    /**
+     * Chunk Size
+     */
+    chunk_size: number;
+    /**
+     * Filename
+     */
+    filename: string;
+    /**
+     * Folder Id
+     */
+    folder_id: string;
+    /**
+     * Sha256
+     */
+    sha256: string;
+    /**
+     * Size
+     */
+    size: number;
+    /**
+     * Tags
+     */
+    tags?: Array<string>;
+};
+
+/**
+ * MultipartUploadSession
+ */
+export type MultipartUploadSession = {
+    /**
+     * Chunk Size
+     */
+    chunk_size: number;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * Filename
+     */
+    filename: string;
+    /**
+     * Folder Id
+     */
+    folder_id: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Received Chunks
+     */
+    received_chunks: Array<number>;
+    /**
+     * Sha256
+     */
+    sha256: string;
+    /**
+     * Size
+     */
+    size: number;
+    /**
+     * Status
+     */
+    status: 'uploading' | 'completed' | 'expired';
+    /**
+     * Total Chunks
+     */
+    total_chunks: number;
+};
+
+/**
+ * NotificationItem
+ */
+export type NotificationItem = {
+    /**
+     * Content
+     */
+    content?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Is Read
+     */
+    is_read: boolean;
+    /**
+     * Target Id
+     */
+    target_id?: string | null;
+    /**
+     * Target Type
+     */
+    target_type?: string | null;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Type
+     */
+    type: 'invite' | 'mention' | 'annotation' | 'workflow' | 'system';
+    /**
+     * User Id
+     */
+    user_id: number;
+};
+
+/**
+ * NotificationListResponse
+ */
+export type NotificationListResponse = {
+    /**
+     * Items
+     */
+    items: Array<NotificationItem>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Unread Count
+     */
+    unread_count: number;
+};
+
+/**
  * PermissionRuleCreate
  */
 export type PermissionRuleCreate = {
@@ -781,6 +1079,35 @@ export type QaResponse = {
 };
 
 /**
+ * RecycleBinItem
+ */
+export type RecycleBinItem = {
+    /**
+     * Deleted At
+     */
+    deleted_at: string;
+    /**
+     * Deleted By
+     */
+    deleted_by: string;
+    file: FileItem;
+};
+
+/**
+ * RecycleBinResponse
+ */
+export type RecycleBinResponse = {
+    /**
+     * Items
+     */
+    items: Array<RecycleBinItem>;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
  * RefreshTokenRequest
  */
 export type RefreshTokenRequest = {
@@ -788,6 +1115,72 @@ export type RefreshTokenRequest = {
      * Refresh Token
      */
     refresh_token: string;
+};
+
+/**
+ * ShareLinkCreateRequest
+ */
+export type ShareLinkCreateRequest = {
+    /**
+     * Download Limit
+     */
+    download_limit?: number | null;
+    /**
+     * Expires In Seconds
+     */
+    expires_in_seconds?: number;
+    /**
+     * Password
+     */
+    password?: string | null;
+};
+
+/**
+ * ShareLinkDownloadRequest
+ */
+export type ShareLinkDownloadRequest = {
+    /**
+     * Password
+     */
+    password?: string | null;
+};
+
+/**
+ * ShareLinkPublic
+ */
+export type ShareLinkPublic = {
+    /**
+     * Download Count
+     */
+    download_count: number;
+    /**
+     * Download Limit
+     */
+    download_limit: number | null;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * File Id
+     */
+    file_id: string;
+    /**
+     * Has Password
+     */
+    has_password: boolean;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Token
+     */
+    token: string;
+    /**
+     * Url
+     */
+    url: string;
 };
 
 /**
@@ -965,6 +1358,76 @@ export type TeamMemberUpdate = {
      * Role
      */
     role: 'owner' | 'admin' | 'member' | 'guest';
+};
+
+/**
+ * TeamMessageCreate
+ */
+export type TeamMessageCreate = {
+    /**
+     * Content
+     */
+    content: string;
+    /**
+     * Message Type
+     */
+    message_type?: 'text' | 'file' | 'system';
+    /**
+     * Receiver Id
+     */
+    receiver_id?: number | null;
+};
+
+/**
+ * TeamMessageItem
+ */
+export type TeamMessageItem = {
+    /**
+     * Content
+     */
+    content: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Message Type
+     */
+    message_type: 'text' | 'file' | 'system';
+    /**
+     * Receiver Id
+     */
+    receiver_id?: number | null;
+    /**
+     * Sender Id
+     */
+    sender_id: number;
+    /**
+     * Sender Name
+     */
+    sender_name: string;
+    /**
+     * Team Id
+     */
+    team_id: string;
+};
+
+/**
+ * TeamMessageListResponse
+ */
+export type TeamMessageListResponse = {
+    /**
+     * Items
+     */
+    items: Array<TeamMessageItem>;
+    /**
+     * Total
+     */
+    total: number;
 };
 
 /**
@@ -1481,6 +1944,42 @@ export type CreateAgentTaskApiV1AgentsTasksPostResponses = {
 
 export type CreateAgentTaskApiV1AgentsTasksPostResponse = CreateAgentTaskApiV1AgentsTasksPostResponses[keyof CreateAgentTaskApiV1AgentsTasksPostResponses];
 
+export type ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostData = {
+    body: FileAnnotationReplyCreate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Annotation Id
+         */
+        annotation_id: string;
+    };
+    query?: never;
+    url: '/api/v1/annotations/{annotation_id}/replies';
+};
+
+export type ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostError = ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostErrors[keyof ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostErrors];
+
+export type ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: FileAnnotationReplyItem;
+};
+
+export type ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostResponse = ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostResponses[keyof ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostResponses];
+
 export type AuditLogsApiV1AuditLogsGetData = {
     body?: never;
     headers?: {
@@ -1617,6 +2116,14 @@ export type FilesApiV1FilesGetData = {
          * File Type
          */
         file_type?: string | null;
+        /**
+         * Updated From
+         */
+        updated_from?: string | null;
+        /**
+         * Updated To
+         */
+        updated_to?: string | null;
     };
     url: '/api/v1/files';
 };
@@ -1638,6 +2145,180 @@ export type FilesApiV1FilesGetResponses = {
 };
 
 export type FilesApiV1FilesGetResponse = FilesApiV1FilesGetResponses[keyof FilesApiV1FilesGetResponses];
+
+export type InitMultipartUploadApiV1FilesMultipartUploadsPostData = {
+    body: MultipartUploadInitRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/files/multipart-uploads';
+};
+
+export type InitMultipartUploadApiV1FilesMultipartUploadsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InitMultipartUploadApiV1FilesMultipartUploadsPostError = InitMultipartUploadApiV1FilesMultipartUploadsPostErrors[keyof InitMultipartUploadApiV1FilesMultipartUploadsPostErrors];
+
+export type InitMultipartUploadApiV1FilesMultipartUploadsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: MultipartUploadSession;
+};
+
+export type InitMultipartUploadApiV1FilesMultipartUploadsPostResponse = InitMultipartUploadApiV1FilesMultipartUploadsPostResponses[keyof InitMultipartUploadApiV1FilesMultipartUploadsPostResponses];
+
+export type MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/multipart-uploads/{session_id}';
+};
+
+export type MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetError = MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetErrors[keyof MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetErrors];
+
+export type MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: MultipartUploadSession;
+};
+
+export type MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetResponse = MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetResponses[keyof MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetResponses];
+
+export type UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutData = {
+    body: BodyUploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPut;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+        /**
+         * Chunk Index
+         */
+        chunk_index: number;
+    };
+    query?: never;
+    url: '/api/v1/files/multipart-uploads/{session_id}/chunks/{chunk_index}';
+};
+
+export type UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutError = UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors[keyof UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors];
+
+export type UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: MultipartChunkResponse;
+};
+
+export type UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutResponse = UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses[keyof UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses];
+
+export type CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/multipart-uploads/{session_id}/complete';
+};
+
+export type CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostError = CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostErrors[keyof CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostErrors];
+
+export type CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostResponses = {
+    /**
+     * Successful Response
+     */
+    201: FileItem;
+};
+
+export type CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostResponse = CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostResponses[keyof CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostResponses];
+
+export type RecycleBinApiV1FilesRecycleBinGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/files/recycle-bin';
+};
+
+export type RecycleBinApiV1FilesRecycleBinGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RecycleBinApiV1FilesRecycleBinGetError = RecycleBinApiV1FilesRecycleBinGetErrors[keyof RecycleBinApiV1FilesRecycleBinGetErrors];
+
+export type RecycleBinApiV1FilesRecycleBinGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: RecycleBinResponse;
+};
+
+export type RecycleBinApiV1FilesRecycleBinGetResponse = RecycleBinApiV1FilesRecycleBinGetResponses[keyof RecycleBinApiV1FilesRecycleBinGetResponses];
 
 export type UploadFileApiV1FilesUploadPostData = {
     body: BodyUploadFileApiV1FilesUploadPost;
@@ -1742,6 +2423,118 @@ export type UpdateFileApiV1FilesFileIdPatchResponses = {
 
 export type UpdateFileApiV1FilesFileIdPatchResponse = UpdateFileApiV1FilesFileIdPatchResponses[keyof UpdateFileApiV1FilesFileIdPatchResponses];
 
+export type FileAnnotationsApiV1FilesFileIdAnnotationsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/{file_id}/annotations';
+};
+
+export type FileAnnotationsApiV1FilesFileIdAnnotationsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FileAnnotationsApiV1FilesFileIdAnnotationsGetError = FileAnnotationsApiV1FilesFileIdAnnotationsGetErrors[keyof FileAnnotationsApiV1FilesFileIdAnnotationsGetErrors];
+
+export type FileAnnotationsApiV1FilesFileIdAnnotationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: FileAnnotationListResponse;
+};
+
+export type FileAnnotationsApiV1FilesFileIdAnnotationsGetResponse = FileAnnotationsApiV1FilesFileIdAnnotationsGetResponses[keyof FileAnnotationsApiV1FilesFileIdAnnotationsGetResponses];
+
+export type CreateFileAnnotationApiV1FilesFileIdAnnotationsPostData = {
+    body: FileAnnotationCreate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/{file_id}/annotations';
+};
+
+export type CreateFileAnnotationApiV1FilesFileIdAnnotationsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateFileAnnotationApiV1FilesFileIdAnnotationsPostError = CreateFileAnnotationApiV1FilesFileIdAnnotationsPostErrors[keyof CreateFileAnnotationApiV1FilesFileIdAnnotationsPostErrors];
+
+export type CreateFileAnnotationApiV1FilesFileIdAnnotationsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: FileAnnotationItem;
+};
+
+export type CreateFileAnnotationApiV1FilesFileIdAnnotationsPostResponse = CreateFileAnnotationApiV1FilesFileIdAnnotationsPostResponses[keyof CreateFileAnnotationApiV1FilesFileIdAnnotationsPostResponses];
+
+export type DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+        /**
+         * Annotation Id
+         */
+        annotation_id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/{file_id}/annotations/{annotation_id}';
+};
+
+export type DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteError = DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteErrors[keyof DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteErrors];
+
+export type DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteResponse = DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteResponses[keyof DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteResponses];
+
 export type CopyFileApiV1FilesFileIdCopyPostData = {
     body: FileCopyRequest;
     headers?: {
@@ -1811,6 +2604,78 @@ export type DownloadFileApiV1FilesFileIdDownloadGetResponses = {
      */
     200: unknown;
 };
+
+export type RestoreDeletedFileApiV1FilesFileIdRestorePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/{file_id}/restore';
+};
+
+export type RestoreDeletedFileApiV1FilesFileIdRestorePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RestoreDeletedFileApiV1FilesFileIdRestorePostError = RestoreDeletedFileApiV1FilesFileIdRestorePostErrors[keyof RestoreDeletedFileApiV1FilesFileIdRestorePostErrors];
+
+export type RestoreDeletedFileApiV1FilesFileIdRestorePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: FileItem;
+};
+
+export type RestoreDeletedFileApiV1FilesFileIdRestorePostResponse = RestoreDeletedFileApiV1FilesFileIdRestorePostResponses[keyof RestoreDeletedFileApiV1FilesFileIdRestorePostResponses];
+
+export type CreateFileShareLinkApiV1FilesFileIdShareLinksPostData = {
+    body: ShareLinkCreateRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/{file_id}/share-links';
+};
+
+export type CreateFileShareLinkApiV1FilesFileIdShareLinksPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateFileShareLinkApiV1FilesFileIdShareLinksPostError = CreateFileShareLinkApiV1FilesFileIdShareLinksPostErrors[keyof CreateFileShareLinkApiV1FilesFileIdShareLinksPostErrors];
+
+export type CreateFileShareLinkApiV1FilesFileIdShareLinksPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: ShareLinkPublic;
+};
+
+export type CreateFileShareLinkApiV1FilesFileIdShareLinksPostResponse = CreateFileShareLinkApiV1FilesFileIdShareLinksPostResponses[keyof CreateFileShareLinkApiV1FilesFileIdShareLinksPostResponses];
 
 export type FileVersionsApiV1FilesFileIdVersionsGetData = {
     body?: never;
@@ -2192,6 +3057,73 @@ export type AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses = 
 
 export type AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponse = AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses[keyof AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses];
 
+export type NotificationsApiV1NotificationsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/notifications';
+};
+
+export type NotificationsApiV1NotificationsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type NotificationsApiV1NotificationsGetError = NotificationsApiV1NotificationsGetErrors[keyof NotificationsApiV1NotificationsGetErrors];
+
+export type NotificationsApiV1NotificationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: NotificationListResponse;
+};
+
+export type NotificationsApiV1NotificationsGetResponse = NotificationsApiV1NotificationsGetResponses[keyof NotificationsApiV1NotificationsGetResponses];
+
+export type MarkNotificationReadApiV1NotificationsNotificationIdReadPatchData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Notification Id
+         */
+        notification_id: string;
+    };
+    query?: never;
+    url: '/api/v1/notifications/{notification_id}/read';
+};
+
+export type MarkNotificationReadApiV1NotificationsNotificationIdReadPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MarkNotificationReadApiV1NotificationsNotificationIdReadPatchError = MarkNotificationReadApiV1NotificationsNotificationIdReadPatchErrors[keyof MarkNotificationReadApiV1NotificationsNotificationIdReadPatchErrors];
+
+export type MarkNotificationReadApiV1NotificationsNotificationIdReadPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: NotificationItem;
+};
+
+export type MarkNotificationReadApiV1NotificationsNotificationIdReadPatchResponse = MarkNotificationReadApiV1NotificationsNotificationIdReadPatchResponses[keyof MarkNotificationReadApiV1NotificationsNotificationIdReadPatchResponses];
+
 export type PermissionRulesApiV1PermissionsRulesGetData = {
     body?: never;
     headers?: {
@@ -2320,6 +3252,37 @@ export type QaQueryApiV1QaQueryPostResponses = {
 };
 
 export type QaQueryApiV1QaQueryPostResponse = QaQueryApiV1QaQueryPostResponses[keyof QaQueryApiV1QaQueryPostResponses];
+
+export type DownloadSharedFileApiV1ShareLinksTokenDownloadPostData = {
+    /**
+     * Payload
+     */
+    body?: ShareLinkDownloadRequest | null;
+    path: {
+        /**
+         * Token
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/api/v1/share-links/{token}/download';
+};
+
+export type DownloadSharedFileApiV1ShareLinksTokenDownloadPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DownloadSharedFileApiV1ShareLinksTokenDownloadPostError = DownloadSharedFileApiV1ShareLinksTokenDownloadPostErrors[keyof DownloadSharedFileApiV1ShareLinksTokenDownloadPostErrors];
+
+export type DownloadSharedFileApiV1ShareLinksTokenDownloadPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type TeamsApiV1TeamsGetData = {
     body?: never;
@@ -2570,6 +3533,78 @@ export type UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses = {
 };
 
 export type UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponse = UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses[keyof UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses];
+
+export type TeamMessagesApiV1TeamsTeamIdMessagesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Team Id
+         */
+        team_id: string;
+    };
+    query?: never;
+    url: '/api/v1/teams/{team_id}/messages';
+};
+
+export type TeamMessagesApiV1TeamsTeamIdMessagesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TeamMessagesApiV1TeamsTeamIdMessagesGetError = TeamMessagesApiV1TeamsTeamIdMessagesGetErrors[keyof TeamMessagesApiV1TeamsTeamIdMessagesGetErrors];
+
+export type TeamMessagesApiV1TeamsTeamIdMessagesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: TeamMessageListResponse;
+};
+
+export type TeamMessagesApiV1TeamsTeamIdMessagesGetResponse = TeamMessagesApiV1TeamsTeamIdMessagesGetResponses[keyof TeamMessagesApiV1TeamsTeamIdMessagesGetResponses];
+
+export type CreateTeamMessageApiV1TeamsTeamIdMessagesPostData = {
+    body: TeamMessageCreate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Team Id
+         */
+        team_id: string;
+    };
+    query?: never;
+    url: '/api/v1/teams/{team_id}/messages';
+};
+
+export type CreateTeamMessageApiV1TeamsTeamIdMessagesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateTeamMessageApiV1TeamsTeamIdMessagesPostError = CreateTeamMessageApiV1TeamsTeamIdMessagesPostErrors[keyof CreateTeamMessageApiV1TeamsTeamIdMessagesPostErrors];
+
+export type CreateTeamMessageApiV1TeamsTeamIdMessagesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: TeamMessageItem;
+};
+
+export type CreateTeamMessageApiV1TeamsTeamIdMessagesPostResponse = CreateTeamMessageApiV1TeamsTeamIdMessagesPostResponses[keyof CreateTeamMessageApiV1TeamsTeamIdMessagesPostResponses];
 
 export type ToolsApiV1ToolsGetData = {
     body?: never;

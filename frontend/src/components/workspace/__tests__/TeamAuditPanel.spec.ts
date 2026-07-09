@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import { defineComponent, h } from 'vue'
 import naive, { NConfigProvider } from 'naive-ui'
 
-import type { AuditLogEntry, TeamSummary, WorkspaceTeamDetail } from '@/client/workspace'
+import type { AuditLogEntry, TeamSummary, WorkspaceNotification, WorkspaceTeamDetail } from '@/client/workspace'
 import TeamAuditPanel from '../TeamAuditPanel.vue'
 
 const teams: TeamSummary[] = [
@@ -72,6 +73,20 @@ const activeTeamDetail: WorkspaceTeamDetail = {
   unread_count: 0,
 }
 
+const notifications: WorkspaceNotification[] = [
+  {
+    content: '李老师回复了 小组周报.docx 的批注',
+    created_at: '2026-07-09T12:00:00Z',
+    id: 'noti-1',
+    is_read: false,
+    target_id: 'file-weekly',
+    target_type: 'file',
+    title: '批注收到回复',
+    type: 'annotation',
+    user_id: 1,
+  },
+]
+
 function mountPanel() {
   const TestHost = defineComponent({
     setup: () => () =>
@@ -80,12 +95,22 @@ function mountPanel() {
           h(TeamAuditPanel, {
             activeTeamDetail,
             auditLogs,
+            markingNotificationId: null,
+            notifications,
+            notificationsLoading: false,
             teamOperationLoading: false,
             teams,
           }),
       }),
   })
-  const wrapper = mount(TestHost, { global: { plugins: [naive] } })
+  const wrapper = mount(TestHost, {
+    global: {
+      plugins: [naive, createPinia()],
+      stubs: {
+        RouterLink: true,
+      },
+    },
+  })
   return {
     panel: wrapper.getComponent(TeamAuditPanel),
     wrapper,
@@ -96,8 +121,8 @@ describe('TeamAuditPanel', () => {
   it('emits team creation and team detail loading actions', async () => {
     const { panel, wrapper } = mountPanel()
 
-    await wrapper.get('input[placeholder="团队名称"]').setValue(' 工程实践小组 ')
-    await wrapper.get('textarea[placeholder="团队说明"]').setValue(' 实验数据共享 ')
+    await wrapper.get('[data-testid="create-team-name"] input').setValue(' 工程实践小组 ')
+    await wrapper.get('[data-testid="create-team-description"] textarea').setValue(' 实验数据共享 ')
     await wrapper.get('[data-testid="submit-create-team"]').trigger('click')
     await wrapper.get('[data-testid="open-team-team-algo"]').trigger('click')
 
@@ -111,7 +136,7 @@ describe('TeamAuditPanel', () => {
   it('emits invite, role update, and remove-member actions from the member manager', async () => {
     const { panel, wrapper } = mountPanel()
 
-    await wrapper.get('input[placeholder="成员邮箱"]').setValue('xiaohong@example.com')
+    await wrapper.get('[data-testid="team-invite-email"] input').setValue('xiaohong@example.com')
     await wrapper.get('[data-testid="submit-team-invite"]').trigger('click')
     await wrapper.get('[data-testid="update-team-member-member-2-admin"]').trigger('click')
     await wrapper.get('[data-testid="remove-team-member-member-2"]').trigger('click')
@@ -122,5 +147,14 @@ describe('TeamAuditPanel', () => {
     ])
     expect(panel.emitted('update-team-member-role')?.[0]).toEqual(['team-algo', 'member-2', 'admin'])
     expect(panel.emitted('remove-team-member')?.[0]).toEqual(['team-algo', 'member-2'])
+  })
+
+  it('forwards notification read actions from the inbox', async () => {
+    const { panel, wrapper } = mountPanel()
+
+    expect(wrapper.text()).toContain('批注收到回复')
+    await wrapper.get('[data-testid="mark-notification-noti-1-read"]').trigger('click')
+
+    expect(panel.emitted('mark-notification-read')?.[0]).toEqual(['noti-1'])
   })
 })

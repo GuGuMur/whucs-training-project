@@ -104,6 +104,143 @@ class FileCopyRequest(BaseModel):
     tags: list[str] | None = None
 
 
+class FileAnnotationCreate(BaseModel):
+    content: str = Field(min_length=1, max_length=2000)
+    position: dict[str, Any] | None = None
+
+
+class FileAnnotationReplyCreate(BaseModel):
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class FileAnnotationReplyItem(BaseModel):
+    id: str
+    annotation_id: str
+    file_id: str
+    author_id: int
+    author_name: str
+    content: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class FileAnnotationItem(BaseModel):
+    id: str
+    file_id: str
+    author_id: int
+    author_name: str
+    content: str
+    position: dict[str, Any] | None
+    created_at: datetime
+    updated_at: datetime
+    replies: list[FileAnnotationReplyItem] = Field(default_factory=list)
+
+
+class FileAnnotationListResponse(BaseModel):
+    items: list[FileAnnotationItem]
+    total: int
+
+
+NotificationType = Literal["invite", "mention", "annotation", "workflow", "system"]
+
+
+class NotificationItem(BaseModel):
+    id: str
+    user_id: int
+    type: NotificationType
+    title: str
+    content: str | None = None
+    target_type: str | None = None
+    target_id: str | None = None
+    is_read: bool
+    created_at: datetime
+
+
+class NotificationListResponse(BaseModel):
+    items: list[NotificationItem]
+    total: int
+    unread_count: int
+
+
+TeamMessageType = Literal["text", "file", "system"]
+
+
+class TeamMessageCreate(BaseModel):
+    content: str = Field(min_length=1, max_length=4000)
+    receiver_id: int | None = None
+    message_type: TeamMessageType = "text"
+
+
+class TeamMessageItem(BaseModel):
+    id: str
+    team_id: str
+    sender_id: int
+    sender_name: str
+    receiver_id: int | None = None
+    content: str
+    message_type: TeamMessageType
+    created_at: datetime
+
+
+class TeamMessageListResponse(BaseModel):
+    items: list[TeamMessageItem]
+    total: int
+
+
+class ShareLinkCreateRequest(BaseModel):
+    password: str | None = Field(default=None, min_length=4, max_length=128)
+    expires_in_seconds: int = Field(default=3600, ge=60)
+    download_limit: int | None = Field(default=None, ge=1)
+
+
+class ShareLinkPublic(BaseModel):
+    id: str
+    file_id: str
+    token: str
+    url: str
+    expires_at: datetime
+    download_limit: int | None
+    download_count: int
+    has_password: bool
+
+
+class ShareLinkDownloadRequest(BaseModel):
+    password: str | None = Field(default=None, min_length=1, max_length=128)
+
+
+MultipartUploadStatus = Literal["uploading", "completed", "expired"]
+
+
+class MultipartUploadInitRequest(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    folder_id: str = Field(min_length=1)
+    size: int = Field(ge=1)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    chunk_size: int = Field(ge=1)
+    tags: list[str] = Field(default_factory=list)
+
+
+class MultipartUploadSession(BaseModel):
+    id: str
+    filename: str
+    folder_id: str
+    size: int
+    sha256: str
+    chunk_size: int
+    total_chunks: int
+    received_chunks: list[int]
+    status: MultipartUploadStatus
+    expires_at: datetime
+
+
+class MultipartChunkResponse(BaseModel):
+    session_id: str
+    chunk_index: int
+    received_chunks: list[int]
+    total_chunks: int
+    status: MultipartUploadStatus
+
+
 class FileVersionItem(BaseModel):
     id: str
     file_id: str
@@ -122,6 +259,17 @@ class FileVersionListResponse(BaseModel):
 
 class FileListResponse(BaseModel):
     items: list[FileItem]
+    total: int
+
+
+class RecycleBinItem(BaseModel):
+    file: FileItem
+    deleted_at: datetime
+    deleted_by: str
+
+
+class RecycleBinResponse(BaseModel):
+    items: list[RecycleBinItem]
     total: int
 
 

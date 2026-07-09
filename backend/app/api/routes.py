@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from urllib.parse import quote
 from typing import Annotated
 
@@ -13,6 +14,11 @@ from app.domain.schemas import (
     CurrentUserResponse,
     ErrorResponse,
     FileCopyRequest,
+    FileAnnotationCreate,
+    FileAnnotationItem,
+    FileAnnotationListResponse,
+    FileAnnotationReplyCreate,
+    FileAnnotationReplyItem,
     FileItem,
     FileListResponse,
     FileUpdate,
@@ -29,17 +35,29 @@ from app.domain.schemas import (
     KnowledgeDocumentListResponse,
     KnowledgeDocumentPublic,
     LoginRequest,
+    MultipartChunkResponse,
+    MultipartUploadInitRequest,
+    MultipartUploadSession,
+    NotificationItem,
+    NotificationListResponse,
     PermissionRuleCreate,
     PermissionRuleListResponse,
     PermissionRulePublic,
     QARequest,
     QAResponse,
     RefreshTokenRequest,
+    RecycleBinResponse,
+    ShareLinkCreateRequest,
+    ShareLinkDownloadRequest,
+    ShareLinkPublic,
     TeamCreate,
     TeamDetail,
     TeamInviteCreate,
     TeamInvitePublic,
     TeamListResponse,
+    TeamMessageCreate,
+    TeamMessageItem,
+    TeamMessageListResponse,
     TeamMemberJoin,
     TeamMemberPublic,
     TeamMemberUpdate,
@@ -129,8 +147,17 @@ def files(
     query: str | None = None,
     tag: str | None = None,
     file_type: str | None = None,
+    updated_from: datetime | None = None,
+    updated_to: datetime | None = None,
 ) -> FileListResponse:
-    items = workspace_service.list_files(user, query=query, tag=tag, file_type=file_type)
+    items = workspace_service.list_files(
+        user,
+        query=query,
+        tag=tag,
+        file_type=file_type,
+        updated_from=updated_from,
+        updated_to=updated_to,
+    )
     return FileListResponse(items=items, total=len(items))
 
 
@@ -142,6 +169,55 @@ async def upload_file(
     tags: Annotated[str | None, Form()] = None,
 ) -> FileItem:
     return await workspace_service.upload_file(file, folder_id, tags, user)
+
+
+@api_router.post(
+    "/files/multipart-uploads",
+    response_model=MultipartUploadSession,
+    status_code=status.HTTP_201_CREATED,
+)
+def init_multipart_upload(
+    payload: MultipartUploadInitRequest,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> MultipartUploadSession:
+    return workspace_service.init_multipart_upload(payload, user)
+
+
+@api_router.get("/files/multipart-uploads/{session_id}", response_model=MultipartUploadSession)
+def multipart_upload_status(
+    session_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> MultipartUploadSession:
+    return workspace_service.get_multipart_upload(session_id, user)
+
+
+@api_router.put("/files/multipart-uploads/{session_id}/chunks/{chunk_index}", response_model=MultipartChunkResponse)
+async def upload_multipart_chunk(
+    session_id: str,
+    chunk_index: int,
+    user: Annotated[UserPublic, Depends(current_user)],
+    chunk: Annotated[UploadFile, File()],
+    sha256: Annotated[str, Form()],
+) -> MultipartChunkResponse:
+    return await workspace_service.upload_multipart_chunk(session_id, chunk_index, chunk, sha256, user)
+
+
+@api_router.post(
+    "/files/multipart-uploads/{session_id}/complete",
+    response_model=FileItem,
+    status_code=status.HTTP_201_CREATED,
+)
+def complete_multipart_upload(
+    session_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> FileItem:
+    return workspace_service.complete_multipart_upload(session_id, user)
+
+
+@api_router.get("/files/recycle-bin", response_model=RecycleBinResponse)
+def recycle_bin(user: Annotated[UserPublic, Depends(current_user)]) -> RecycleBinResponse:
+    items = workspace_service.list_deleted_files(user)
+    return RecycleBinResponse(items=items, total=len(items))
 
 
 @api_router.patch("/files/{file_id}", response_model=FileItem)
@@ -162,9 +238,74 @@ def copy_file(
     return workspace_service.copy_file(file_id, payload, user)
 
 
+@api_router.post("/files/{file_id}/share-links", response_model=ShareLinkPublic, status_code=status.HTTP_201_CREATED)
+def create_file_share_link(
+    file_id: str,
+    payload: ShareLinkCreateRequest,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> ShareLinkPublic:
+    return workspace_service.create_share_link(file_id, payload, user)
+
+
+@api_router.get("/files/{file_id}/annotations", response_model=FileAnnotationListResponse)
+def file_annotations(
+    file_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> FileAnnotationListResponse:
+    items = workspace_service.list_file_annotations(file_id, user)
+    return FileAnnotationListResponse(items=items, total=len(items))
+
+
+@api_router.post(
+    "/files/{file_id}/annotations",
+    response_model=FileAnnotationItem,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_file_annotation(
+    file_id: str,
+    payload: FileAnnotationCreate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> FileAnnotationItem:
+    return workspace_service.create_file_annotation(file_id, payload, user)
+
+
+@api_router.post(
+    "/annotations/{annotation_id}/replies",
+    response_model=FileAnnotationReplyItem,
+    status_code=status.HTTP_201_CREATED,
+)
+def reply_file_annotation(
+    annotation_id: str,
+    payload: FileAnnotationReplyCreate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> FileAnnotationReplyItem:
+    return workspace_service.reply_file_annotation(annotation_id, payload, user)
+
+
+@api_router.delete("/files/{file_id}/annotations/{annotation_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_file_annotation(
+    file_id: str,
+    annotation_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> Response:
+    workspace_service.delete_file_annotation(file_id, annotation_id, user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @api_router.get("/files/{file_id}/download")
 def download_file(file_id: str, user: Annotated[UserPublic, Depends(current_user)]) -> Response:
     file_item, content = workspace_service.download_file(file_id, user)
+    encoded_name = quote(file_item.name, safe="")
+    return Response(
+        content=content,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"},
+    )
+
+
+@api_router.post("/share-links/{token}/download")
+def download_shared_file(token: str, payload: ShareLinkDownloadRequest | None = None) -> Response:
+    file_item, content = workspace_service.download_shared_file(token, payload.password if payload else None)
     encoded_name = quote(file_item.name, safe="")
     return Response(
         content=content,
@@ -185,6 +326,11 @@ def restore_file_version(
     user: Annotated[UserPublic, Depends(current_user)],
 ) -> FileItem:
     return workspace_service.restore_file_version(file_id, version_id, user)
+
+
+@api_router.post("/files/{file_id}/restore", response_model=FileItem)
+def restore_deleted_file(file_id: str, user: Annotated[UserPublic, Depends(current_user)]) -> FileItem:
+    return workspace_service.restore_deleted_file(file_id, user)
 
 
 @api_router.delete("/files/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -320,6 +466,21 @@ def team_detail(team_id: str, user: Annotated[UserPublic, Depends(current_user)]
     return workspace_service.get_team_detail(team_id, user)
 
 
+@api_router.get("/teams/{team_id}/messages", response_model=TeamMessageListResponse)
+def team_messages(team_id: str, user: Annotated[UserPublic, Depends(current_user)]) -> TeamMessageListResponse:
+    items = workspace_service.list_team_messages(team_id, user)
+    return TeamMessageListResponse(items=items, total=len(items))
+
+
+@api_router.post("/teams/{team_id}/messages", response_model=TeamMessageItem, status_code=status.HTTP_201_CREATED)
+def create_team_message(
+    team_id: str,
+    payload: TeamMessageCreate,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> TeamMessageItem:
+    return workspace_service.create_team_message(team_id, payload, user)
+
+
 @api_router.post("/teams/{team_id}/invites", response_model=TeamInvitePublic, status_code=status.HTTP_201_CREATED)
 def create_team_invite(
     team_id: str,
@@ -375,6 +536,21 @@ def create_permission_rule(
 def delete_permission_rule(rule_id: str, user: Annotated[UserPublic, Depends(current_user)]) -> Response:
     workspace_service.delete_permission_rule(rule_id, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@api_router.get("/notifications", response_model=NotificationListResponse)
+def notifications(user: Annotated[UserPublic, Depends(current_user)]) -> NotificationListResponse:
+    items = workspace_service.list_notifications(user)
+    unread_count = sum(1 for item in items if not item.is_read)
+    return NotificationListResponse(items=items, total=len(items), unread_count=unread_count)
+
+
+@api_router.patch("/notifications/{notification_id}/read", response_model=NotificationItem)
+def mark_notification_read(
+    notification_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+) -> NotificationItem:
+    return workspace_service.mark_notification_read(notification_id, user)
 
 
 @api_router.get("/audit-logs", response_model=AuditLogResponse)

@@ -67,8 +67,8 @@ describe('frontend source architecture', () => {
   it('proxies same-origin API calls to the FastAPI backend during local development', () => {
     const viteConfig = readFileSync(resolve(frontendRoot, 'vite.config.ts'), 'utf-8')
 
-    expect(viteConfig).toContain("'/api'")
-    expect(viteConfig).toContain("target: 'http://127.0.0.1:8000'")
+    expect(viteConfig).toMatch(/["']\/api["']/)
+    expect(viteConfig).toMatch(/target:\s*["']http:\/\/127\.0\.0\.1:8000["']/)
     expect(viteConfig).toContain('changeOrigin: true')
   })
 })

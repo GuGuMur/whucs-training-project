@@ -5,21 +5,29 @@ import { Plus, ShieldCheck, Trash2, UserPlus, Users } from '@lucide/vue'
 import type {
   AuditLogEntry,
   TeamSummary,
+  WorkspaceNotification,
   WorkspaceTeamCreateInput,
   WorkspaceTeamDetail,
   WorkspaceTeamInviteInput,
   WorkspaceTeamRole,
 } from '@/client/workspace'
 import { useAuthStore } from '@/stores/auth'
+import NotificationInboxPanel from './NotificationInboxPanel.vue'
 
 const auth = useAuthStore()
 const props = withDefaults(defineProps<{
   activeTeamDetail?: WorkspaceTeamDetail | null
   auditLogs: AuditLogEntry[]
+  markingNotificationId?: string | null
+  notifications?: WorkspaceNotification[]
+  notificationsLoading?: boolean
   teamOperationLoading?: boolean
   teams: TeamSummary[]
 }>(), {
   activeTeamDetail: null,
+  markingNotificationId: null,
+  notifications: () => [],
+  notificationsLoading: false,
   teamOperationLoading: false,
 })
 
@@ -27,6 +35,7 @@ const emit = defineEmits<{
   'create-team': [payload: WorkspaceTeamCreateInput]
   'invite-team-member': [teamId: string, payload: WorkspaceTeamInviteInput]
   'load-team-detail': [teamId: string]
+  'mark-notification-read': [notificationId: string]
   'remove-team-member': [teamId: string, memberId: string]
   'update-team-member-role': [teamId: string, memberId: string, role: WorkspaceTeamRole]
 }>()
@@ -94,10 +103,17 @@ function statusType(role: WorkspaceTeamRole) {
 
       <NForm :show-feedback="false" label-placement="top">
         <div class="grid gap-2">
-          <NInput v-model:value="createName" clearable placeholder="????" :disabled="teamOperationLoading" />
+          <NInput
+            v-model:value="createName"
+            clearable
+            data-testid="create-team-name"
+            placeholder="????"
+            :disabled="teamOperationLoading"
+          />
           <NInput
             v-model:value="createDescription"
             clearable
+            data-testid="create-team-description"
             placeholder="????"
             type="textarea"
             :autosize="{ minRows: 2, maxRows: 3 }"
@@ -167,7 +183,13 @@ function statusType(role: WorkspaceTeamRole) {
         </div>
 
         <div class="grid grid-cols-[minmax(0,1fr)_112px_auto] gap-2 max-md:grid-cols-1">
-          <NInput v-model:value="inviteEmail" clearable placeholder="????" :disabled="teamOperationLoading" />
+          <NInput
+            v-model:value="inviteEmail"
+            clearable
+            data-testid="team-invite-email"
+            placeholder="????"
+            :disabled="teamOperationLoading"
+          />
           <NSelect v-model:value="inviteRole" :options="inviteRoleOptions" :disabled="teamOperationLoading" />
           <NButton
             data-testid="submit-team-invite"
@@ -231,6 +253,13 @@ function statusType(role: WorkspaceTeamRole) {
 
       <NEmpty v-else size="small" description="?????" />
     </NCard>
+
+    <NotificationInboxPanel
+      :marking-notification-id="markingNotificationId"
+      :notifications="notifications"
+      :notifications-loading="notificationsLoading"
+      @mark-notification-read="emit('mark-notification-read', $event)"
+    />
 
     <NCard v-if="auth.canAccessPermissionAudit" id="audit" class="min-w-0 overflow-hidden scroll-mt-24 max-md:scroll-mt-32" size="small">
       <template #header>

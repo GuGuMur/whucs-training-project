@@ -673,6 +673,282 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-09T12:08:00+08:00"
+    },
+    {
+      "id": "bug-041",
+      "timestamp": "2026-07-09T19:03:59+08:00",
+      "error_message": "ModuleNotFoundError: No module named 'app' when running `uv run pytest tests/test_workspace_api.py -q -k \"recycle_bin or restore_recovers\"` from `backend/`.",
+      "file": "backend/tests/test_workspace_api.py",
+      "root_cause": "Plain `uv run pytest` did not put the backend project root on `PYTHONPATH`, so test collection could not import `app.main`.",
+      "fix": "Used `PYTHONPATH=. uv run python -m pytest ...` for backend test runs and recorded the command pattern in project notes.",
+      "tags": [
+        "backend",
+        "pytest",
+        "uv",
+        "pythonpath"
+      ],
+      "related_bugs": [
+        "bug-012"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T19:03:59+08:00"
+    },
+    {
+      "id": "bug-042",
+      "timestamp": "2026-07-09T19:03:59+08:00",
+      "error_message": "Recycle-bin backend TDD test received 405 for `GET /api/v1/files/recycle-bin`.",
+      "file": "backend/app/api/routes.py",
+      "root_cause": "The recycle-bin route did not exist, so FastAPI matched the dynamic `/files/{file_id}` path and returned method-not-allowed for GET.",
+      "fix": "Added `RecycleBinItem`/`RecycleBinResponse`, active-vs-deleted service state, static `/files/recycle-bin` before dynamic file routes, and `POST /files/{file_id}/restore`.",
+      "tags": [
+        "backend",
+        "files",
+        "soft-delete",
+        "route-order",
+        "tdd-red"
+      ],
+      "related_bugs": [
+        "bug-030"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T19:03:59+08:00"
+    },
+    {
+      "id": "bug-043",
+      "timestamp": "2026-07-09T19:03:59+08:00",
+      "error_message": "Frontend recycle-bin store test failed because `listWorkspaceRecycleBin` was not defined on the workspace client adapter.",
+      "file": "frontend/src/client/workspace.ts",
+      "root_cause": "The backend OpenAPI schema had new recycle-bin routes, but the frontend generated client had not been regenerated and the hand-written adapter/store actions were missing.",
+      "fix": "Regenerated the OpenAPI client, added `listWorkspaceRecycleBin()` and `restoreWorkspaceDeletedFile()` adapters, and exposed Pinia recycle-bin state/actions.",
+      "tags": [
+        "frontend",
+        "pinia",
+        "generated-client",
+        "soft-delete",
+        "tdd-red"
+      ],
+      "related_bugs": [
+        "bug-031"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T19:03:59+08:00"
+    },
+    {
+      "id": "bug-044",
+      "timestamp": "2026-07-09T19:10:50+08:00",
+      "error_message": "`test_file_listing_filters_by_updated_time_range` returned both tagged uploads because `/api/v1/files` ignored `updated_from` and `updated_to` query parameters.",
+      "file": "backend/app/api/routes.py",
+      "root_cause": "FR-F07 time-range filtering had not been wired into the file listing route or service filter pipeline.",
+      "fix": "Added typed `updated_from`/`updated_to` datetime query params on the files route and filtered visible files by inclusive `updated_at` bounds in the workspace service.",
+      "tags": [
+        "backend",
+        "files",
+        "search",
+        "time-range",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T19:10:50+08:00"
+    },
+    {
+      "id": "bug-045",
+      "timestamp": "2026-07-09T19:10:50+08:00",
+      "error_message": "Workspace store search test dropped `updatedFrom` and `updatedTo` before calling `listWorkspaceFiles`.",
+      "file": "frontend/src/stores/workspace.ts",
+      "root_cause": "The `WorkspaceFileFilters` contract and store normalizer only included query, tag, and file type.",
+      "fix": "Extended `WorkspaceFileFilters` with `updatedFrom`/`updatedTo`, normalized the fields in Pinia, and mapped them to generated-client query params in the workspace adapter.",
+      "tags": [
+        "frontend",
+        "pinia",
+        "files",
+        "time-range",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T19:10:50+08:00"
+    },
+    {
+      "id": "bug-046",
+      "timestamp": "2026-07-09T19:10:50+08:00",
+      "error_message": "FileWorkbench search test could not find `input[placeholder=\"更新时间起\"]`.",
+      "file": "frontend/src/components/workspace/FileWorkbench.vue",
+      "root_cause": "The file toolbar had no visible controls for FR-F07 updated-time range filtering.",
+      "fix": "Added clearable FileWorkbench toolbar inputs for updated-time start/end values and emitted them through search/reset filter payloads.",
+      "tags": [
+        "frontend",
+        "vue",
+        "files",
+        "time-range",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T19:10:50+08:00"
+    },
+    {
+      "id": "bug-047",
+      "timestamp": "2026-07-09T19:41:08+08:00",
+      "error_message": "Annotation API test failed with 404 on `POST /api/v1/files/{file_id}/annotations`.",
+      "file": "backend/app/api/routes.py",
+      "root_cause": "US-T03/FR-C05 annotation routes and service methods had not been implemented.",
+      "fix": "Added file annotation list/create, reply, and delete routes backed by in-memory service state, file read permission checks, delete authorization, audit events, and team unread-count increments.",
+      "tags": [
+        "backend",
+        "annotations",
+        "collaboration",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T19:41:08+08:00"
+    },
+    {
+      "id": "bug-048",
+      "timestamp": "2026-07-09T19:41:08+08:00",
+      "error_message": "OpenAPI export test failed because `/api/v1/files/{file_id}/annotations` was absent from schema paths.",
+      "file": "backend/tests/test_openapi_export.py",
+      "root_cause": "The backend OpenAPI contract had no annotation path assertions or route definitions.",
+      "fix": "Added OpenAPI assertions for annotation list/create, reply, and delete paths and regenerated the frontend client from the updated schema.",
+      "tags": [
+        "backend",
+        "openapi",
+        "annotations",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T19:41:08+08:00"
+    },
+    {
+      "id": "bug-049",
+      "timestamp": "2026-07-09T19:41:08+08:00",
+      "error_message": "Workspace store annotation test failed because `listWorkspaceFileAnnotations` was not defined on the workspace client adapter.",
+      "file": "frontend/src/client/workspace.ts",
+      "root_cause": "Generated annotation SDK functions had not been wrapped by the hand-written workspace adapter or exposed through Pinia actions.",
+      "fix": "Regenerated the OpenAPI client, added annotation adapter functions and types, and added Pinia state/actions for loading, creating, replying, and deleting annotations.",
+      "tags": [
+        "frontend",
+        "pinia",
+        "generated-client",
+        "annotations",
+        "tdd-red"
+      ],
+      "related_bugs": [
+        "bug-048"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T19:41:08+08:00"
+    },
+    {
+      "id": "bug-050",
+      "timestamp": "2026-07-09T19:41:08+08:00",
+      "error_message": "FileAnnotationPanel test failed to resolve `../FileAnnotationPanel.vue`.",
+      "file": "frontend/src/components/workspace/FileAnnotationPanel.vue",
+      "root_cause": "The file annotation presenter component did not exist before the collaboration slice.",
+      "fix": "Added `FileAnnotationPanel.vue` with typed props/emits, Naive UI controls, escaped interpolation rendering, and FileWorkbench/WorkspaceView event wiring.",
+      "tags": [
+        "frontend",
+        "vue",
+        "annotations",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T19:41:08+08:00"
+    },
+    {
+      "id": "bug-051",
+      "timestamp": "2026-07-09T20:10:00+08:00",
+      "error_message": "Notification API test returned 404 for `GET /api/v1/notifications`.",
+      "file": "backend/app/api/routes.py",
+      "root_cause": "FR-C07 notification inbox routes and service methods did not exist after the annotation signal slice.",
+      "fix": "Added notification schemas, in-memory notification storage, list/read service methods, FastAPI routes, unread-count derivation, and `notification.read` audit events.",
+      "tags": [
+        "backend",
+        "notifications",
+        "collaboration",
+        "tdd-red"
+      ],
+      "related_bugs": [
+        "bug-047"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T20:10:00+08:00"
+    },
+    {
+      "id": "bug-052",
+      "timestamp": "2026-07-09T20:10:00+08:00",
+      "error_message": "OpenAPI export test failed because notification paths were absent from schema paths.",
+      "file": "backend/tests/test_openapi_export.py",
+      "root_cause": "The backend OpenAPI contract had no notification path assertions or route definitions.",
+      "fix": "Added OpenAPI assertions for `/api/v1/notifications` and `/api/v1/notifications/{notification_id}/read`, then regenerated the frontend client.",
+      "tags": [
+        "backend",
+        "openapi",
+        "notifications",
+        "tdd-red"
+      ],
+      "related_bugs": [
+        "bug-051"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T20:10:00+08:00"
+    },
+    {
+      "id": "bug-053",
+      "timestamp": "2026-07-09T20:10:00+08:00",
+      "error_message": "Workspace store notification test failed because `listWorkspaceNotifications` was not defined on the workspace client adapter.",
+      "file": "frontend/src/client/workspace.ts",
+      "root_cause": "Generated notification SDK functions had not been wrapped by the hand-written workspace adapter or exposed through Pinia actions.",
+      "fix": "Regenerated the OpenAPI client, added notification adapter functions and types, and added Pinia state/actions for loading notifications and marking them read.",
+      "tags": [
+        "frontend",
+        "pinia",
+        "generated-client",
+        "notifications",
+        "tdd-red"
+      ],
+      "related_bugs": [
+        "bug-052"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T20:10:00+08:00"
+    },
+    {
+      "id": "bug-054",
+      "timestamp": "2026-07-09T20:10:00+08:00",
+      "error_message": "NotificationInboxPanel test failed to resolve `../NotificationInboxPanel.vue`.",
+      "file": "frontend/src/components/workspace/NotificationInboxPanel.vue",
+      "root_cause": "The notification inbox presenter component did not exist before the FR-C07 inbox slice.",
+      "fix": "Added `NotificationInboxPanel.vue` with typed props/emits, Naive UI rendering for unread/read notifications, and TeamAuditPanel/WorkspaceView event wiring.",
+      "tags": [
+        "frontend",
+        "vue",
+        "notifications",
+        "tdd-red"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T20:10:00+08:00"
+    },
+    {
+      "id": "bug-055",
+      "timestamp": "2026-07-09T20:10:00+08:00",
+      "error_message": "NotificationInboxPanel test import used `@/plugins/naive` named export incorrectly.",
+      "file": "frontend/src/components/workspace/__tests__/NotificationInboxPanel.spec.ts",
+      "root_cause": "`frontend/src/plugins/naive.ts` does not expose the same named plugin expected by the test setup.",
+      "fix": "Imported the `naive` plugin from `naive-ui` in the component test setup.",
+      "tags": [
+        "frontend",
+        "vitest",
+        "naive-ui",
+        "import"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T20:10:00+08:00"
     }
   ]
 }

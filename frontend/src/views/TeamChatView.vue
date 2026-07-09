@@ -1,8 +1,9 @@
 ﻿<script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { AtSign, BellRing, FileText, LockKeyhole, Paperclip, Search, Send, ShieldCheck, UsersRound } from '@lucide/vue'
 
+import type { WorkspaceTeamMessage } from '@/client/workspace'
 import { useWorkspaceLayoutMode } from '@/composables/useWorkspaceLayoutMode'
 import { useWorkspaceNavigation } from '@/composables/useWorkspaceNavigation'
 import DesktopWorkspaceLayout from '@/layouts/DesktopWorkspaceLayout.vue'
@@ -17,8 +18,8 @@ interface ChatMessage {
   time: string
   content: string
   mine?: boolean
-  attachment?: string
   mentions?: string[]
+  messageType: WorkspaceTeamMessage['message_type']
 }
 
 interface TeamMember {
@@ -46,7 +47,16 @@ interface MentionOption {
 
 const auth = useAuthStore()
 const workspace = useWorkspaceStore()
-const { apiState, auditLogs, summary, teams } = storeToRefs(workspace)
+const {
+  activeTeamDetail,
+  apiState,
+  auditLogs,
+  summary,
+  teams,
+  teamMessagesById,
+  teamMessageSending,
+  teamMessageTeamIdLoading,
+} = storeToRefs(workspace)
 const { isMobileLayout } = useWorkspaceLayoutMode()
 const { apiStateLabel, apiStateType, navItems } = useWorkspaceNavigation(apiState, 'team-chat')
 const workspaceLayout = computed(() => (isMobileLayout.value ? MobileWorkspaceLayout : DesktopWorkspaceLayout))
@@ -62,48 +72,34 @@ const fallbackTeam = computed(() =>
 )
 const activeTeam = computed(() => teams.value.find((team) => team.id === activeTeamId.value) ?? fallbackTeam.value)
 const totalUnread = computed(() => teams.value.reduce((sum, team) => sum + team.unread_count, 0))
-const canMentionAll = computed(() => /组长|管理员/.test(activeTeam.value.role))
-
-const messages = ref<ChatMessage[]>([
-  {
-    id: 'msg-1',
-    author: '林予安',
-    role: '组长',
-    time: '09:18',
-    content: '我把需求规格说明书放到团队文件夹了，今天先集中确认聊天、批注和周报生成这条流程。',
-    attachment: '需求规格说明书.md',
-  },
-  {
-    id: 'msg-2',
-    author: '周明',
-    role: '成员',
-    time: '09:26',
-    content: '已看。团队协作这里需要能看到实时群聊、成员在线状态、文件引用和未读提醒，刷新后聊天记录还要保留。',
-  },
-  {
-    id: 'msg-3',
-    author: '智能助手',
-    role: 'Agent',
-    time: '09:31',
-    content: '已根据团队文件生成待办摘要：补充 WebSocket 重连、消息持久化、@ 提醒和权限校验验收点。',
-    attachment: '团队周报草稿.docx',
-  },
-  {
-    id: 'msg-4',
-    author: '我',
-    role: '成员',
-    time: '09:42',
-    content: '收到，我先把聊天页面接到独立路由，后续再接真实 WebSocket。',
-    mine: true,
-  },
-])
+const canMentionAll = computed(() => ['owner', 'admin', '组长', '管理员'].includes(activeTeam.value.role))
+const rawMessages = computed(() => teamMessagesById.value[activeTeam.value.id] ?? [])
+const currentUserId = computed(() => auth.currentUser?.id ?? null)
 
 const members = computed<TeamMember[]>(() => [
-  { id: 'member-1', name: '林予安', role: '组长', online: true },
-  { id: 'member-2', name: '周明', role: '资料整理', online: true },
-  { id: 'member-3', name: '陈可', role: '报告撰写', online: false },
-  { id: 'member-4', name: '智能助手', role: 'Agent', online: true },
+  ...(activeTeamDetail.value?.id === activeTeam.value.id
+    ? activeTeamDetail.value.members.map((member) => ({
+        id: member.id,
+        name: member.display_name || member.username,
+        role: member.role,
+        online: true,
+      }))
+    : []),
+  { id: 'member-agent', name: '智能助手', role: 'Agent', online: true },
 ])
+
+const messages = computed<ChatMessage[]>(() =>
+  rawMessages.value.map((message) => ({
+    id: message.id,
+    author: message.sender_name,
+    role: memberRoleLabel(message.sender_name, message.message_type),
+    time: formatMessageTime(message.created_at),
+    content: message.content,
+    mentions: mentionedTargets(message.content),
+    mine: currentUserId.value !== null && message.sender_id === currentUserId.value,
+    messageType: message.message_type,
+  })),
+)
 
 const notices = ref<TeamNotice[]>([
   { id: 'notice-1', title: '@ 提醒', detail: '周明在需求文档批注中提到了你', type: 'info' },
@@ -131,6 +127,26 @@ const mentionOptions = computed<MentionOption[]>(() => {
 onMounted(() => {
   void workspace.loadWorkspace()
 })
+
+watch(
+  teams,
+  (items) => {
+    if (!activeTeamId.value && items[0]) {
+      activeTeamId.value = items[0].id
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  activeTeamId,
+  (teamId) => {
+    if (teamId) {
+      void workspace.loadTeamMessages(teamId)
+    }
+  },
+  { immediate: true },
+)
 
 function selectTeam(teamId: string) {
   activeTeamId.value = teamId
@@ -182,19 +198,29 @@ function mentionedTargets(content: string) {
   return targets
 }
 
-function sendMessage() {
+function memberRoleLabel(senderName: string, messageType: WorkspaceTeamMessage['message_type']) {
+  if (messageType === 'system') {
+    return 'system'
+  }
+  const member = activeTeamDetail.value?.members.find(
+    (item) => item.username === senderName || item.display_name === senderName,
+  )
+  return member?.role ?? 'member'
+}
+
+function formatMessageTime(createdAt: string) {
+  return new Date(createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
+
+async function sendMessage() {
   const content = draftMessage.value.trim()
   if (!content) return
 
   const mentions = mentionedTargets(content)
-  messages.value.push({
-    id: `msg-${Date.now()}`,
-    author: '我',
-    role: activeTeam.value.role,
-    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+  await workspace.sendTeamMessage(activeTeam.value.id, {
     content,
-    mentions,
-    mine: true,
+    message_type: 'text',
+    receiver_id: null,
   })
   if (mentions.length) {
     notices.value.unshift({
@@ -261,9 +287,12 @@ function sendMessage() {
           <header class="chat-toolbar">
             <div>
               <strong>{{ activeTeam.name }}</strong>
-              <span>群聊 · WebSocket 待接入 · 历史消息已持久化展示</span>
+              <span>群聊 · 历史消息由后端 API 加载 · WebSocket 待接入</span>
             </div>
             <NSpace :size="8">
+              <NTag v-if="teamMessageTeamIdLoading === activeTeam.id" size="small" type="info" :bordered="false">
+                加载历史
+              </NTag>
               <NButton size="small" secondary @click="openMentionPanel">
                 <template #icon><NIcon><AtSign /></NIcon></template>
                 提醒成员
@@ -290,9 +319,9 @@ function sendMessage() {
                     @{{ target }}
                   </NTag>
                 </div>
-                <button v-if="message.attachment" class="attachment-pill" type="button">
+                <button v-if="message.messageType === 'file'" class="attachment-pill" type="button">
                   <Paperclip :size="14" />
-                  {{ message.attachment }}
+                  文件消息
                 </button>
               </div>
             </article>
@@ -325,7 +354,7 @@ function sendMessage() {
                 @update:value="updateDraftMessage"
               />
             </div>
-            <NButton type="primary" attr-type="submit">
+            <NButton type="primary" attr-type="submit" :loading="teamMessageSending">
               <template #icon><NIcon><Send /></NIcon></template>
               发送
             </NButton>
