@@ -58,7 +58,19 @@ class FolderItem(BaseModel):
     parent_id: str | None = None
     scope: Literal["personal", "team"]
     permission: str
+    team_id: str | None = None
     children: list["FolderItem"] = Field(default_factory=list)
+
+
+class FolderCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    parent_id: str | None = None
+    scope: Literal["personal", "team"] = "personal"
+
+
+class FolderUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    parent_id: str | None = None
 
 
 class FolderTreeResponse(BaseModel):
@@ -77,6 +89,34 @@ class FileItem(BaseModel):
     updated_at: datetime
     permission_scope: str
     knowledge_base_ids: list[str]
+
+
+class FileUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    folder_id: str | None = None
+    tags: list[str] | None = None
+
+
+class FileCopyRequest(BaseModel):
+    target_folder_id: str = Field(min_length=1)
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    tags: list[str] | None = None
+
+
+class FileVersionItem(BaseModel):
+    id: str
+    file_id: str
+    version_no: int
+    name: str
+    size: int
+    sha256: str
+    created_at: datetime
+    created_by: str
+    is_current: bool
+
+
+class FileVersionListResponse(BaseModel):
+    items: list[FileVersionItem]
 
 
 class FileListResponse(BaseModel):
@@ -186,13 +226,73 @@ class WorkflowExecutionResponse(BaseModel):
 class TeamSummary(BaseModel):
     id: str
     name: str
+    description: str = ""
     role: str
     member_count: int
     unread_count: int
+    root_folder_id: str | None = None
 
 
 class TeamListResponse(BaseModel):
     items: list[TeamSummary]
+
+
+TeamRole = Literal["owner", "admin", "member", "guest"]
+TeamMemberStatus = Literal["active", "invited", "removed"]
+TeamInviteStatus = Literal["pending", "accepted", "revoked", "expired"]
+
+
+class TeamCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class TeamInviteCreate(BaseModel):
+    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    role: TeamRole = "member"
+
+
+class TeamMemberJoin(BaseModel):
+    invite_token: str = Field(min_length=1)
+
+
+class TeamMemberUpdate(BaseModel):
+    role: TeamRole
+
+
+class TeamMemberPublic(BaseModel):
+    id: str
+    team_id: str
+    user_id: int
+    username: str
+    email: str
+    display_name: str
+    role: TeamRole
+    status: TeamMemberStatus
+    joined_at: datetime
+
+
+class TeamInvitePublic(BaseModel):
+    id: str
+    team_id: str
+    email: str
+    role: TeamRole
+    status: TeamInviteStatus
+    token: str
+    created_at: datetime
+    expires_at: datetime
+
+
+class TeamDetail(BaseModel):
+    id: str
+    name: str
+    description: str
+    role: TeamRole
+    member_count: int
+    unread_count: int
+    root_folder: FolderItem
+    members: list[TeamMemberPublic]
+    invites: list[TeamInvitePublic]
 
 
 class AuditLogEntry(BaseModel):
