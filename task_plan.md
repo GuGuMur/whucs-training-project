@@ -4,7 +4,7 @@
 Build a frontend-backend separated, well-structured intelligent file management and agent collaboration platform based on the documents under `report/`.
 
 ## Current Phase
-Phase 24 — Notification Inbox API/UI (complete)
+Phase 27 — LLM Answer Generation Service (complete)
 
 ## Phases
 
@@ -204,6 +204,31 @@ Phase 24 — Notification Inbox API/UI (complete)
 - [x] Regenerate the OpenAPI client and add notification adapters/store state/actions.
 - [x] Add `NotificationInboxPanel.vue` and compose it inside `TeamAuditPanel.vue` via `WorkspaceView.vue`.
 - [x] Re-run focused and full backend/frontend verification, type checking, build, JSON validation, and diff whitespace checks.
+- **Status:** complete
+
+### Phase 25: Document Parser Integration & Verification
+- [x] Remove dead `_chunk_file_content()` method replaced by real parser.
+- [x] Add `backend/tests/test_parser.py` with 21 unit tests covering all 6 formats (PDF/DOCX/PPTX/TXT/MD/CSV), error handling, and segment metadata.
+- [x] Add parser integration tests to `test_workspace_api.py` for KB indexing lifecycle, parse failure handling, and QA citation flow.
+- [x] Regenerate the OpenAPI client and verify frontend parse_status display.
+- [x] Re-run full backend/frontend verification, type checking, build, JSON validation, and diff whitespace checks.
+- **Status:** complete
+
+### Phase 26: Semantic Embedding & FAISS Vector Search
+- [x] Create `backend/app/services/embedding.py` wrapping sentence-transformers (MiniLM-L12-v2, 384-dim) with lazy loading and zero-vector fallback.
+- [x] Integrate FAISS `IndexFlatIP` per knowledge base: rebuild index after document add, search with inner product (cosine).
+- [x] Replace character-overlap `_chunk_score()`/`_search_chars()` with FAISS semantic search in `_retrieve_knowledge_citations()`.
+- [x] Fix `_compose_rag_answer()` — remove hardcoded microscope response, use generic snippet composition.
+- [x] Add `backend/tests/test_embedding.py` with 10 tests covering shape, normalization, semantic similarity, cross-language, and FAISS retrieval integration.
+- [x] Re-run full verification: 66 backend tests, 62 frontend tests, type check, build all pass.
+- **Status:** complete
+
+### Phase 27: LLM Answer Generation Service
+- [x] Create `backend/app/services/llm.py` wrapping langchain-openai ChatOpenAI with graceful template fallback when unconfigured.
+- [x] Integrate LLM into `_compose_rag_answer()` — uses real LLM when `OPENAI_API_KEY` is set, otherwise concatenates snippets.
+- [x] Chinese prompt template with source citation requirements.
+- [x] Add `backend/tests/test_llm.py` with 5 tests covering availability check, template fallback, empty snippets, and API key configuration.
+- [x] Full verification: 71 backend tests pass.
 - **Status:** complete
 
 ## Key Questions

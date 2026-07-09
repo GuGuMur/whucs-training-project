@@ -1,17 +1,21 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-09T08:44:18.147Z
-> Files: 92 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-09T14:19:43.166Z
+> Files: 103 tracked | Anatomy hits: 0 | Misses: 0
+
+## ../.claude/plans/
+
+- `eventual-rolling-stardust.md` — Phase 25: Document Parser Integration & Verification (~591 tok)
 
 ## ./
 
 - `CLAUDE.md` — OpenWolf (~57 tok)
 - `DESIGN.md` — Open Design 项目设计系统，定义智能文件管理平台的视觉风格、组件、布局和响应式规则 (~1500 tok)
-- `findings.md` — Findings & Decisions (~2726 tok)
+- `findings.md` — Findings & Decisions (~5086 tok)
 - `OPEN_DESIGN.md` — Open Design 使用说明，记录导入本项目、MCP 命令和推荐 prompt (~300 tok)
-- `progress.md` — Progress Log (~17824 tok)
+- `progress.md` — Progress Log (~20740 tok)
 - `README.md` — Project documentation (~0 tok)
-- `task_plan.md` — Task Plan: Intelligent File Workspace Platform (~6318 tok)
+- `task_plan.md` — Task Plan: Intelligent File Workspace Platform (~7503 tok)
 
 ## .claude/
 
@@ -40,12 +44,27 @@
 - `app/main.py` — FastAPI application factory, CORS, health route, and structured workspace error handler (~350 tok)
 - `app/openapi_export.py` — CLI/helper for exporting FastAPI OpenAPI JSON to the frontend client boundary (~250 tok)
 - `app/services/__init__.py` — Service package marker (~10 tok)
-- `app/services/workspace.py` — In-memory MVP domain service with demo auth, token-kind refresh rotation, profile updates, folder tree CRUD, files, annotations, notifications/unread counts, RAG citations, tools, agents, workflows, teams, ACL permission rules, and audit logs (~8200 tok)
+- `app/services/parser.py` — Multi-format document parser (PDF/DOCX/PPTX/TXT/MD/CSV) with lazy-loaded extractors, segment metadata, and ParseError handling (~200 tok)
+- `app/services/workspace.py` — In-memory MVP domain service with demo auth, token-kind refresh rotation, profile updates, folder tree CRUD, files, annotations, notifications/unread counts, RAG citations, tools, agents, workflows, teams, ACL permission rules, audit logs, and integrated document parser (~8200 tok)
 - `main.py` — Uvicorn-compatible backend entry point importing `app.main:app` (~80 tok)
-- `pyproject.toml` — Backend uv project metadata and production dependency list (~900 tok)
+- `pyproject.toml` — Add your description here (~266 tok)
 - `README.md` — Project documentation (~0 tok)
 - `tests/test_openapi_export.py` — Backend OpenAPI export contract test for title, version, server URL, workspace snapshot, folder CRUD paths, file lifecycle/annotation/notification paths, workflow paths, team paths, and permission rule paths (~600 tok)
+- `tests/test_parser.py` — Parser unit tests: 21 tests covering 6 formats (PDF/DOCX/PPTX/TXT/MD/CSV), format detection, error handling, and segment metadata (~400 tok)
 - `tests/test_workspace_api.py` — Backend API contract tests for auth, refresh-token/profile boundaries, folder CRUD/tree validations, file lifecycle/versioning, files, annotations, notifications, RAG, agent tools, workflow MVP, team RBAC, and ACL permission rules (~4200 tok)
+
+## backend/app/services/
+
+- `embedding.py` — Semantic embedding service wrapping sentence-transformers. (~576 tok)
+- `llm.py` — LLM service wrapping OpenAI-compatible APIs with graceful fallback. (~775 tok)
+- `workspace.py` — WorkspaceError: register_user, login_user, refresh_session, require_user + 3 more (~36844 tok)
+
+## backend/tests/
+
+- `test_embedding.py` — Tests for the embedding service. (~834 tok)
+- `test_llm.py` — Tests for the LLM service with graceful fallback. (~445 tok)
+- `test_parser.py` — Tests for the multi-format document parser. (~2124 tok)
+- `test_workspace_api.py` — auth_session, auth_headers, session_headers, test_register_login_and_current_user_require_bearer_tok (~21681 tok)
 
 ## frontend deleted starter files/
 
@@ -69,8 +88,8 @@
 - `src/client/generated/types.gen.ts` — Auto-generated TypeScript types from backend OpenAPI schemas, including notification item/list response types (~5600 tok)
 - `src/client/index.ts` — Client module barrel, reserved for OpenAPI-generated client integration (~20 tok)
 - `src/client/workspace.ts` — Workspace client adapter and demo data using generated OpenAPI types/SDK for snapshot, folder tree/CRUD, file list/upload/download/delete/update/copy/version restore, annotations, notifications, knowledge bases, workflows, teams, permission rules, and auth headers (~5600 tok)
-- `src/components/workspace/__tests__/FileWorkbench.spec.ts` — File workbench blackbox test for search/upload controls, row download/delete actions, lifecycle management, copy, and version restore emits (~850 tok)
 - `src/components/workspace/__tests__/FileAnnotationPanel.spec.ts` — File annotation panel blackbox test for escaped rendering and create/reply/delete emits (~650 tok)
+- `src/components/workspace/__tests__/FileWorkbench.spec.ts` — File workbench blackbox test for search/upload controls, row download/delete actions, lifecycle management, copy, and version restore emits (~850 tok)
 - `src/components/workspace/__tests__/FolderTreePanel.spec.ts` — Folder tree panel blackbox test for tree rendering, breadcrumbs, select, create, rename, and delete events (~650 tok)
 - `src/components/workspace/__tests__/NotificationInboxPanel.spec.ts` — Notification inbox panel blackbox test for unread/read rendering and mark-read emits (~350 tok)
 - `src/components/workspace/__tests__/PermissionRulesPanel.spec.ts` — Permission rules panel blackbox test for inherited deny/file override rendering and create/delete emits (~500 tok)
@@ -113,6 +132,10 @@
 ## frontend/src/components/workspace/
 
 - `AgentWorkflowPanel.vue` — Vue: 选择文件, setup (~3776 tok)
+
+## frontend/src/views/
+
+- `WorkflowBuilderView.vue` — Vue: setup (~8241 tok)
 
 ## references/
 

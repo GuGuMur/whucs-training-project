@@ -157,3 +157,66 @@
 | 20:14 | Added backend RED tests for team chat history, membership denial, mention notification, audit, and OpenAPI paths | backend/tests/test_workspace_api.py, backend/tests/test_openapi_export.py | focused tests fail as expected on missing messages API/OpenAPI path | ~2500 |
 | 20:17 | Implemented backend team chat message schemas, in-memory service, mention notifications, audit, and routes | backend/app/domain/schemas.py, backend/app/services/workspace.py, backend/app/api/routes.py | focused backend message/OpenAPI tests pass | ~4500 |
 | 20:23 | Regenerated OpenAPI client, added frontend RED tests, and implemented team message adapter/store/view wiring | frontend/src/client/workspace.ts, frontend/src/stores/workspace.ts, frontend/src/views/TeamChatView.vue, frontend/src/views/__tests__/TeamChatView.spec.ts, frontend/src/stores/__tests__/workspace.spec.ts | focused frontend team message tests pass | ~9000 |
+
+## Session: 2026-07-09 21:20
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 21:26 | Created ../.claude/plans/eventual-rolling-stardust.md | — | ~631 |
+| 21:27 | Edited backend/app/services/workspace.py | removed 21 lines | ~13 |
+| 21:28 | Created backend/tests/test_parser.py | — | ~2061 |
+| 21:28 | Edited backend/tests/test_parser.py | modified test_format_detection_by_extension() | ~161 |
+| 21:28 | Edited backend/tests/test_parser.py | modified test_csv_parsing_skips_empty_rows() | ~80 |
+| 21:28 | Edited backend/tests/test_parser.py | modified _minimal_pdf_bytes() | ~122 |
+| 21:28 | Edited backend/tests/test_parser.py | modified test_pdf_parsing() | ~52 |
+| 21:29 | Edited backend/tests/test_workspace_api.py | modified test_kb_document_indexing_uses_real_parser_with_metadata() | ~1168 |
+| 21:33 | Edited task_plan.md | 2→2 lines | ~22 |
+| 21:33 | Edited task_plan.md | expanded (+8 lines) | ~180 |
+| 21:33 | Edited findings.md | 3→4 lines | ~219 |
+| 21:34 | Edited progress.md | expanded (+16 lines) | ~295 |
+| 21:34 | Edited findings.md | expanded (+9 lines) | ~212 |
+| 21:35 | Removed dead `_chunk_file_content()` from workspace.py | backend/app/services/workspace.py | -19 lines | ~35 |
+| 21:36 | Added parser unit tests (21 tests, all 6 formats) | backend/tests/test_parser.py | new file | ~1200 |
+| 21:36 | Added 3 parser integration tests | backend/tests/test_workspace_api.py | +80 lines | ~800 |
+| 21:37 | Regenerated OpenAPI client | frontend/src/client/generated/* | regenerated | ~200 |
+| 21:37 | Full verification: 56 backend, 62 frontend tests pass | backend/, frontend/ | all green | ~400 |
+| 21:40 | Updated project documentation | findings.md, progress.md, task_plan.md, .wolf/* | phase 25 complete | ~600 |
+| 21:35 | Edited progress.md | 5→5 lines | ~299 |
+| 21:36 | Session end: 14 writes across 7 files (eventual-rolling-stardust.md, workspace.py, test_parser.py, test_workspace_api.py, task_plan.md) | 16 reads | ~107186 tok |
+| 21:42 | Edited backend/pyproject.toml | removed 2 lines | ~3 |
+| 21:44 | Created backend/app/services/embedding.py | — | ~543 |
+| 21:44 | Edited backend/app/services/workspace.py | added 3 import(s) | ~107 |
+| 21:44 | Edited backend/app/services/workspace.py | 2→3 lines | ~68 |
+| 21:45 | Edited backend/app/services/workspace.py | 3→5 lines | ~78 |
+| 21:46 | Edited backend/app/services/workspace.py | modified _rebuild_kb_faiss_index() | ~349 |
+| 21:46 | Edited backend/app/services/workspace.py | modified _retrieve_knowledge_citations() | ~420 |
+| 21:46 | Edited backend/app/services/workspace.py | 7→2 lines | ~36 |
+| 21:46 | Edited backend/app/services/workspace.py | 1→3 lines | ~58 |
+| 21:47 | Edited backend/tests/test_workspace_api.py | "answer" → "取样" | ~18 |
+| 21:48 | Created backend/tests/test_embedding.py | — | ~791 |
+| 21:49 | Edited backend/app/services/embedding.py | modified embed_documents() | ~140 |
+| 21:49 | Edited backend/tests/test_embedding.py | modified test_semantic_rag_retrieval_finds_relevant_chunk() | ~169 |
+| 21:49 | Edited backend/tests/test_embedding.py | modified test_semantic_rag_retrieval_finds_relevant_chunk() | ~198 |
+| 21:51 | Edited task_plan.md | Verification() → Search() | ~22 |
+| 21:51 | Edited task_plan.md | expanded (+9 lines) | ~238 |
+| 21:51 | Edited findings.md | 4→5 lines | ~339 |
+| 21:52 | Edited findings.md | 9→9 lines | ~131 |
+| 21:52 | Edited progress.md | expanded (+17 lines) | ~416 |
+| 21:52 | Edited progress.md | 5→5 lines | ~268 |
+| 21:52 | Session end: 34 writes across 10 files (eventual-rolling-stardust.md, workspace.py, test_parser.py, test_workspace_api.py, task_plan.md) | 16 reads | ~112025 tok |
+| 21:54 | Created backend/app/services/llm.py | — | ~775 |
+| 21:54 | Edited backend/app/services/workspace.py | added 1 import(s) | ~41 |
+| 21:54 | Edited backend/app/services/workspace.py | modified _compose_rag_answer() | ~89 |
+| 21:55 | Created backend/tests/test_llm.py | — | ~387 |
+| 21:56 | Edited backend/tests/test_llm.py | modified test_llm_available_with_env_api_key() | ~80 |
+| 21:56 | Edited task_plan.md | Search() → Service() | ~19 |
+| 21:57 | Edited task_plan.md | expanded (+8 lines) | ~166 |
+| 21:57 | Session end: 41 writes across 12 files (eventual-rolling-stardust.md, workspace.py, test_parser.py, test_workspace_api.py, task_plan.md) | 16 reads | ~113595 tok |
+| 21:59 | Edited backend/app/services/workspace.py | 3→3 lines | ~48 |
+| 21:59 | Edited backend/app/services/workspace.py | modified create_agent_task() | ~1527 |
+| 22:00 | Edited backend/tests/test_workspace_api.py | 9→5 lines | ~63 |
+| 22:04 | Session end: 44 writes across 12 files (eventual-rolling-stardust.md, workspace.py, test_parser.py, test_workspace_api.py, task_plan.md) | 16 reads | ~115233 tok |
+| 22:07 | Session end: 44 writes across 12 files (eventual-rolling-stardust.md, workspace.py, test_parser.py, test_workspace_api.py, task_plan.md) | 16 reads | ~115346 tok |
+| 22:13 | Edited backend/app/services/workspace.py | modified _seed_workflows() | ~1579 |
+| 22:19 | Edited frontend/src/views/WorkflowBuilderView.vue | added error handling | ~139 |
+| 22:19 | Edited frontend/src/views/WorkflowBuilderView.vue | added error handling | ~136 |

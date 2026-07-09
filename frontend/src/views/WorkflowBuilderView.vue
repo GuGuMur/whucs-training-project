@@ -257,11 +257,17 @@ function updateParam(key: string, value: ParamValue) {
   selectedData.value.params[key] = value
 }
 
-function saveFlow() {
-  const saved = { name: flowName.value, version: currentVersion.value, trigger: triggerMode.value, nodes: nodes.value, edges: edges.value }
-  localStorage.setItem('workflow-definition', JSON.stringify(saved))
-  versionLog.value.unshift(`${currentVersion.value} 保存于 ${new Date().toLocaleString()}`)
-  message.success('流程定义已保存')
+async function saveFlow() {
+  try {
+    const payload = { name: flowName.value, trigger: triggerMode.value, nodes: nodes.value as any, edges: edges.value as any }
+    if (activeWorkflowId.value) {
+      await workspace.updateWorkflow(activeWorkflowId.value, payload)
+    } else {
+      await workspace.createWorkflow({ ...payload, description: null })
+    }
+    versionLog.value.unshift(`${currentVersion.value} 保存于 ${new Date().toLocaleString()}`)
+    message.success('流程定义已保存到服务端')
+  } catch { message.error('保存失败') }
 }
 
 function validateFlow() {
@@ -272,6 +278,14 @@ function validateFlow() {
 async function runFlow() {
   validateFlow()
   if (hasBlockingIssue.value) return
+  if (!activeWorkflowId.value) { message.warning('请先保存流程定义'); return }
+  try {
+    running.value = true
+    const exec = await workspace.executeWorkflow(activeWorkflowId.value, { file_id: '', target_kb_id: null })
+    executionLog.value.unshift({ time: new Date().toLocaleString(), status: exec.status, detail: exec.status })
+    message.success('流程执行完成')
+  } catch { message.error('流程执行失败') }
+  finally { running.value = false }
 
   running.value = true
   executionProgress.value = 0

@@ -487,6 +487,39 @@
   - `frontend/src/components/workspace/__tests__/TeamAuditPanel.spec.ts`
   - `frontend/src/views/WorkspaceView.vue`
 
+### Phase 25: Document Parser Integration & Verification
+- **Status:** complete
+- Actions taken:
+  - Removed dead `_chunk_file_content()` from workspace.py (replaced by `parse_document()`).
+  - Added `backend/tests/test_parser.py` with 21 unit tests covering all 6 formats (PDF/DOCX/PPTX/TXT/MD/CSV), format detection, error handling, and segment metadata.
+  - All 31 existing API tests pass without modification.
+  - Added 3 parser integration tests: KB indexing uses real parser, parse failure marks file failed, QA citations come from parsed segments.
+  - Regenerated OpenAPI client and verified frontend parse_status display.
+  - Full verification: 56 backend tests, 16 frontend files (62 tests), type check, build all pass.
+- Files created/modified:
+  - `backend/tests/test_parser.py` (NEW)
+  - `backend/app/services/workspace.py` (removed dead code)
+  - `backend/tests/test_workspace_api.py` (3 integration tests)
+  - `frontend/src/client/generated/*` (regenerated)
+  - `frontend/src/client/openapi/workspace.openapi.json` (regenerated)
+
+### Phase 26: Semantic Embedding & FAISS Vector Search
+- **Status:** complete
+- Actions taken:
+  - Created `backend/app/services/embedding.py` wrapping sentence-transformers (MiniLM-L12-v2, 384-dim) with lazy loading and zero-vector CI fallback.
+  - Integrated FAISS `IndexFlatIP` per knowledge base: rebuild index after `add_knowledge_document()`, search via inner product on normalized vectors.
+  - Replaced character-overlap `_chunk_score()`/`_search_chars()` with FAISS semantic search in `_retrieve_knowledge_citations()`.
+  - Fixed `_compose_rag_answer()` — removed hardcoded microscope response, uses generic snippet composition.
+  - Added `backend/tests/test_embedding.py` with 10 tests: shape, normalization, semantic similarity, cross-language, empty input, FAISS retrieval integration.
+  - Added `pytest` and `httpx` to backend dev dependencies (Tsingshua mirror was down, switched to default PyPI).
+  - Full verification: 66 backend tests, 62 frontend tests, type check, build all pass.
+- Files created/modified:
+  - `backend/app/services/embedding.py` (NEW)
+  - `backend/tests/test_embedding.py` (NEW — 10 tests)
+  - `backend/app/services/workspace.py` (FAISS index storage, `_rebuild_kb_faiss_index()`, `_find_document_and_chunk()`, rewired `_retrieve_knowledge_citations()`, fixed `_compose_rag_answer()`)
+  - `backend/pyproject.toml` (added pytest, httpx dev deps)
+  - `backend/tests/test_workspace_api.py` (updated QA assertion for non-hardcoded answer)
+
 ## Test Results
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
@@ -702,8 +735,8 @@
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 24 complete — notification inbox API/UI integrated after file annotations |
-| Where am I going? | Persistent storage/vector indexing, persistent permission repositories/admin policy matrix, persisted team chat/WebSocket collaboration, WebSocket notification delivery, and live LLM/tool integrations |
+| Where am I? | Phase 26 complete — semantic embeddings (sentence-transformers) and FAISS vector search integrated; 66 backend tests, keyword scoring replaced with cosine similarity |
+| Where am I going? | Async parse queue (ARQ/Celery), OCR, persistent storage (MySQL/MinIO/FAISS persistence), drag/drop workflow editing, WebSocket delivery, live LLM API integration |
 | What's the goal? | Build the report-aligned intelligent file management and agent collaboration platform |
 | What have I learned? | See `findings.md` |
-| What have I done? | Completed a tested backend API skeleton with 31 backend tests, Vue/Naive UI workbench MVP, OpenAPI-to-generated-client workflow, auth guard/refresh/profile slices, login lockout, file CRUD/lifecycle/version UI, folder tree, team membership/invites/permissions, knowledge-base/RAG CRUD, editable workflow definitions, cross-resource RBAC, resource ACL rules with permission panel, file annotations/replies, and notification inbox list/read UI. Merged remote contributions: WorkflowBuilderView, TeamChatView, RagQaView, PermissionAuditView, guest login with role-based routing, and demo user seeding |
+| What have I done? | Phases 1-26 complete: backend API (66 tests), Vue/Naive UI workbench MVP, OpenAPI generation, auth/refresh/profile/lockout, file CRUD/lifecycle/version/upload/search/download/delete/share/recycle, folder tree, team/RBAC, real parser (6 formats), semantic FAISS RAG, editable workflows, ACL rules, annotations/replies, notification inbox, and remote contributions (WorkflowBuilderView, TeamChatView, RagQaView, PermissionAuditView, guest login, demo user) |

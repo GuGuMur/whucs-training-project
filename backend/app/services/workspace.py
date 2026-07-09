@@ -9,8 +9,13 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import faiss
+import numpy as np
 from fastapi import UploadFile
 
+from app.services import embedding
+from app.services.llm import generate_rag_answer, llm_available, _get_llm
+from app.services.parser import ParseError, parse_document
 from app.domain.schemas import (
     AgentStep,
     AgentTaskRequest,
@@ -298,11 +303,14 @@ class WorkspaceService:
         self._users_by_email: dict[str, StoredUser] = {}
         self._next_user_id = 1
         self._folders = self._seed_folders()
-        self._files = self._seed_files()
         self._file_contents = self._seed_file_contents()
+        self._files = self._seed_files(self._file_contents)
         self._file_versions = self._seed_file_versions()
         self._knowledge_bases = self._seed_knowledge_bases()
         self._knowledge_documents = self._seed_knowledge_documents()
+        self._kb_faiss_indexes: dict[str, tuple[faiss.Index, list[str]]] = {}  # kb_id -> (index, chunk_ids)
+        for kb_id in self._knowledge_bases:
+            self._rebuild_kb_faiss_index(kb_id)
         self._workflows = self._seed_workflows()
         self._teams = self._seed_teams()
         self._team_members: dict[str, StoredTeamMember] = {}
@@ -953,16 +961,42 @@ class WorkspaceService:
         content = self._read_file_content(file_item.id)
         now = datetime.now(UTC)
         document_id = self._knowledge_document_id(kb_id, file_item.id)
+        # Mark the file as parsing, run the real extractor, then settle on
+        # indexed or failed so the workbench can show the true lifecycle.
+        self._replace_file(file_item.model_copy(update={"parse_status": "parsing", "updated_at": now}))
+        try:
+            parsed = parse_document(file_item.name, content, file_item.type)
+        except ParseError as exc:
+            self._replace_file(
+                file_item.model_copy(update={"parse_status": "failed", "updated_at": datetime.now(UTC)})
+            )
+            self._record_audit(actor.username, "knowledge_base.parse_failed", "file", file_item.name)
+            raise WorkspaceError(
+                422,
+                "FILE_PARSE_FAILED",
+                f"文件解析失败：{exc}",
+                {"file_id": file_item.id, "file_name": file_item.name},
+            ) from exc
         document = StoredKnowledgeDocument(
             id=document_id,
             kb_id=kb_id,
             file_id=file_item.id,
             file_name=file_item.name,
             index_status="indexed",
-            chunks=self._chunk_file_content(document_id, file_item, content),
+            chunks=[
+                StoredKnowledgeChunk(
+                    id=f"{document_id}-chunk-{index}",
+                    content=segment.content,
+                    page_no=segment.page_no,
+                    paragraph_no=segment.paragraph_no,
+                )
+                for index, segment in enumerate(parsed.segments, start=1)
+            ],
             updated_at=now,
         )
         self._knowledge_documents[document.id] = document
+        # Build/update FAISS index for this knowledge base
+        self._rebuild_kb_faiss_index(kb_id)
         knowledge_base.updated_at = now
         self._mark_file_indexed_in_knowledge_base(file_item, kb_id, now)
         self._record_audit(actor.username, "knowledge_base.add_document", "knowledge_base", knowledge_base.name)
@@ -1026,6 +1060,94 @@ class WorkspaceService:
         for file_id in payload.context_file_ids:
             self._ensure_can_read_file(self._find_file(file_id), actor)
 
+        llm = _get_llm()
+        if llm is None:
+            return self._demo_agent_task(payload, actor)
+
+        tools_desc = self._agent_tools_description()
+        plan_prompt = (
+            "你是一个智能任务规划助手。根据用户的任务描述和可用工具，生成一个分步执行计划。\n\n"
+            f"【可用工具】\n{tools_desc}\n\n"
+            f"【用户任务】{payload.task}\n\n"
+            "请用 JSON 格式返回执行计划，格式如下：\n"
+            '{"steps": [{"type": "thought|action|observation|answer", "title": "...", "content": "...", "tool_name": "..."}]}\n'
+            "tool_name 仅在 type=action 时需要填写。最多 5 个步骤。只返回 JSON，不要其它内容。"
+        )
+        try:
+            plan_response = llm.invoke(plan_prompt)
+            plan_text = plan_response.content.strip() if hasattr(plan_response, "content") else str(plan_response).strip()
+            if plan_text.startswith("```"):
+                plan_text = plan_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+            plan = json.loads(plan_text)
+        except Exception:
+            return self._demo_agent_task(payload, actor)
+
+        raw_steps: list[dict[str, Any]] = plan.get("steps", [])
+        steps: list[AgentStep] = []
+        final_answer = ""
+        for raw in raw_steps:
+            step_type = raw.get("type", "observation")
+            step = AgentStep(
+                type=step_type if step_type in ("thought", "action", "observation", "answer") else "observation",
+                title=raw.get("title", ""),
+                content=raw.get("content", ""),
+                tool_name=raw.get("tool_name"),
+            )
+            if step.type == "action" and step.tool_name:
+                step.content = self._execute_agent_tool(step.tool_name, payload, actor, step.content)
+            if step.type == "answer":
+                final_answer = step.content
+            steps.append(step)
+
+        if not final_answer and steps:
+            final_answer = steps[-1].content
+        self._record_audit(actor.username, "agent.create_task", "agent_task", payload.task)
+        return AgentTaskResponse(
+            id=f"agent-{secrets.token_hex(4)}",
+            task=payload.task,
+            status="completed",
+            steps=steps,
+            final_answer=final_answer,
+        )
+
+    def _agent_tools_description(self) -> str:
+        tools = self.list_tools()
+        lines: list[str] = []
+        for tool in tools:
+            lines.append(f"- {tool.name}: {tool.description}")
+        return "\n".join(lines)
+
+    def _execute_agent_tool(self, tool_name: str, payload: AgentTaskRequest, actor: UserPublic, context: str) -> str:
+        if tool_name == "file_search":
+            files = [f for f in self._files if self._can_read_file(f, actor)]
+            if payload.context_file_ids:
+                files = [f for f in files if f.id in payload.context_file_ids]
+            if not files:
+                return "未找到匹配的文件。"
+            file_list = "\n".join(f"- {f.name} ({f.type}, {f.parse_status})" for f in files[:5])
+            return f"找到 {len(files)} 个文件：\n{file_list}"
+        elif tool_name == "knowledge_qa":
+            kb_id = payload.kb_id or next(iter(self._knowledge_bases.keys()), "")
+            if not kb_id:
+                return "没有可用的知识库。"
+            citations = self._retrieve_knowledge_citations(kb_id, payload.task, 3, actor)
+            if not citations:
+                return "知识库未检索到相关内容。"
+            return "\n".join(f"[{c.title}] {c.snippet}" for c in citations)
+        elif tool_name == "report_generate":
+            llm = _get_llm()
+            if llm is None:
+                return "LLM 不可用，无法生成报告。"
+            report_prompt = f"请根据以下上下文生成一份简短的 Markdown 报告：\n{context}"
+            try:
+                resp = llm.invoke(report_prompt)
+                return resp.content.strip() if hasattr(resp, "content") else str(resp).strip()
+            except Exception:
+                return "报告生成失败，请重试。"
+        return f"工具 {tool_name} 执行完成。"
+
+    def _demo_agent_task(self, payload: AgentTaskRequest, actor: UserPublic) -> AgentTaskResponse:
+        """Fallback deterministic agent task when LLM is unavailable."""
         final_answer = "已汇总 1 份实验报告，生成包含实验目的、显微镜步骤、观察结果和待补充数据的周报草稿。"
         steps = [
             AgentStep(type="thought", title="任务理解", content="需要先找到相关团队/个人文件，再生成结构化报告。"),
@@ -1488,26 +1610,6 @@ class WorkspaceService:
     def _knowledge_document_id(self, kb_id: str, file_id: str) -> str:
         return f"doc-{kb_id}-{file_id}"
 
-    def _chunk_file_content(
-        self,
-        document_id: str,
-        file_item: FileItem,
-        content: bytes,
-    ) -> list[StoredKnowledgeChunk]:
-        text = content.decode("utf-8", errors="ignore").strip() or file_item.name
-        for separator in ("\r\n", "\r", "\n", "。", "！", "？", "!", "?"):
-            text = text.replace(separator, "\n")
-        parts = [part.strip() for part in text.split("\n") if part.strip()]
-        return [
-            StoredKnowledgeChunk(
-                id=f"{document_id}-chunk-{index}",
-                content=part,
-                page_no=1,
-                paragraph_no=index,
-            )
-            for index, part in enumerate(parts, start=1)
-        ]
-
     def _mark_file_indexed_in_knowledge_base(self, file_item: FileItem, kb_id: str, updated_at: datetime) -> None:
         knowledge_base_ids = [*file_item.knowledge_base_ids]
         if kb_id not in knowledge_base_ids:
@@ -1528,45 +1630,71 @@ class WorkspaceService:
         top_k: int,
         actor: UserPublic,
     ) -> list[Citation]:
-        ranked_chunks: list[tuple[int, StoredKnowledgeDocument, StoredKnowledgeChunk]] = []
-        for document in self._knowledge_documents.values():
-            if document.kb_id != kb_id or document.index_status != "indexed":
+        index_entry = self._kb_faiss_indexes.get(kb_id)
+        if index_entry is None:
+            return []
+        faiss_index, chunk_ids = index_entry
+        if faiss_index.ntotal == 0:
+            return []
+
+        query_vec = embedding.embed_query(question).reshape(1, -1)
+        distances, indices = faiss_index.search(query_vec.astype(np.float32), min(top_k, faiss_index.ntotal))
+
+        citations: list[Citation] = []
+        for idx, dist in zip(indices[0], distances[0]):
+            if idx < 0 or idx >= len(chunk_ids):
+                continue
+            chunk_id = chunk_ids[idx]
+            document, chunk = self._find_document_and_chunk(kb_id, chunk_id)
+            if document is None:
                 continue
             file_item = self._find_file(document.file_id)
             if not self._can_read_file(file_item, actor):
                 continue
-            for chunk in document.chunks:
-                ranked_chunks.append((self._chunk_score(question, chunk.content), document, chunk))
-
-        ranked_chunks.sort(key=lambda item: item[0], reverse=True)
-        selected = [item for item in ranked_chunks if item[0] > 0][:top_k]
-        if not selected:
-            selected = ranked_chunks[:top_k]
-
-        return [
-            Citation(
-                file_id=document.file_id,
-                document_id=document.id,
-                chunk_id=chunk.id,
-                title=document.file_name,
-                page_no=chunk.page_no,
-                paragraph_no=chunk.paragraph_no,
-                snippet=chunk.content,
+            citations.append(
+                Citation(
+                    file_id=document.file_id,
+                    document_id=document.id,
+                    chunk_id=chunk.id,
+                    title=document.file_name,
+                    page_no=chunk.page_no,
+                    paragraph_no=chunk.paragraph_no,
+                    snippet=chunk.content,
+                )
             )
-            for _, document, chunk in selected
-        ]
+        return citations
 
-    def _chunk_score(self, question: str, content: str) -> int:
-        question_chars = self._search_chars(question)
-        content_chars = self._search_chars(content)
-        overlap = len(question_chars & content_chars)
-        compact_question = "".join(ch for ch in question.lower() if not ch.isspace())
-        compact_content = "".join(ch for ch in content.lower() if not ch.isspace())
-        return overlap + (10 if compact_question and compact_question in compact_content else 0)
+    def _rebuild_kb_faiss_index(self, kb_id: str) -> None:
+        chunks: list[StoredKnowledgeChunk] = []
+        chunk_ids: list[str] = []
+        for doc in self._knowledge_documents.values():
+            if doc.kb_id != kb_id or doc.index_status != "indexed":
+                continue
+            for chunk in doc.chunks:
+                chunk_ids.append(chunk.id)
+                chunks.append(chunk)
 
-    def _search_chars(self, value: str) -> set[str]:
-        ignored = set(" ，。；：、！？!?()（）[]【】,.:-_")
-        return {ch.lower() for ch in value if ch.strip() and ch not in ignored}
+        if not chunks:
+            self._kb_faiss_indexes.pop(kb_id, None)
+            return
+
+        texts = [c.content for c in chunks]
+        vecs = embedding.embed_documents(texts)
+        dim = vecs.shape[1]
+        faiss_index = faiss.IndexFlatIP(dim)
+        faiss_index.add(vecs.astype(np.float32))
+        self._kb_faiss_indexes[kb_id] = (faiss_index, chunk_ids)
+
+    def _find_document_and_chunk(
+        self, kb_id: str, chunk_id: str,
+    ) -> tuple[StoredKnowledgeDocument | None, StoredKnowledgeChunk | None]:
+        for doc in self._knowledge_documents.values():
+            if doc.kb_id != kb_id:
+                continue
+            for chunk in doc.chunks:
+                if chunk.id == chunk_id:
+                    return doc, chunk
+        return None, None
 
     def _compose_rag_answer(
         self,
@@ -1574,15 +1702,9 @@ class WorkspaceService:
         question: str,
         citations: list[Citation],
     ) -> str:
-        if not citations:
-            return f"知识库「{knowledge_base.name}」暂未检索到与“{question}”直接相关的已索引片段。"
-        if any("显微镜" in citation.snippet for citation in citations):
-            return (
-                "显微镜相关实验步骤包括：准备载玻片与样本，低倍镜定位目标区域，"
-                "切换高倍镜观察细胞结构，记录视野特征，并在实验报告中附上观察结论。"
-            )
-        snippets = "；".join(citation.snippet for citation in citations[:2])
-        return f"根据知识库「{knowledge_base.name}」的已索引片段，{snippets}"
+        snippets = [c.snippet for c in citations[:5]]
+        return generate_rag_answer(question, snippets, knowledge_base.name)
+
 
     def _team_summary(self, team: StoredTeam, role: str, actor_id: int | None = None) -> TeamSummary:
         return TeamSummary(
@@ -2680,47 +2802,55 @@ class WorkspaceService:
             is_current=version.version_no == current_version_no,
         )
 
-    def _seed_files(self) -> list[FileItem]:
+    def _seed_files(self, contents: dict[str, bytes]) -> list[FileItem]:
         now = datetime.now(UTC)
+
+        def demo_file(file_id: str, name: str, folder_id: str, file_type: str, tags: list[str], scope: str, kb_ids: list[str], status: str) -> FileItem:
+            content = contents[file_id]
+            return FileItem(
+                id=file_id,
+                name=name,
+                folder_id=folder_id,
+                type=file_type,
+                size=len(content),
+                sha256=hashlib.sha256(content).hexdigest(),
+                parse_status=status,
+                tags=tags,
+                updated_at=now - timedelta(hours=2),
+                permission_scope=scope,
+                knowledge_base_ids=kb_ids,
+            )
+
         return [
-            FileItem(
-                id="file-microscope",
+            demo_file(
+                file_id="file-microscope",
                 name="显微镜实验报告.pdf",
                 folder_id="folder-biology",
-                type="pdf",
-                size=2_430_112,
-                sha256="8b73c9d2d4c02b4b4f0e1c7a8dbf1023f44e8d9e7a10f24b15a02d983ff42d91",
-                parse_status="indexed",
+                file_type="pdf",
                 tags=["实验", "显微镜"],
-                updated_at=now - timedelta(hours=2),
-                permission_scope="个人",
-                knowledge_base_ids=["kb-biology"],
+                scope="个人",
+                kb_ids=["kb-biology"],
+                status="indexed",
             ),
-            FileItem(
-                id="file-requirements",
+            demo_file(
+                file_id="file-requirements",
                 name="需求规格说明书.md",
                 folder_id="folder-course",
-                type="markdown",
-                size=96_418,
-                sha256="fb8bd33418f0d6a73f83341f1f3bbef710c66f6a73e4c4afece8e7dfcb71b884",
-                parse_status="indexed",
+                file_type="markdown",
                 tags=["课程", "需求"],
-                updated_at=now - timedelta(days=1),
-                permission_scope="团队",
-                knowledge_base_ids=["kb-course"],
+                scope="团队",
+                kb_ids=["kb-course"],
+                status="indexed",
             ),
-            FileItem(
-                id="file-weekly",
+            demo_file(
+                file_id="file-weekly",
                 name="小组周报.docx",
                 folder_id="team-root",
-                type="docx",
-                size=384_200,
-                sha256="d654611a21f65bbdcad7f0c96da59e267674b0d806f65220b46fbf35d94a826b",
-                parse_status="parsing",
+                file_type="docx",
                 tags=["周报", "团队"],
-                updated_at=now - timedelta(minutes=35),
-                permission_scope="团队",
-                knowledge_base_ids=[],
+                scope="团队",
+                kb_ids=[],
+                status="parsing",
             ),
         ]
 
@@ -2823,44 +2953,102 @@ class WorkspaceService:
         return {item.id: item for item in items}
 
     def _seed_workflows(self) -> dict[str, StoredWorkflow]:
-        workflow = StoredWorkflow(
-            id="new-file-auto-summary",
-            name="新文件自动摘要",
-            description="文件上传后自动解析、知识库问答并生成摘要。",
-            trigger="file.uploaded",
-            version="1.0.0",
-            status="published",
-            nodes=[
-                WorkflowNodeDefinition(
-                    id="parse",
-                    name="内容提取",
-                    type="tool",
-                    tool_name="file_search",
-                    parameters={"query": "{{ file.name }}"},
-                ),
-                WorkflowNodeDefinition(
-                    id="qa",
-                    name="知识问答",
-                    type="tool",
-                    tool_name="knowledge_qa",
-                    parameters={"question": "总结文档关键内容"},
-                ),
-                WorkflowNodeDefinition(
-                    id="summary",
-                    name="摘要生成",
-                    type="tool",
-                    tool_name="report_generate",
-                    parameters={"format": "markdown"},
-                ),
-            ],
-            edges=[
-                WorkflowEdgeDefinition(id="edge-parse-qa", source="parse", target="qa"),
-                WorkflowEdgeDefinition(id="edge-qa-summary", source="qa", target="summary"),
-            ],
-            created_by=None,
-            updated_at=datetime.now(UTC),
-        )
-        return {workflow.id: workflow}
+        now = datetime.now(UTC)
+        templates = [
+            StoredWorkflow(
+                id="new-file-auto-summary",
+                name="新文件自动摘要",
+                description="文件上传后自动解析、知识库问答并生成摘要。",
+                trigger="file.uploaded",
+                version="1.0.0",
+                status="published",
+                nodes=[
+                    WorkflowNodeDefinition(id="parse", name="内容提取", type="tool", tool_name="file_search", parameters={"query": "{{ file.name }}"}),
+                    WorkflowNodeDefinition(id="qa", name="知识问答", type="tool", tool_name="knowledge_qa", parameters={"question": "总结文档关键内容"}),
+                    WorkflowNodeDefinition(id="summary", name="摘要生成", type="tool", tool_name="report_generate", parameters={"format": "markdown"}),
+                ],
+                edges=[
+                    WorkflowEdgeDefinition(id="e-pq", source="parse", target="qa"),
+                    WorkflowEdgeDefinition(id="e-qs", source="qa", target="summary"),
+                ],
+                created_by=None, updated_at=now,
+            ),
+            StoredWorkflow(
+                id="image-batch-annotation",
+                name="图像批量标注",
+                description="批量解析图像文件并提取文字标注信息。",
+                trigger="file.uploaded",
+                version="1.0.0",
+                status="published",
+                nodes=[
+                    WorkflowNodeDefinition(id="scan", name="文件扫描", type="tool", tool_name="file_search", parameters={"query": "image"}),
+                    WorkflowNodeDefinition(id="ocr", name="图像识别", type="tool", tool_name="knowledge_qa", parameters={"question": "提取图像中的文字"}),
+                    WorkflowNodeDefinition(id="tag", name="标注写入", type="tool", tool_name="report_generate", parameters={"format": "json"}),
+                ],
+                edges=[
+                    WorkflowEdgeDefinition(id="e-so", source="scan", target="ocr"),
+                    WorkflowEdgeDefinition(id="e-ot", source="ocr", target="tag"),
+                ],
+                created_by=None, updated_at=now,
+            ),
+            StoredWorkflow(
+                id="team-weekly-report",
+                name="团队周报生成",
+                description="汇总团队文件变更和知识库检索结果，生成周报。",
+                trigger="schedule.weekly",
+                version="1.0.0",
+                status="published",
+                nodes=[
+                    WorkflowNodeDefinition(id="collect", name="文件收集", type="tool", tool_name="file_search", parameters={"query": "本周"}),
+                    WorkflowNodeDefinition(id="analyze", name="内容分析", type="tool", tool_name="knowledge_qa", parameters={"question": "本周关键进展"}),
+                    WorkflowNodeDefinition(id="report", name="周报输出", type="tool", tool_name="report_generate", parameters={"format": "markdown"}),
+                ],
+                edges=[
+                    WorkflowEdgeDefinition(id="e-ca", source="collect", target="analyze"),
+                    WorkflowEdgeDefinition(id="e-ar", source="analyze", target="report"),
+                ],
+                created_by=None, updated_at=now,
+            ),
+            StoredWorkflow(
+                id="file-content-comparison",
+                name="文件内容比对",
+                description="比对两个文件的内容差异并生成对比报告。",
+                trigger="manual",
+                version="1.0.0",
+                status="published",
+                nodes=[
+                    WorkflowNodeDefinition(id="load-a", name="加载文件A", type="tool", tool_name="file_search", parameters={"query": "{{ file_a }}"}),
+                    WorkflowNodeDefinition(id="load-b", name="加载文件B", type="tool", tool_name="file_search", parameters={"query": "{{ file_b }}"}),
+                    WorkflowNodeDefinition(id="compare", name="内容比对", type="tool", tool_name="knowledge_qa", parameters={"question": "比较两个文件的内容差异"}),
+                    WorkflowNodeDefinition(id="diff-report", name="差异报告", type="tool", tool_name="report_generate", parameters={"format": "markdown"}),
+                ],
+                edges=[
+                    WorkflowEdgeDefinition(id="e-ac", source="load-a", target="compare"),
+                    WorkflowEdgeDefinition(id="e-bc", source="load-b", target="compare"),
+                    WorkflowEdgeDefinition(id="e-cd", source="compare", target="diff-report"),
+                ],
+                created_by=None, updated_at=now,
+            ),
+            StoredWorkflow(
+                id="data-export",
+                name="数据导出",
+                description="将知识库检索结果导出为 CSV 或 Markdown 格式。",
+                trigger="manual",
+                version="1.0.0",
+                status="published",
+                nodes=[
+                    WorkflowNodeDefinition(id="query", name="数据检索", type="tool", tool_name="knowledge_qa", parameters={"question": "{{ export_query }}"}),
+                    WorkflowNodeDefinition(id="format", name="格式化", type="tool", tool_name="report_generate", parameters={"format": "{{ export_format }}"}),
+                    WorkflowNodeDefinition(id="output", name="输出文件", type="output", tool_name="report_generate", parameters={}),
+                ],
+                edges=[
+                    WorkflowEdgeDefinition(id="e-qf", source="query", target="format"),
+                    WorkflowEdgeDefinition(id="e-fo", source="format", target="output"),
+                ],
+                created_by=None, updated_at=now,
+            ),
+        ]
+        return {wf.id: wf for wf in templates}
 
     def _seed_file_versions(self) -> dict[str, list[StoredFileVersion]]:
         versions: dict[str, list[StoredFileVersion]] = {}

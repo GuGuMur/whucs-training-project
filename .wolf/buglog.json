@@ -949,6 +949,134 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-09T20:10:00+08:00"
+    },
+    {
+      "id": "bug-056",
+      "timestamp": "2026-07-09T13:28:37.300Z",
+      "error_message": "Significant refactor of ",
+      "file": "backend/tests/test_parser.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 4→5 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T13:28:37.300Z"
+    },
+    {
+      "id": "bug-057",
+      "timestamp": "2026-07-09T13:33:50.606Z",
+      "error_message": "Function not marked async",
+      "file": "findings.md",
+      "root_cause": "Function uses await but wasn't declared async",
+      "fix": "Added async modifier",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T13:33:50.606Z"
+    },
+    {
+      "id": "bug-058",
+      "timestamp": "2026-07-09T13:46:18.718Z",
+      "error_message": "Significant refactor of ",
+      "file": "backend/app/services/workspace.py",
+      "root_cause": "10 lines replaced/restructured",
+      "fix": "Rewrote 13→33 lines (10 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T13:46:18.718Z"
+    },
+    {
+      "id": "bug-059",
+      "timestamp": "2026-07-09T13:46:28.142Z",
+      "error_message": "Wrong operator: != should be ==",
+      "file": "backend/app/services/workspace.py",
+      "root_cause": "Used \"!=\" instead of \"==\"",
+      "fix": "Changed operator != → ==",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T13:46:28.142Z"
+    },
+    {
+      "id": "bug-060",
+      "timestamp": "2026-07-09T13:47:35.578Z",
+      "error_message": "Incorrect value in code",
+      "file": "backend/tests/test_workspace_api.py",
+      "root_cause": "Had \"answer\"",
+      "fix": "Changed to \"取样\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T13:47:35.578Z"
+    },
+    {
+      "id": "bug-061",
+      "timestamp": "2026-07-09T13:54:25.757Z",
+      "error_message": "Wrong return value",
+      "file": "backend/app/services/workspace.py",
+      "root_cause": "Was returning: f\"知识库「{knowledge_base.name}」暂未检索到与\"",
+      "fix": "Now returns: generate_rag_answer(question, snippets, knowledge_",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T13:54:25.757Z"
+    },
+    {
+      "id": "bug-062",
+      "timestamp": "2026-07-09T14:13:28.450Z",
+      "error_message": "Significant refactor of ",
+      "file": "backend/app/services/workspace.py",
+      "root_cause": "25 lines replaced/restructured",
+      "fix": "Rewrote 39→97 lines (25 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T14:13:28.450Z"
+    },
+    {
+      "id": "bug-063",
+      "timestamp": "2026-07-09T14:19:12.856Z",
+      "error_message": "Missing error handling in function",
+      "file": "frontend/src/views/WorkflowBuilderView.vue",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block | Also: if (!activeWorkflowId.value) { message.warning('请先保存流程定义'); ; try {",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-09T14:19:43.179Z"
     }
   ]
 }

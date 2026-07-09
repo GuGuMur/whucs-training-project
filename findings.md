@@ -47,6 +47,8 @@
 | Complete FR-F07 time-range file filtering on the existing file-list contract | File search already supported filename query, tag, and file type filters. The remaining updated-time range now uses `updated_from`/`updated_to` query parameters on `GET /api/v1/files`, maps to `updatedFrom`/`updatedTo` in the frontend adapter/store, and is emitted from the existing FileWorkbench toolbar. |
 | Add file annotations and replies as a collaboration slice | US-T03/FR-C05/FR-C07 now has backend annotation list/create/reply/delete contracts, audit events, and team unread-count notification signals. Frontend uses generated-client adapters, Pinia annotation state keyed by file id, and a focused `FileAnnotationPanel.vue` composed by `FileWorkbench.vue`. |
 | Add notification inbox records before WebSocket push | FR-C07 now has per-user notification list/read contracts for team invites, mentions, annotation replies, and workflow completion. The MVP keeps records in memory and wires generated-client/Pinia/UI read state, while live WebSocket delivery remains a later production slice. |
+| Integrate real multi-format document parser before async queue | FR-K02 requires PDF/DOCX/PPTX/TXT/MD/CSV parsing. Backend now owns `parser.py` with lazy-loaded extractors (PyMuPDF, python-docx, python-pptx, csv). `add_knowledge_document()` runs the real parser with parse_status lifecycle `queued → parsing → indexed/failed`. Dead `_chunk_file_content()` removed. 21 parser unit tests + 3 integration tests added. Async ARQ/Celery queue deferred per NFR-P05. |
+| Replace keyword search with semantic FAISS vector search | FR-K04/K05 require embedding and vector indexing. Backend now owns `embedding.py` (sentence-transformers MiniLM-L12-v2, 384-dim, lazy-loaded with zero-vector fallback for CI). Per-KB `faiss.IndexFlatIP` replaces character-overlap `_chunk_score()`/`_search_chars()`. Hardcoded microscope answer removed. 10 embedding tests + FAISS retrieval integration test added. Total: 66 backend tests. |
 
 ## Issues Encountered
 | Issue | Resolution |
@@ -103,6 +105,15 @@
 - Frontend unit tests: `pnpm vitest run` -> 13 files passed, 54 tests passed.
 - Frontend type check: `pnpm type-check` -> passed.
 - Frontend build: `pnpm build` -> passed.
+- OpenWolf bug log JSON: `python3 -m json.tool .wolf/buglog.json >/dev/null` -> passed.
+- Diff hygiene: `git diff --check` -> passed.
+- Backend parser tests: `PYTHONPATH=. uv run python -m pytest tests/test_parser.py -q` -> 21 passed.
+- Backend parser integration tests: `PYTHONPATH=. uv run python -m pytest tests/test_workspace_api.py -q -k "parser or parse_failure or segments"` -> 3 passed.
+- Backend: `PYTHONPATH=. uv run python -m pytest -q` -> 66 passed, 1 Starlette/httpx deprecation warning.
+- Frontend unit tests: `pnpm vitest run` -> 16 files passed, 62 tests passed.
+- Frontend type check: `pnpm type-check` -> passed.
+- Frontend build: `pnpm build` -> passed.
+- OpenAPI client generation: `pnpm generate:client` -> passed.
 - OpenWolf bug log JSON: `python3 -m json.tool .wolf/buglog.json >/dev/null` -> passed.
 - Diff hygiene: `git diff --check` -> passed.
 
