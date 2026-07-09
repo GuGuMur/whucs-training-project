@@ -47,7 +47,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
         path: '/permission-audit',
         name: 'permission-audit',
         component: PermissionAuditView,
-        meta: { requiresAuth: true },
+        meta: { requiresAuth: true, requiresAdmin: true },
       },
       {
         path: '/profile',
@@ -66,6 +66,10 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
 
     if (to.meta.requiresAuth && !auth.isAuthenticated) {
       return { name: 'login', query: { redirect: to.fullPath } }
+    }
+
+    if (to.meta.requiresAdmin && !auth.canAccessPermissionAudit) {
+      return { name: 'workspace' }
     }
 
     if (to.meta.guestOnly && auth.isAuthenticated) {

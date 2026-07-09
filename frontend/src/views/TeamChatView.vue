@@ -7,6 +7,7 @@ import { useWorkspaceLayoutMode } from '@/composables/useWorkspaceLayoutMode'
 import { useWorkspaceNavigation } from '@/composables/useWorkspaceNavigation'
 import DesktopWorkspaceLayout from '@/layouts/DesktopWorkspaceLayout.vue'
 import MobileWorkspaceLayout from '@/layouts/MobileWorkspaceLayout.vue'
+import { useAuthStore } from '@/stores/auth'
 import { useWorkspaceStore } from '@/stores/workspace'
 
 interface ChatMessage {
@@ -43,6 +44,7 @@ interface MentionOption {
   all?: boolean
 }
 
+const auth = useAuthStore()
 const workspace = useWorkspaceStore()
 const { apiState, auditLogs, summary, teams } = storeToRefs(workspace)
 const { isMobileLayout } = useWorkspaceLayoutMode()

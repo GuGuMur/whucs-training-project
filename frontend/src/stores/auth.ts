@@ -45,6 +45,7 @@ export const useAuthStore = defineStore('auth', () => {
   const roles = computed(() => currentUser.value?.roles ?? [])
   const selectedAccessRole = computed(() => session.value?.accessRole ?? inferAccessRole(currentUser.value?.roles ?? []))
   const selectedAccessRoleLabel = computed(() => accessRoleLabels[selectedAccessRole.value])
+  const canAccessPermissionAudit = computed(() => selectedAccessRole.value === 'super_admin' || selectedAccessRole.value === 'admin')
 
   function inferAccessRole(roles: string[]): WorkspaceAccessRole {
     if (roles.includes('super_admin')) return 'super_admin'
@@ -267,6 +268,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
+    canAccessPermissionAudit,
     currentUser,
     displayName,
     errorMessage,

@@ -1,5 +1,8 @@
 ﻿<script setup lang="ts">
 import type { AuditLogEntry, TeamSummary } from '@/client/workspace'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
 
 defineProps<{
   teams: TeamSummary[]
@@ -22,7 +25,7 @@ defineProps<{
       </NList>
     </NCard>
 
-    <NCard id="audit" class="min-w-0 overflow-hidden scroll-mt-24 max-md:scroll-mt-32" size="small">
+    <NCard v-if="auth.canAccessPermissionAudit" id="audit" class="min-w-0 overflow-hidden scroll-mt-24 max-md:scroll-mt-32" size="small">
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <span>审计日志</span>
