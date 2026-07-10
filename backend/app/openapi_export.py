@@ -5,12 +5,13 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-from app.main import app
+from app.main import create_v2_app
 
 
 def export_openapi(output_path: str | Path) -> Path:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    app = create_v2_app()
     path.write_text(
         json.dumps(app.openapi(), ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

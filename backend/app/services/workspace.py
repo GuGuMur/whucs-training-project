@@ -296,9 +296,45 @@ class StoredDeletedFile:
     deleted_by: str
 
 
+def _merge_heading_segments(segments: list) -> list:
+    """Merge heading-only segments with their following content.
+
+    A segment is considered heading-only if it starts with '#' or is very short
+    (<30 chars without sentence ending). These are merged with the next segment
+    to prevent FAISS from returning bare headings as search results.
+    """
+    if len(segments) <= 1:
+        return segments
+
+    from app.services.parser import ParsedSegment
+
+    merged: list[ParsedSegment] = []
+    skip_next = False
+    for i, seg in enumerate(segments):
+        if skip_next:
+            skip_next = False
+            continue
+        text = seg.content.strip()
+        is_heading = text.startswith("#") or (len(text) < 30 and not text.endswith("。"))
+        if is_heading and i + 1 < len(segments):
+            next_text = segments[i + 1].content.strip()
+            if not next_text.startswith("#") and len(next_text) > 20:
+                merged.append(ParsedSegment(
+                    content=f"{text}\n{next_text}",
+                    page_no=seg.page_no,
+                    paragraph_no=seg.paragraph_no,
+                ))
+                skip_next = True
+                continue
+        merged.append(seg)
+    return merged
+
+
 class WorkspaceService:
-    def __init__(self) -> None:
+    def __init__(self, db_session: "AsyncSession | None" = None) -> None:
         self._secret = "dev-workspace-secret"
+        self._debug_sessions: dict[str, dict] = {}
+        self._db = db_session
         self._users_by_id: dict[int, StoredUser] = {}
         self._users_by_username: dict[str, StoredUser] = {}
         self._users_by_email: dict[str, StoredUser] = {}
@@ -328,39 +364,43 @@ class WorkspaceService:
 
     def register_user(self, payload: UserCreate) -> tuple[UserPublic, str, str]:
         if payload.username in self._users_by_username:
-            raise WorkspaceError(
-                409,
-                "USERNAME_EXISTS",
-                "用户名已存在",
-                {"username": payload.username},
-            )
+            raise WorkspaceError(409, "USERNAME_EXISTS", "用户名已存在", {"username": payload.username})
         if str(payload.email) in self._users_by_email:
             raise WorkspaceError(409, "EMAIL_EXISTS", "邮箱已存在", {"email": str(payload.email)})
-
-        user = UserPublic(
-            id=self._next_user_id,
-            username=payload.username,
-            email=payload.email,
-            display_name=payload.username,
-            roles=["user"],
-        )
+        user = UserPublic(id=self._next_user_id, username=payload.username, email=payload.email,
+                          display_name=payload.username, roles=["user"])
         self._next_user_id += 1
         stored = StoredUser(public=user, password_hash=self._hash_password(payload.password))
         self._users_by_id[user.id] = stored
         self._users_by_username[user.username] = stored
         self._users_by_email[str(user.email)] = stored
-        # Create personal root folder lazily on first registration
-        if "personal-root" not in self._folders:
-            self._folders["personal-root"] = StoredFolder(
-                id="personal-root",
-                name="个人空间",
-                parent_id=None,
-                scope="personal",
-                permission="管理",
-                team_id=None,
-            )
+        self._ensure_personal_root()
         self._record_audit(user.username, "auth.register", "user", user.username)
         return user, self._create_token(user.id, "access"), self._create_token(user.id, "refresh")
+
+    async def register_user_db(self, payload: UserCreate) -> tuple[UserPublic, str, str]:
+        """Register user via database (requires db_session in constructor)."""
+        from app.repositories.user import UserRepository
+        from app.models import User as UserModel
+        assert self._db is not None, "DB session required"
+        repo = UserRepository(self._db)
+        if await repo.get_by_username(payload.username):
+            raise WorkspaceError(409, "USERNAME_EXISTS", "用户名已存在", {"username": payload.username})
+        if await repo.get_by_email(str(payload.email)):
+            raise WorkspaceError(409, "EMAIL_EXISTS", "邮箱已存在", {"email": str(payload.email)})
+        db_user = UserModel(username=payload.username, email=str(payload.email),
+                           hashed_password=self._hash_password(payload.password), display_name=payload.username)
+        await repo.create(db_user); await self._db.commit()
+        public = UserPublic(id=db_user.id, username=db_user.username, email=db_user.email,
+                            display_name=db_user.display_name, roles=db_user.roles.split(",") if db_user.roles else ["user"])
+        self._ensure_personal_root()
+        return public, self._create_token(db_user.id, "access"), self._create_token(db_user.id, "refresh")
+
+    def _ensure_personal_root(self) -> None:
+        if "personal-root" not in self._folders:
+            self._folders["personal-root"] = StoredFolder(
+                id="personal-root", name="个人空间", parent_id=None,
+                scope="personal", permission="管理", team_id=None)
 
     def login_user(self, account: str, password: str) -> tuple[UserPublic, str, str]:
         stored = self._users_by_username.get(account) or self._users_by_email.get(account)
@@ -989,6 +1029,9 @@ class WorkspaceService:
                 f"文件解析失败：{exc}",
                 {"file_id": file_item.id, "file_name": file_item.name},
             ) from exc
+        # Merge heading-only chunks with their following content for better retrieval
+        merged_segments = _merge_heading_segments(parsed.segments)
+
         document = StoredKnowledgeDocument(
             id=document_id,
             kb_id=kb_id,
@@ -1002,7 +1045,7 @@ class WorkspaceService:
                     page_no=segment.page_no,
                     paragraph_no=segment.paragraph_no,
                 )
-                for index, segment in enumerate(parsed.segments, start=1)
+                for index, segment in enumerate(merged_segments, start=1)
             ],
             updated_at=now,
         )
@@ -1323,6 +1366,42 @@ class WorkspaceService:
             output={"summary": summary},
         )
 
+    def start_debug(self, workflow_id: str, payload: WorkflowExecutionRequest, actor: UserPublic) -> dict:
+        """FR-W07: Start a debug session, returns first node and metadata."""
+        workflow = self._find_workflow(workflow_id)
+        order = self._workflow_execution_order(workflow)
+        if not order:
+            raise WorkspaceError(400, "NO_NODES", "流程没有可执行节点")
+        sid = f"debug-{secrets.token_hex(4)}"
+        self._debug_sessions[sid] = {
+            "workflow_id": workflow_id, "payload": payload, "actor": actor,
+            "order": order, "cursor": 0, "results": [],
+        }
+        first = order[0]
+        return {"session_id": sid, "total_nodes": len(order), "current_index": 0,
+                "node": {"id": first.id, "name": first.name, "type": first.type}}
+
+    def step_debug(self, session_id: str) -> dict:
+        """FR-W07: Execute the next node in a debug session."""
+        session = self._debug_sessions.get(session_id)
+        if not session:
+            raise WorkspaceError(404, "DEBUG_SESSION_NOT_FOUND", "调试会话不存在或已过期")
+        order = session["order"]
+        cursor = session["cursor"]
+        if cursor >= len(order):
+            del self._debug_sessions[session_id]
+            return {"done": True, "total": len(order), "results": session["results"]}
+        node = order[cursor]
+        result = self._execute_workflow_node(node, session["payload"])
+        session["results"].append(result.model_dump())
+        session["cursor"] = cursor + 1
+        done = session["cursor"] >= len(order)
+        if done:
+            del self._debug_sessions[session_id]
+        return {"done": done, "total": len(order), "current_index": cursor,
+                "node_id": node.id, "node_name": node.name,
+                "result": result.model_dump(), "remaining": len(order) - session["cursor"]}
+
     def create_team(self, payload: TeamCreate, actor: UserPublic) -> TeamDetail:
         team_id = f"team-{secrets.token_hex(4)}"
         root_folder_id = f"{team_id}-root"
@@ -1457,6 +1536,43 @@ class WorkspaceService:
             raise WorkspaceError(409, "TEAM_OWNER_PROTECTED", "不能移除团队所有者", {"member_id": member_id})
         member.status = "removed"
         self._record_audit(actor.username, "team.member_remove", "team", team.name)
+
+    def update_team(self, team_id: str, payload, actor: UserPublic):
+        from app.domain.schemas import TeamUpdate
+        team = self._find_team(team_id)
+        self._require_team_manager(team_id, actor)
+        if payload.name is not None:
+            team.name = payload.name.strip()
+        if payload.description is not None:
+            team.description = (payload.description or "").strip()
+        self._record_audit(actor.username, "team.update", "team", team.name)
+        membership = self._require_team_member(team_id, actor)
+        return TeamDetail(
+            id=team.id, name=team.name, description=team.description,
+            role=membership.role,  # type: ignore[arg-type]
+            member_count=self._active_team_member_count(team.id),
+            unread_count=self._notification_unread_count(actor.id, team.id),
+            root_folder=self._folder_item(self._find_folder(team.root_folder_id), actor),
+            members=[self._team_member_public(m) for m in self._team_members.values() if m.team_id == team.id and m.status == "active"],
+            invites=[self._team_invite_public(i) for i in self._team_invites.values() if i.team_id == team.id and i.status == "pending"],
+        )
+
+    def delete_team(self, team_id: str, actor: UserPublic) -> None:
+        team = self._find_team(team_id)
+        membership = self._require_team_member(team_id, actor)
+        if membership.role != "owner":
+            raise WorkspaceError(403, "TEAM_OWNER_ONLY", "只有团队所有者可以解散团队", {"team_id": team_id})
+        # Remove all members, messages, and team
+        self._teams.pop(team_id, None)
+        self._record_audit(actor.username, "team.delete", "team", team.name)
+
+    def leave_team(self, team_id: str, actor: UserPublic) -> None:
+        team = self._find_team(team_id)
+        membership = self._require_team_member(team_id, actor)
+        if membership.role == "owner":
+            raise WorkspaceError(409, "TEAM_OWNER_CANT_LEAVE", "团队所有者不能直接离开，请先转让所有权或解散团队", {"team_id": team_id})
+        membership.status = "left"
+        self._record_audit(actor.username, "team.leave", "team", team.name)
 
     def list_team_messages(self, team_id: str, actor: UserPublic) -> list[TeamMessageItem]:
         self._find_team(team_id)
@@ -1711,7 +1827,7 @@ class WorkspaceService:
                 bm25_scores = bm25.get_scores(tokenized_question)
                 for i, score in enumerate(bm25_scores):
                     _, _, faiss_score = candidates[i]
-                    candidates[i] = (candidates[i][0], candidates[i][1], faiss_score * 0.7 + float(score) * 0.01)
+                    candidates[i] = (candidates[i][0], candidates[i][1], faiss_score * 0.5 + float(score) * 0.5)
                 candidates.sort(key=lambda x: x[2], reverse=True)
             except ImportError:
                 pass

@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, formDataBodySerializer, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostData, AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostErrors, AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses, AuditLogsApiV1AuditLogsGetData, AuditLogsApiV1AuditLogsGetErrors, AuditLogsApiV1AuditLogsGetResponses, CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostData, CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostErrors, CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostResponses, CopyFileApiV1FilesFileIdCopyPostData, CopyFileApiV1FilesFileIdCopyPostErrors, CopyFileApiV1FilesFileIdCopyPostResponses, CreateAgentTaskApiV1AgentsTasksPostData, CreateAgentTaskApiV1AgentsTasksPostErrors, CreateAgentTaskApiV1AgentsTasksPostResponses, CreateFileAnnotationApiV1FilesFileIdAnnotationsPostData, CreateFileAnnotationApiV1FilesFileIdAnnotationsPostErrors, CreateFileAnnotationApiV1FilesFileIdAnnotationsPostResponses, CreateFileShareLinkApiV1FilesFileIdShareLinksPostData, CreateFileShareLinkApiV1FilesFileIdShareLinksPostErrors, CreateFileShareLinkApiV1FilesFileIdShareLinksPostResponses, CreateFolderApiV1FoldersPostData, CreateFolderApiV1FoldersPostErrors, CreateFolderApiV1FoldersPostResponses, CreateKnowledgeBaseApiV1KnowledgeBasesPostData, CreateKnowledgeBaseApiV1KnowledgeBasesPostErrors, CreateKnowledgeBaseApiV1KnowledgeBasesPostResponses, CreatePermissionRuleApiV1PermissionsRulesPostData, CreatePermissionRuleApiV1PermissionsRulesPostErrors, CreatePermissionRuleApiV1PermissionsRulesPostResponses, CreateTeamApiV1TeamsPostData, CreateTeamApiV1TeamsPostErrors, CreateTeamApiV1TeamsPostResponses, CreateTeamInviteApiV1TeamsTeamIdInvitesPostData, CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors, CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses, CreateTeamMessageApiV1TeamsTeamIdMessagesPostData, CreateTeamMessageApiV1TeamsTeamIdMessagesPostErrors, CreateTeamMessageApiV1TeamsTeamIdMessagesPostResponses, CreateWorkflowApiV1WorkflowsPostData, CreateWorkflowApiV1WorkflowsPostErrors, CreateWorkflowApiV1WorkflowsPostResponses, DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteData, DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteErrors, DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteResponses, DeleteFileApiV1FilesFileIdDeleteData, DeleteFileApiV1FilesFileIdDeleteErrors, DeleteFileApiV1FilesFileIdDeleteResponses, DeleteFolderApiV1FoldersFolderIdDeleteData, DeleteFolderApiV1FoldersFolderIdDeleteErrors, DeleteFolderApiV1FoldersFolderIdDeleteResponses, DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteData, DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteErrors, DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponses, DownloadFileApiV1FilesFileIdDownloadGetData, DownloadFileApiV1FilesFileIdDownloadGetErrors, DownloadFileApiV1FilesFileIdDownloadGetResponses, DownloadSharedFileApiV1ShareLinksTokenDownloadPostData, DownloadSharedFileApiV1ShareLinksTokenDownloadPostErrors, DownloadSharedFileApiV1ShareLinksTokenDownloadPostResponses, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostData, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostErrors, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses, FileAnnotationsApiV1FilesFileIdAnnotationsGetData, FileAnnotationsApiV1FilesFileIdAnnotationsGetErrors, FileAnnotationsApiV1FilesFileIdAnnotationsGetResponses, FilesApiV1FilesGetData, FilesApiV1FilesGetErrors, FilesApiV1FilesGetResponses, FileVersionsApiV1FilesFileIdVersionsGetData, FileVersionsApiV1FilesFileIdVersionsGetErrors, FileVersionsApiV1FilesFileIdVersionsGetResponses, FoldersApiV1FoldersTreeGetData, FoldersApiV1FoldersTreeGetErrors, FoldersApiV1FoldersTreeGetResponses, HealthHealthGetData, HealthHealthGetResponses, InitMultipartUploadApiV1FilesMultipartUploadsPostData, InitMultipartUploadApiV1FilesMultipartUploadsPostErrors, InitMultipartUploadApiV1FilesMultipartUploadsPostResponses, JoinTeamApiV1TeamsTeamIdMembersPostData, JoinTeamApiV1TeamsTeamIdMembersPostErrors, JoinTeamApiV1TeamsTeamIdMembersPostResponses, KnowledgeBasesApiV1KnowledgeBasesGetData, KnowledgeBasesApiV1KnowledgeBasesGetErrors, KnowledgeBasesApiV1KnowledgeBasesGetResponses, KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetData, KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetErrors, KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponses, LoginApiV1AuthLoginPostData, LoginApiV1AuthLoginPostErrors, LoginApiV1AuthLoginPostResponses, MarkNotificationReadApiV1NotificationsNotificationIdReadPatchData, MarkNotificationReadApiV1NotificationsNotificationIdReadPatchErrors, MarkNotificationReadApiV1NotificationsNotificationIdReadPatchResponses, MeApiV1UsersMeGetData, MeApiV1UsersMeGetErrors, MeApiV1UsersMeGetResponses, MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetData, MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetErrors, MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetResponses, NotificationsApiV1NotificationsGetData, NotificationsApiV1NotificationsGetErrors, NotificationsApiV1NotificationsGetResponses, PermissionRulesApiV1PermissionsRulesGetData, PermissionRulesApiV1PermissionsRulesGetErrors, PermissionRulesApiV1PermissionsRulesGetResponses, PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostData, PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostErrors, PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponses, QaQueryApiV1QaQueryPostData, QaQueryApiV1QaQueryPostErrors, QaQueryApiV1QaQueryPostResponses, RecycleBinApiV1FilesRecycleBinGetData, RecycleBinApiV1FilesRecycleBinGetErrors, RecycleBinApiV1FilesRecycleBinGetResponses, RefreshApiV1AuthRefreshPostData, RefreshApiV1AuthRefreshPostErrors, RefreshApiV1AuthRefreshPostResponses, RegisterApiV1AuthRegisterPostData, RegisterApiV1AuthRegisterPostErrors, RegisterApiV1AuthRegisterPostResponses, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteData, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses, ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostData, ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostErrors, ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostResponses, RestoreDeletedFileApiV1FilesFileIdRestorePostData, RestoreDeletedFileApiV1FilesFileIdRestorePostErrors, RestoreDeletedFileApiV1FilesFileIdRestorePostResponses, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostData, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses, TeamDetailApiV1TeamsTeamIdGetData, TeamDetailApiV1TeamsTeamIdGetErrors, TeamDetailApiV1TeamsTeamIdGetResponses, TeamMessagesApiV1TeamsTeamIdMessagesGetData, TeamMessagesApiV1TeamsTeamIdMessagesGetErrors, TeamMessagesApiV1TeamsTeamIdMessagesGetResponses, TeamsApiV1TeamsGetData, TeamsApiV1TeamsGetErrors, TeamsApiV1TeamsGetResponses, ToolsApiV1ToolsGetData, ToolsApiV1ToolsGetErrors, ToolsApiV1ToolsGetResponses, UpdateFileApiV1FilesFileIdPatchData, UpdateFileApiV1FilesFileIdPatchErrors, UpdateFileApiV1FilesFileIdPatchResponses, UpdateFolderApiV1FoldersFolderIdPatchData, UpdateFolderApiV1FoldersFolderIdPatchErrors, UpdateFolderApiV1FoldersFolderIdPatchResponses, UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchData, UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchErrors, UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponses, UpdateMeApiV1UsersMePatchData, UpdateMeApiV1UsersMePatchErrors, UpdateMeApiV1UsersMePatchResponses, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchData, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses, UpdateWorkflowApiV1WorkflowsWorkflowIdPatchData, UpdateWorkflowApiV1WorkflowsWorkflowIdPatchErrors, UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponses, UploadFileApiV1FilesUploadPostData, UploadFileApiV1FilesUploadPostErrors, UploadFileApiV1FilesUploadPostResponses, UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutData, UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors, UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses, ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostData, ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostErrors, ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponses, WorkflowsApiV1WorkflowsGetData, WorkflowsApiV1WorkflowsGetErrors, WorkflowsApiV1WorkflowsGetResponses, WorkspaceSnapshotApiV1WorkspaceSnapshotGetData, WorkspaceSnapshotApiV1WorkspaceSnapshotGetErrors, WorkspaceSnapshotApiV1WorkspaceSnapshotGetResponses } from './types.gen';
+import type { AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostData, AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostErrors, AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostResponses, AuditLogsApiV2AuditLogsGetData, AuditLogsApiV2AuditLogsGetErrors, AuditLogsApiV2AuditLogsGetResponses, CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostData, CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostErrors, CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostResponses, CopyFileApiV2FilesFileIdCopyPostData, CopyFileApiV2FilesFileIdCopyPostErrors, CopyFileApiV2FilesFileIdCopyPostResponses, CreateAgentTaskApiV2AgentsTasksPostData, CreateAgentTaskApiV2AgentsTasksPostErrors, CreateAgentTaskApiV2AgentsTasksPostResponses, CreateFileAnnotationApiV2FilesFileIdAnnotationsPostData, CreateFileAnnotationApiV2FilesFileIdAnnotationsPostErrors, CreateFileAnnotationApiV2FilesFileIdAnnotationsPostResponses, CreateFileShareLinkApiV2FilesFileIdShareLinksPostData, CreateFileShareLinkApiV2FilesFileIdShareLinksPostErrors, CreateFileShareLinkApiV2FilesFileIdShareLinksPostResponses, CreateFolderApiV2FoldersPostData, CreateFolderApiV2FoldersPostErrors, CreateFolderApiV2FoldersPostResponses, CreateKnowledgeBaseApiV2KnowledgeBasesPostData, CreateKnowledgeBaseApiV2KnowledgeBasesPostErrors, CreateKnowledgeBaseApiV2KnowledgeBasesPostResponses, CreatePermissionRuleApiV2PermissionsRulesPostData, CreatePermissionRuleApiV2PermissionsRulesPostErrors, CreatePermissionRuleApiV2PermissionsRulesPostResponses, CreateTeamApiV2TeamsPostData, CreateTeamApiV2TeamsPostErrors, CreateTeamApiV2TeamsPostResponses, CreateTeamInviteApiV2TeamsTeamIdInvitesPostData, CreateTeamInviteApiV2TeamsTeamIdInvitesPostErrors, CreateTeamInviteApiV2TeamsTeamIdInvitesPostResponses, CreateTeamMessageApiV2TeamsTeamIdMessagesPostData, CreateTeamMessageApiV2TeamsTeamIdMessagesPostErrors, CreateTeamMessageApiV2TeamsTeamIdMessagesPostResponses, CreateWorkflowApiV2WorkflowsPostData, CreateWorkflowApiV2WorkflowsPostErrors, CreateWorkflowApiV2WorkflowsPostResponses, DebugStartApiV2WorkflowsWorkflowIdDebugStartPostData, DebugStartApiV2WorkflowsWorkflowIdDebugStartPostErrors, DebugStartApiV2WorkflowsWorkflowIdDebugStartPostResponses, DebugStepApiV2WorkflowsWorkflowIdDebugStepPostData, DebugStepApiV2WorkflowsWorkflowIdDebugStepPostErrors, DebugStepApiV2WorkflowsWorkflowIdDebugStepPostResponses, DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteData, DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteErrors, DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteResponses, DeleteFileApiV2FilesFileIdDeleteData, DeleteFileApiV2FilesFileIdDeleteErrors, DeleteFileApiV2FilesFileIdDeleteResponses, DeleteFolderApiV2FoldersFolderIdDeleteData, DeleteFolderApiV2FoldersFolderIdDeleteErrors, DeleteFolderApiV2FoldersFolderIdDeleteResponses, DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteData, DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteErrors, DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteResponses, DeleteTeamApiV2TeamsTeamIdDeleteData, DeleteTeamApiV2TeamsTeamIdDeleteErrors, DeleteTeamApiV2TeamsTeamIdDeleteResponses, DownloadFileApiV2FilesFileIdDownloadGetData, DownloadFileApiV2FilesFileIdDownloadGetErrors, DownloadFileApiV2FilesFileIdDownloadGetResponses, ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostData, ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostErrors, ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostResponses, FileAnnotationsApiV2FilesFileIdAnnotationsGetData, FileAnnotationsApiV2FilesFileIdAnnotationsGetErrors, FileAnnotationsApiV2FilesFileIdAnnotationsGetResponses, FileVersionsApiV2FilesFileIdVersionsGetData, FileVersionsApiV2FilesFileIdVersionsGetErrors, FileVersionsApiV2FilesFileIdVersionsGetResponses, FolderTreeApiV2FoldersTreeGetData, FolderTreeApiV2FoldersTreeGetErrors, FolderTreeApiV2FoldersTreeGetResponses, HealthApiV2HealthGetData, HealthApiV2HealthGetResponses, InitMultipartUploadApiV2FilesMultipartUploadsPostData, InitMultipartUploadApiV2FilesMultipartUploadsPostErrors, InitMultipartUploadApiV2FilesMultipartUploadsPostResponses, JoinTeamApiV2TeamsTeamIdMembersPostData, JoinTeamApiV2TeamsTeamIdMembersPostErrors, JoinTeamApiV2TeamsTeamIdMembersPostResponses, KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetData, KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetErrors, KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetResponses, LeaveTeamApiV2TeamsTeamIdMembersMeDeleteData, LeaveTeamApiV2TeamsTeamIdMembersMeDeleteErrors, LeaveTeamApiV2TeamsTeamIdMembersMeDeleteResponses, ListFilesApiV2FilesGetData, ListFilesApiV2FilesGetErrors, ListFilesApiV2FilesGetResponses, ListKnowledgeBasesApiV2KnowledgeBasesGetData, ListKnowledgeBasesApiV2KnowledgeBasesGetErrors, ListKnowledgeBasesApiV2KnowledgeBasesGetResponses, ListTeamsApiV2TeamsGetData, ListTeamsApiV2TeamsGetErrors, ListTeamsApiV2TeamsGetResponses, ListWorkflowsApiV2WorkflowsGetData, ListWorkflowsApiV2WorkflowsGetErrors, ListWorkflowsApiV2WorkflowsGetResponses, LoginApiV2AuthLoginPostData, LoginApiV2AuthLoginPostErrors, LoginApiV2AuthLoginPostResponses, MarkNotificationReadApiV2NotificationsNotificationIdReadPatchData, MarkNotificationReadApiV2NotificationsNotificationIdReadPatchErrors, MarkNotificationReadApiV2NotificationsNotificationIdReadPatchResponses, MeApiV2UsersMeGetData, MeApiV2UsersMeGetErrors, MeApiV2UsersMeGetResponses, MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetData, MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetErrors, MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetResponses, NotificationsApiV2NotificationsGetData, NotificationsApiV2NotificationsGetErrors, NotificationsApiV2NotificationsGetResponses, PermissionRulesApiV2PermissionsRulesGetData, PermissionRulesApiV2PermissionsRulesGetErrors, PermissionRulesApiV2PermissionsRulesGetResponses, PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostData, PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostErrors, PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostResponses, QaQueryApiV2QaQueryPostData, QaQueryApiV2QaQueryPostErrors, QaQueryApiV2QaQueryPostResponses, RecycleBinApiV2FilesRecycleBinGetData, RecycleBinApiV2FilesRecycleBinGetErrors, RecycleBinApiV2FilesRecycleBinGetResponses, RefreshApiV2AuthRefreshPostData, RefreshApiV2AuthRefreshPostErrors, RefreshApiV2AuthRefreshPostResponses, RegisterApiV2AuthRegisterPostData, RegisterApiV2AuthRegisterPostErrors, RegisterApiV2AuthRegisterPostResponses, RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteData, RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteErrors, RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteResponses, ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostData, ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostErrors, ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostResponses, RestoreDeletedFileApiV2FilesFileIdRestorePostData, RestoreDeletedFileApiV2FilesFileIdRestorePostErrors, RestoreDeletedFileApiV2FilesFileIdRestorePostResponses, RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostData, RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostErrors, RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostResponses, TeamDetailApiV2TeamsTeamIdGetData, TeamDetailApiV2TeamsTeamIdGetErrors, TeamDetailApiV2TeamsTeamIdGetResponses, TeamMessagesApiV2TeamsTeamIdMessagesGetData, TeamMessagesApiV2TeamsTeamIdMessagesGetErrors, TeamMessagesApiV2TeamsTeamIdMessagesGetResponses, ToolsApiV2ToolsGetData, ToolsApiV2ToolsGetErrors, ToolsApiV2ToolsGetResponses, UpdateFileApiV2FilesFileIdPatchData, UpdateFileApiV2FilesFileIdPatchErrors, UpdateFileApiV2FilesFileIdPatchResponses, UpdateFolderApiV2FoldersFolderIdPatchData, UpdateFolderApiV2FoldersFolderIdPatchErrors, UpdateFolderApiV2FoldersFolderIdPatchResponses, UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchData, UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchErrors, UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchResponses, UpdateMeApiV2UsersMePatchData, UpdateMeApiV2UsersMePatchErrors, UpdateMeApiV2UsersMePatchResponses, UpdateTeamApiV2TeamsTeamIdPatchData, UpdateTeamApiV2TeamsTeamIdPatchErrors, UpdateTeamApiV2TeamsTeamIdPatchResponses, UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchData, UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchErrors, UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchResponses, UpdateWorkflowApiV2WorkflowsWorkflowIdPatchData, UpdateWorkflowApiV2WorkflowsWorkflowIdPatchErrors, UpdateWorkflowApiV2WorkflowsWorkflowIdPatchResponses, UploadFileApiV2FilesUploadPostData, UploadFileApiV2FilesUploadPostErrors, UploadFileApiV2FilesUploadPostResponses, UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutData, UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors, UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses, ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostData, ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostErrors, ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostResponses, WorkspaceSnapshotApiV2WorkspaceSnapshotGetData, WorkspaceSnapshotApiV2WorkspaceSnapshotGetErrors, WorkspaceSnapshotApiV2WorkspaceSnapshotGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -21,8 +21,8 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 /**
  * Create Agent Task
  */
-export const createAgentTaskApiV1AgentsTasksPost = <ThrowOnError extends boolean = false>(options: Options<CreateAgentTaskApiV1AgentsTasksPostData, ThrowOnError>): RequestResult<CreateAgentTaskApiV1AgentsTasksPostResponses, CreateAgentTaskApiV1AgentsTasksPostErrors, ThrowOnError> => (options.client ?? client).post<CreateAgentTaskApiV1AgentsTasksPostResponses, CreateAgentTaskApiV1AgentsTasksPostErrors, ThrowOnError>({
-    url: '/api/v1/agents/tasks',
+export const createAgentTaskApiV2AgentsTasksPost = <ThrowOnError extends boolean = false>(options: Options<CreateAgentTaskApiV2AgentsTasksPostData, ThrowOnError>): RequestResult<CreateAgentTaskApiV2AgentsTasksPostResponses, CreateAgentTaskApiV2AgentsTasksPostErrors, ThrowOnError> => (options.client ?? client).post<CreateAgentTaskApiV2AgentsTasksPostResponses, CreateAgentTaskApiV2AgentsTasksPostErrors, ThrowOnError>({
+    url: '/api/v2/agents/tasks',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -33,8 +33,8 @@ export const createAgentTaskApiV1AgentsTasksPost = <ThrowOnError extends boolean
 /**
  * Reply File Annotation
  */
-export const replyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPost = <ThrowOnError extends boolean = false>(options: Options<ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostData, ThrowOnError>): RequestResult<ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostResponses, ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostErrors, ThrowOnError> => (options.client ?? client).post<ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostResponses, ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostErrors, ThrowOnError>({
-    url: '/api/v1/annotations/{annotation_id}/replies',
+export const replyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPost = <ThrowOnError extends boolean = false>(options: Options<ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostData, ThrowOnError>): RequestResult<ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostResponses, ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostErrors, ThrowOnError> => (options.client ?? client).post<ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostResponses, ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostErrors, ThrowOnError>({
+    url: '/api/v2/annotations/{annotation_id}/replies',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -45,13 +45,13 @@ export const replyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPost = <Throw
 /**
  * Audit Logs
  */
-export const auditLogsApiV1AuditLogsGet = <ThrowOnError extends boolean = false>(options?: Options<AuditLogsApiV1AuditLogsGetData, ThrowOnError>): RequestResult<AuditLogsApiV1AuditLogsGetResponses, AuditLogsApiV1AuditLogsGetErrors, ThrowOnError> => (options?.client ?? client).get<AuditLogsApiV1AuditLogsGetResponses, AuditLogsApiV1AuditLogsGetErrors, ThrowOnError>({ url: '/api/v1/audit-logs', ...options });
+export const auditLogsApiV2AuditLogsGet = <ThrowOnError extends boolean = false>(options?: Options<AuditLogsApiV2AuditLogsGetData, ThrowOnError>): RequestResult<AuditLogsApiV2AuditLogsGetResponses, AuditLogsApiV2AuditLogsGetErrors, ThrowOnError> => (options?.client ?? client).get<AuditLogsApiV2AuditLogsGetResponses, AuditLogsApiV2AuditLogsGetErrors, ThrowOnError>({ url: '/api/v2/audit-logs', ...options });
 
 /**
  * Login
  */
-export const loginApiV1AuthLoginPost = <ThrowOnError extends boolean = false>(options: Options<LoginApiV1AuthLoginPostData, ThrowOnError>): RequestResult<LoginApiV1AuthLoginPostResponses, LoginApiV1AuthLoginPostErrors, ThrowOnError> => (options.client ?? client).post<LoginApiV1AuthLoginPostResponses, LoginApiV1AuthLoginPostErrors, ThrowOnError>({
-    url: '/api/v1/auth/login',
+export const loginApiV2AuthLoginPost = <ThrowOnError extends boolean = false>(options: Options<LoginApiV2AuthLoginPostData, ThrowOnError>): RequestResult<LoginApiV2AuthLoginPostResponses, LoginApiV2AuthLoginPostErrors, ThrowOnError> => (options.client ?? client).post<LoginApiV2AuthLoginPostResponses, LoginApiV2AuthLoginPostErrors, ThrowOnError>({
+    url: '/api/v2/auth/login',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -62,8 +62,8 @@ export const loginApiV1AuthLoginPost = <ThrowOnError extends boolean = false>(op
 /**
  * Refresh
  */
-export const refreshApiV1AuthRefreshPost = <ThrowOnError extends boolean = false>(options: Options<RefreshApiV1AuthRefreshPostData, ThrowOnError>): RequestResult<RefreshApiV1AuthRefreshPostResponses, RefreshApiV1AuthRefreshPostErrors, ThrowOnError> => (options.client ?? client).post<RefreshApiV1AuthRefreshPostResponses, RefreshApiV1AuthRefreshPostErrors, ThrowOnError>({
-    url: '/api/v1/auth/refresh',
+export const refreshApiV2AuthRefreshPost = <ThrowOnError extends boolean = false>(options: Options<RefreshApiV2AuthRefreshPostData, ThrowOnError>): RequestResult<RefreshApiV2AuthRefreshPostResponses, RefreshApiV2AuthRefreshPostErrors, ThrowOnError> => (options.client ?? client).post<RefreshApiV2AuthRefreshPostResponses, RefreshApiV2AuthRefreshPostErrors, ThrowOnError>({
+    url: '/api/v2/auth/refresh',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -74,8 +74,8 @@ export const refreshApiV1AuthRefreshPost = <ThrowOnError extends boolean = false
 /**
  * Register
  */
-export const registerApiV1AuthRegisterPost = <ThrowOnError extends boolean = false>(options: Options<RegisterApiV1AuthRegisterPostData, ThrowOnError>): RequestResult<RegisterApiV1AuthRegisterPostResponses, RegisterApiV1AuthRegisterPostErrors, ThrowOnError> => (options.client ?? client).post<RegisterApiV1AuthRegisterPostResponses, RegisterApiV1AuthRegisterPostErrors, ThrowOnError>({
-    url: '/api/v1/auth/register',
+export const registerApiV2AuthRegisterPost = <ThrowOnError extends boolean = false>(options: Options<RegisterApiV2AuthRegisterPostData, ThrowOnError>): RequestResult<RegisterApiV2AuthRegisterPostResponses, RegisterApiV2AuthRegisterPostErrors, ThrowOnError> => (options.client ?? client).post<RegisterApiV2AuthRegisterPostResponses, RegisterApiV2AuthRegisterPostErrors, ThrowOnError>({
+    url: '/api/v2/auth/register',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -84,15 +84,15 @@ export const registerApiV1AuthRegisterPost = <ThrowOnError extends boolean = fal
 });
 
 /**
- * Files
+ * List Files
  */
-export const filesApiV1FilesGet = <ThrowOnError extends boolean = false>(options?: Options<FilesApiV1FilesGetData, ThrowOnError>): RequestResult<FilesApiV1FilesGetResponses, FilesApiV1FilesGetErrors, ThrowOnError> => (options?.client ?? client).get<FilesApiV1FilesGetResponses, FilesApiV1FilesGetErrors, ThrowOnError>({ url: '/api/v1/files', ...options });
+export const listFilesApiV2FilesGet = <ThrowOnError extends boolean = false>(options?: Options<ListFilesApiV2FilesGetData, ThrowOnError>): RequestResult<ListFilesApiV2FilesGetResponses, ListFilesApiV2FilesGetErrors, ThrowOnError> => (options?.client ?? client).get<ListFilesApiV2FilesGetResponses, ListFilesApiV2FilesGetErrors, ThrowOnError>({ url: '/api/v2/files', ...options });
 
 /**
  * Init Multipart Upload
  */
-export const initMultipartUploadApiV1FilesMultipartUploadsPost = <ThrowOnError extends boolean = false>(options: Options<InitMultipartUploadApiV1FilesMultipartUploadsPostData, ThrowOnError>): RequestResult<InitMultipartUploadApiV1FilesMultipartUploadsPostResponses, InitMultipartUploadApiV1FilesMultipartUploadsPostErrors, ThrowOnError> => (options.client ?? client).post<InitMultipartUploadApiV1FilesMultipartUploadsPostResponses, InitMultipartUploadApiV1FilesMultipartUploadsPostErrors, ThrowOnError>({
-    url: '/api/v1/files/multipart-uploads',
+export const initMultipartUploadApiV2FilesMultipartUploadsPost = <ThrowOnError extends boolean = false>(options: Options<InitMultipartUploadApiV2FilesMultipartUploadsPostData, ThrowOnError>): RequestResult<InitMultipartUploadApiV2FilesMultipartUploadsPostResponses, InitMultipartUploadApiV2FilesMultipartUploadsPostErrors, ThrowOnError> => (options.client ?? client).post<InitMultipartUploadApiV2FilesMultipartUploadsPostResponses, InitMultipartUploadApiV2FilesMultipartUploadsPostErrors, ThrowOnError>({
+    url: '/api/v2/files/multipart-uploads',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -103,14 +103,14 @@ export const initMultipartUploadApiV1FilesMultipartUploadsPost = <ThrowOnError e
 /**
  * Multipart Upload Status
  */
-export const multipartUploadStatusApiV1FilesMultipartUploadsSessionIdGet = <ThrowOnError extends boolean = false>(options: Options<MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetData, ThrowOnError>): RequestResult<MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetResponses, MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetErrors, ThrowOnError> => (options.client ?? client).get<MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetResponses, MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetErrors, ThrowOnError>({ url: '/api/v1/files/multipart-uploads/{session_id}', ...options });
+export const multipartUploadStatusApiV2FilesMultipartUploadsSessionIdGet = <ThrowOnError extends boolean = false>(options: Options<MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetData, ThrowOnError>): RequestResult<MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetResponses, MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetErrors, ThrowOnError> => (options.client ?? client).get<MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetResponses, MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetErrors, ThrowOnError>({ url: '/api/v2/files/multipart-uploads/{session_id}', ...options });
 
 /**
  * Upload Multipart Chunk
  */
-export const uploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPut = <ThrowOnError extends boolean = false>(options: Options<UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutData, ThrowOnError>): RequestResult<UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses, UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors, ThrowOnError> => (options.client ?? client).put<UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses, UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors, ThrowOnError>({
+export const uploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPut = <ThrowOnError extends boolean = false>(options: Options<UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutData, ThrowOnError>): RequestResult<UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses, UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors, ThrowOnError> => (options.client ?? client).put<UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses, UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors, ThrowOnError>({
     ...formDataBodySerializer,
-    url: '/api/v1/files/multipart-uploads/{session_id}/chunks/{chunk_index}',
+    url: '/api/v2/files/multipart-uploads/{session_id}/chunks/{chunk_index}',
     ...options,
     headers: {
         'Content-Type': null,
@@ -121,36 +121,36 @@ export const uploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkI
 /**
  * Complete Multipart Upload
  */
-export const completeMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePost = <ThrowOnError extends boolean = false>(options: Options<CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostData, ThrowOnError>): RequestResult<CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostResponses, CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostErrors, ThrowOnError> => (options.client ?? client).post<CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostResponses, CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostErrors, ThrowOnError>({ url: '/api/v1/files/multipart-uploads/{session_id}/complete', ...options });
+export const completeMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePost = <ThrowOnError extends boolean = false>(options: Options<CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostData, ThrowOnError>): RequestResult<CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostResponses, CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostErrors, ThrowOnError> => (options.client ?? client).post<CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostResponses, CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostErrors, ThrowOnError>({ url: '/api/v2/files/multipart-uploads/{session_id}/complete', ...options });
 
 /**
  * Recycle Bin
  */
-export const recycleBinApiV1FilesRecycleBinGet = <ThrowOnError extends boolean = false>(options?: Options<RecycleBinApiV1FilesRecycleBinGetData, ThrowOnError>): RequestResult<RecycleBinApiV1FilesRecycleBinGetResponses, RecycleBinApiV1FilesRecycleBinGetErrors, ThrowOnError> => (options?.client ?? client).get<RecycleBinApiV1FilesRecycleBinGetResponses, RecycleBinApiV1FilesRecycleBinGetErrors, ThrowOnError>({ url: '/api/v1/files/recycle-bin', ...options });
+export const recycleBinApiV2FilesRecycleBinGet = <ThrowOnError extends boolean = false>(options?: Options<RecycleBinApiV2FilesRecycleBinGetData, ThrowOnError>): RequestResult<RecycleBinApiV2FilesRecycleBinGetResponses, RecycleBinApiV2FilesRecycleBinGetErrors, ThrowOnError> => (options?.client ?? client).get<RecycleBinApiV2FilesRecycleBinGetResponses, RecycleBinApiV2FilesRecycleBinGetErrors, ThrowOnError>({ url: '/api/v2/files/recycle-bin', ...options });
 
 /**
  * Upload File
  */
-export const uploadFileApiV1FilesUploadPost = <ThrowOnError extends boolean = false>(options: Options<UploadFileApiV1FilesUploadPostData, ThrowOnError>): RequestResult<UploadFileApiV1FilesUploadPostResponses, UploadFileApiV1FilesUploadPostErrors, ThrowOnError> => (options.client ?? client).post<UploadFileApiV1FilesUploadPostResponses, UploadFileApiV1FilesUploadPostErrors, ThrowOnError>({
+export const uploadFileApiV2FilesUploadPost = <ThrowOnError extends boolean = false>(options?: Options<UploadFileApiV2FilesUploadPostData, ThrowOnError>): RequestResult<UploadFileApiV2FilesUploadPostResponses, UploadFileApiV2FilesUploadPostErrors, ThrowOnError> => (options?.client ?? client).post<UploadFileApiV2FilesUploadPostResponses, UploadFileApiV2FilesUploadPostErrors, ThrowOnError>({
     ...formDataBodySerializer,
-    url: '/api/v1/files/upload',
+    url: '/api/v2/files/upload',
     ...options,
     headers: {
         'Content-Type': null,
-        ...options.headers
+        ...options?.headers
     }
 });
 
 /**
  * Delete File
  */
-export const deleteFileApiV1FilesFileIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteFileApiV1FilesFileIdDeleteData, ThrowOnError>): RequestResult<DeleteFileApiV1FilesFileIdDeleteResponses, DeleteFileApiV1FilesFileIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteFileApiV1FilesFileIdDeleteResponses, DeleteFileApiV1FilesFileIdDeleteErrors, ThrowOnError>({ url: '/api/v1/files/{file_id}', ...options });
+export const deleteFileApiV2FilesFileIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteFileApiV2FilesFileIdDeleteData, ThrowOnError>): RequestResult<DeleteFileApiV2FilesFileIdDeleteResponses, DeleteFileApiV2FilesFileIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteFileApiV2FilesFileIdDeleteResponses, DeleteFileApiV2FilesFileIdDeleteErrors, ThrowOnError>({ url: '/api/v2/files/{file_id}', ...options });
 
 /**
  * Update File
  */
-export const updateFileApiV1FilesFileIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateFileApiV1FilesFileIdPatchData, ThrowOnError>): RequestResult<UpdateFileApiV1FilesFileIdPatchResponses, UpdateFileApiV1FilesFileIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateFileApiV1FilesFileIdPatchResponses, UpdateFileApiV1FilesFileIdPatchErrors, ThrowOnError>({
-    url: '/api/v1/files/{file_id}',
+export const updateFileApiV2FilesFileIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateFileApiV2FilesFileIdPatchData, ThrowOnError>): RequestResult<UpdateFileApiV2FilesFileIdPatchResponses, UpdateFileApiV2FilesFileIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateFileApiV2FilesFileIdPatchResponses, UpdateFileApiV2FilesFileIdPatchErrors, ThrowOnError>({
+    url: '/api/v2/files/{file_id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -161,13 +161,13 @@ export const updateFileApiV1FilesFileIdPatch = <ThrowOnError extends boolean = f
 /**
  * File Annotations
  */
-export const fileAnnotationsApiV1FilesFileIdAnnotationsGet = <ThrowOnError extends boolean = false>(options: Options<FileAnnotationsApiV1FilesFileIdAnnotationsGetData, ThrowOnError>): RequestResult<FileAnnotationsApiV1FilesFileIdAnnotationsGetResponses, FileAnnotationsApiV1FilesFileIdAnnotationsGetErrors, ThrowOnError> => (options.client ?? client).get<FileAnnotationsApiV1FilesFileIdAnnotationsGetResponses, FileAnnotationsApiV1FilesFileIdAnnotationsGetErrors, ThrowOnError>({ url: '/api/v1/files/{file_id}/annotations', ...options });
+export const fileAnnotationsApiV2FilesFileIdAnnotationsGet = <ThrowOnError extends boolean = false>(options: Options<FileAnnotationsApiV2FilesFileIdAnnotationsGetData, ThrowOnError>): RequestResult<FileAnnotationsApiV2FilesFileIdAnnotationsGetResponses, FileAnnotationsApiV2FilesFileIdAnnotationsGetErrors, ThrowOnError> => (options.client ?? client).get<FileAnnotationsApiV2FilesFileIdAnnotationsGetResponses, FileAnnotationsApiV2FilesFileIdAnnotationsGetErrors, ThrowOnError>({ url: '/api/v2/files/{file_id}/annotations', ...options });
 
 /**
  * Create File Annotation
  */
-export const createFileAnnotationApiV1FilesFileIdAnnotationsPost = <ThrowOnError extends boolean = false>(options: Options<CreateFileAnnotationApiV1FilesFileIdAnnotationsPostData, ThrowOnError>): RequestResult<CreateFileAnnotationApiV1FilesFileIdAnnotationsPostResponses, CreateFileAnnotationApiV1FilesFileIdAnnotationsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateFileAnnotationApiV1FilesFileIdAnnotationsPostResponses, CreateFileAnnotationApiV1FilesFileIdAnnotationsPostErrors, ThrowOnError>({
-    url: '/api/v1/files/{file_id}/annotations',
+export const createFileAnnotationApiV2FilesFileIdAnnotationsPost = <ThrowOnError extends boolean = false>(options: Options<CreateFileAnnotationApiV2FilesFileIdAnnotationsPostData, ThrowOnError>): RequestResult<CreateFileAnnotationApiV2FilesFileIdAnnotationsPostResponses, CreateFileAnnotationApiV2FilesFileIdAnnotationsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateFileAnnotationApiV2FilesFileIdAnnotationsPostResponses, CreateFileAnnotationApiV2FilesFileIdAnnotationsPostErrors, ThrowOnError>({
+    url: '/api/v2/files/{file_id}/annotations',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -178,13 +178,13 @@ export const createFileAnnotationApiV1FilesFileIdAnnotationsPost = <ThrowOnError
 /**
  * Delete File Annotation
  */
-export const deleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteData, ThrowOnError>): RequestResult<DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteResponses, DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteResponses, DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteErrors, ThrowOnError>({ url: '/api/v1/files/{file_id}/annotations/{annotation_id}', ...options });
+export const deleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteData, ThrowOnError>): RequestResult<DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteResponses, DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteResponses, DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteErrors, ThrowOnError>({ url: '/api/v2/files/{file_id}/annotations/{annotation_id}', ...options });
 
 /**
  * Copy File
  */
-export const copyFileApiV1FilesFileIdCopyPost = <ThrowOnError extends boolean = false>(options: Options<CopyFileApiV1FilesFileIdCopyPostData, ThrowOnError>): RequestResult<CopyFileApiV1FilesFileIdCopyPostResponses, CopyFileApiV1FilesFileIdCopyPostErrors, ThrowOnError> => (options.client ?? client).post<CopyFileApiV1FilesFileIdCopyPostResponses, CopyFileApiV1FilesFileIdCopyPostErrors, ThrowOnError>({
-    url: '/api/v1/files/{file_id}/copy',
+export const copyFileApiV2FilesFileIdCopyPost = <ThrowOnError extends boolean = false>(options: Options<CopyFileApiV2FilesFileIdCopyPostData, ThrowOnError>): RequestResult<CopyFileApiV2FilesFileIdCopyPostResponses, CopyFileApiV2FilesFileIdCopyPostErrors, ThrowOnError> => (options.client ?? client).post<CopyFileApiV2FilesFileIdCopyPostResponses, CopyFileApiV2FilesFileIdCopyPostErrors, ThrowOnError>({
+    url: '/api/v2/files/{file_id}/copy',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -195,18 +195,18 @@ export const copyFileApiV1FilesFileIdCopyPost = <ThrowOnError extends boolean = 
 /**
  * Download File
  */
-export const downloadFileApiV1FilesFileIdDownloadGet = <ThrowOnError extends boolean = false>(options: Options<DownloadFileApiV1FilesFileIdDownloadGetData, ThrowOnError>): RequestResult<DownloadFileApiV1FilesFileIdDownloadGetResponses, DownloadFileApiV1FilesFileIdDownloadGetErrors, ThrowOnError> => (options.client ?? client).get<DownloadFileApiV1FilesFileIdDownloadGetResponses, DownloadFileApiV1FilesFileIdDownloadGetErrors, ThrowOnError>({ url: '/api/v1/files/{file_id}/download', ...options });
+export const downloadFileApiV2FilesFileIdDownloadGet = <ThrowOnError extends boolean = false>(options: Options<DownloadFileApiV2FilesFileIdDownloadGetData, ThrowOnError>): RequestResult<DownloadFileApiV2FilesFileIdDownloadGetResponses, DownloadFileApiV2FilesFileIdDownloadGetErrors, ThrowOnError> => (options.client ?? client).get<DownloadFileApiV2FilesFileIdDownloadGetResponses, DownloadFileApiV2FilesFileIdDownloadGetErrors, ThrowOnError>({ url: '/api/v2/files/{file_id}/download', ...options });
 
 /**
  * Restore Deleted File
  */
-export const restoreDeletedFileApiV1FilesFileIdRestorePost = <ThrowOnError extends boolean = false>(options: Options<RestoreDeletedFileApiV1FilesFileIdRestorePostData, ThrowOnError>): RequestResult<RestoreDeletedFileApiV1FilesFileIdRestorePostResponses, RestoreDeletedFileApiV1FilesFileIdRestorePostErrors, ThrowOnError> => (options.client ?? client).post<RestoreDeletedFileApiV1FilesFileIdRestorePostResponses, RestoreDeletedFileApiV1FilesFileIdRestorePostErrors, ThrowOnError>({ url: '/api/v1/files/{file_id}/restore', ...options });
+export const restoreDeletedFileApiV2FilesFileIdRestorePost = <ThrowOnError extends boolean = false>(options: Options<RestoreDeletedFileApiV2FilesFileIdRestorePostData, ThrowOnError>): RequestResult<RestoreDeletedFileApiV2FilesFileIdRestorePostResponses, RestoreDeletedFileApiV2FilesFileIdRestorePostErrors, ThrowOnError> => (options.client ?? client).post<RestoreDeletedFileApiV2FilesFileIdRestorePostResponses, RestoreDeletedFileApiV2FilesFileIdRestorePostErrors, ThrowOnError>({ url: '/api/v2/files/{file_id}/restore', ...options });
 
 /**
  * Create File Share Link
  */
-export const createFileShareLinkApiV1FilesFileIdShareLinksPost = <ThrowOnError extends boolean = false>(options: Options<CreateFileShareLinkApiV1FilesFileIdShareLinksPostData, ThrowOnError>): RequestResult<CreateFileShareLinkApiV1FilesFileIdShareLinksPostResponses, CreateFileShareLinkApiV1FilesFileIdShareLinksPostErrors, ThrowOnError> => (options.client ?? client).post<CreateFileShareLinkApiV1FilesFileIdShareLinksPostResponses, CreateFileShareLinkApiV1FilesFileIdShareLinksPostErrors, ThrowOnError>({
-    url: '/api/v1/files/{file_id}/share-links',
+export const createFileShareLinkApiV2FilesFileIdShareLinksPost = <ThrowOnError extends boolean = false>(options: Options<CreateFileShareLinkApiV2FilesFileIdShareLinksPostData, ThrowOnError>): RequestResult<CreateFileShareLinkApiV2FilesFileIdShareLinksPostResponses, CreateFileShareLinkApiV2FilesFileIdShareLinksPostErrors, ThrowOnError> => (options.client ?? client).post<CreateFileShareLinkApiV2FilesFileIdShareLinksPostResponses, CreateFileShareLinkApiV2FilesFileIdShareLinksPostErrors, ThrowOnError>({
+    url: '/api/v2/files/{file_id}/share-links',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -217,18 +217,18 @@ export const createFileShareLinkApiV1FilesFileIdShareLinksPost = <ThrowOnError e
 /**
  * File Versions
  */
-export const fileVersionsApiV1FilesFileIdVersionsGet = <ThrowOnError extends boolean = false>(options: Options<FileVersionsApiV1FilesFileIdVersionsGetData, ThrowOnError>): RequestResult<FileVersionsApiV1FilesFileIdVersionsGetResponses, FileVersionsApiV1FilesFileIdVersionsGetErrors, ThrowOnError> => (options.client ?? client).get<FileVersionsApiV1FilesFileIdVersionsGetResponses, FileVersionsApiV1FilesFileIdVersionsGetErrors, ThrowOnError>({ url: '/api/v1/files/{file_id}/versions', ...options });
+export const fileVersionsApiV2FilesFileIdVersionsGet = <ThrowOnError extends boolean = false>(options: Options<FileVersionsApiV2FilesFileIdVersionsGetData, ThrowOnError>): RequestResult<FileVersionsApiV2FilesFileIdVersionsGetResponses, FileVersionsApiV2FilesFileIdVersionsGetErrors, ThrowOnError> => (options.client ?? client).get<FileVersionsApiV2FilesFileIdVersionsGetResponses, FileVersionsApiV2FilesFileIdVersionsGetErrors, ThrowOnError>({ url: '/api/v2/files/{file_id}/versions', ...options });
 
 /**
  * Restore File Version
  */
-export const restoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePost = <ThrowOnError extends boolean = false>(options: Options<RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostData, ThrowOnError>): RequestResult<RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors, ThrowOnError> => (options.client ?? client).post<RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses, RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors, ThrowOnError>({ url: '/api/v1/files/{file_id}/versions/{version_id}/restore', ...options });
+export const restoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePost = <ThrowOnError extends boolean = false>(options: Options<RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostData, ThrowOnError>): RequestResult<RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostResponses, RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostErrors, ThrowOnError> => (options.client ?? client).post<RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostResponses, RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostErrors, ThrowOnError>({ url: '/api/v2/files/{file_id}/versions/{version_id}/restore', ...options });
 
 /**
  * Create Folder
  */
-export const createFolderApiV1FoldersPost = <ThrowOnError extends boolean = false>(options: Options<CreateFolderApiV1FoldersPostData, ThrowOnError>): RequestResult<CreateFolderApiV1FoldersPostResponses, CreateFolderApiV1FoldersPostErrors, ThrowOnError> => (options.client ?? client).post<CreateFolderApiV1FoldersPostResponses, CreateFolderApiV1FoldersPostErrors, ThrowOnError>({
-    url: '/api/v1/folders',
+export const createFolderApiV2FoldersPost = <ThrowOnError extends boolean = false>(options: Options<CreateFolderApiV2FoldersPostData, ThrowOnError>): RequestResult<CreateFolderApiV2FoldersPostResponses, CreateFolderApiV2FoldersPostErrors, ThrowOnError> => (options.client ?? client).post<CreateFolderApiV2FoldersPostResponses, CreateFolderApiV2FoldersPostErrors, ThrowOnError>({
+    url: '/api/v2/folders',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -237,20 +237,20 @@ export const createFolderApiV1FoldersPost = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Folders
+ * Folder Tree
  */
-export const foldersApiV1FoldersTreeGet = <ThrowOnError extends boolean = false>(options?: Options<FoldersApiV1FoldersTreeGetData, ThrowOnError>): RequestResult<FoldersApiV1FoldersTreeGetResponses, FoldersApiV1FoldersTreeGetErrors, ThrowOnError> => (options?.client ?? client).get<FoldersApiV1FoldersTreeGetResponses, FoldersApiV1FoldersTreeGetErrors, ThrowOnError>({ url: '/api/v1/folders/tree', ...options });
+export const folderTreeApiV2FoldersTreeGet = <ThrowOnError extends boolean = false>(options?: Options<FolderTreeApiV2FoldersTreeGetData, ThrowOnError>): RequestResult<FolderTreeApiV2FoldersTreeGetResponses, FolderTreeApiV2FoldersTreeGetErrors, ThrowOnError> => (options?.client ?? client).get<FolderTreeApiV2FoldersTreeGetResponses, FolderTreeApiV2FoldersTreeGetErrors, ThrowOnError>({ url: '/api/v2/folders/tree', ...options });
 
 /**
  * Delete Folder
  */
-export const deleteFolderApiV1FoldersFolderIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteFolderApiV1FoldersFolderIdDeleteData, ThrowOnError>): RequestResult<DeleteFolderApiV1FoldersFolderIdDeleteResponses, DeleteFolderApiV1FoldersFolderIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteFolderApiV1FoldersFolderIdDeleteResponses, DeleteFolderApiV1FoldersFolderIdDeleteErrors, ThrowOnError>({ url: '/api/v1/folders/{folder_id}', ...options });
+export const deleteFolderApiV2FoldersFolderIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteFolderApiV2FoldersFolderIdDeleteData, ThrowOnError>): RequestResult<DeleteFolderApiV2FoldersFolderIdDeleteResponses, DeleteFolderApiV2FoldersFolderIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteFolderApiV2FoldersFolderIdDeleteResponses, DeleteFolderApiV2FoldersFolderIdDeleteErrors, ThrowOnError>({ url: '/api/v2/folders/{folder_id}', ...options });
 
 /**
  * Update Folder
  */
-export const updateFolderApiV1FoldersFolderIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateFolderApiV1FoldersFolderIdPatchData, ThrowOnError>): RequestResult<UpdateFolderApiV1FoldersFolderIdPatchResponses, UpdateFolderApiV1FoldersFolderIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateFolderApiV1FoldersFolderIdPatchResponses, UpdateFolderApiV1FoldersFolderIdPatchErrors, ThrowOnError>({
-    url: '/api/v1/folders/{folder_id}',
+export const updateFolderApiV2FoldersFolderIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateFolderApiV2FoldersFolderIdPatchData, ThrowOnError>): RequestResult<UpdateFolderApiV2FoldersFolderIdPatchResponses, UpdateFolderApiV2FoldersFolderIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateFolderApiV2FoldersFolderIdPatchResponses, UpdateFolderApiV2FoldersFolderIdPatchErrors, ThrowOnError>({
+    url: '/api/v2/folders/{folder_id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -259,15 +259,20 @@ export const updateFolderApiV1FoldersFolderIdPatch = <ThrowOnError extends boole
 });
 
 /**
- * Knowledge Bases
+ * Health
  */
-export const knowledgeBasesApiV1KnowledgeBasesGet = <ThrowOnError extends boolean = false>(options?: Options<KnowledgeBasesApiV1KnowledgeBasesGetData, ThrowOnError>): RequestResult<KnowledgeBasesApiV1KnowledgeBasesGetResponses, KnowledgeBasesApiV1KnowledgeBasesGetErrors, ThrowOnError> => (options?.client ?? client).get<KnowledgeBasesApiV1KnowledgeBasesGetResponses, KnowledgeBasesApiV1KnowledgeBasesGetErrors, ThrowOnError>({ url: '/api/v1/knowledge-bases', ...options });
+export const healthApiV2HealthGet = <ThrowOnError extends boolean = false>(options?: Options<HealthApiV2HealthGetData, ThrowOnError>): RequestResult<HealthApiV2HealthGetResponses, unknown, ThrowOnError> => (options?.client ?? client).get<HealthApiV2HealthGetResponses, unknown, ThrowOnError>({ url: '/api/v2/health', ...options });
+
+/**
+ * List Knowledge Bases
+ */
+export const listKnowledgeBasesApiV2KnowledgeBasesGet = <ThrowOnError extends boolean = false>(options?: Options<ListKnowledgeBasesApiV2KnowledgeBasesGetData, ThrowOnError>): RequestResult<ListKnowledgeBasesApiV2KnowledgeBasesGetResponses, ListKnowledgeBasesApiV2KnowledgeBasesGetErrors, ThrowOnError> => (options?.client ?? client).get<ListKnowledgeBasesApiV2KnowledgeBasesGetResponses, ListKnowledgeBasesApiV2KnowledgeBasesGetErrors, ThrowOnError>({ url: '/api/v2/knowledge-bases', ...options });
 
 /**
  * Create Knowledge Base
  */
-export const createKnowledgeBaseApiV1KnowledgeBasesPost = <ThrowOnError extends boolean = false>(options: Options<CreateKnowledgeBaseApiV1KnowledgeBasesPostData, ThrowOnError>): RequestResult<CreateKnowledgeBaseApiV1KnowledgeBasesPostResponses, CreateKnowledgeBaseApiV1KnowledgeBasesPostErrors, ThrowOnError> => (options.client ?? client).post<CreateKnowledgeBaseApiV1KnowledgeBasesPostResponses, CreateKnowledgeBaseApiV1KnowledgeBasesPostErrors, ThrowOnError>({
-    url: '/api/v1/knowledge-bases',
+export const createKnowledgeBaseApiV2KnowledgeBasesPost = <ThrowOnError extends boolean = false>(options: Options<CreateKnowledgeBaseApiV2KnowledgeBasesPostData, ThrowOnError>): RequestResult<CreateKnowledgeBaseApiV2KnowledgeBasesPostResponses, CreateKnowledgeBaseApiV2KnowledgeBasesPostErrors, ThrowOnError> => (options.client ?? client).post<CreateKnowledgeBaseApiV2KnowledgeBasesPostResponses, CreateKnowledgeBaseApiV2KnowledgeBasesPostErrors, ThrowOnError>({
+    url: '/api/v2/knowledge-bases',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -278,8 +283,8 @@ export const createKnowledgeBaseApiV1KnowledgeBasesPost = <ThrowOnError extends 
 /**
  * Update Knowledge Base
  */
-export const updateKnowledgeBaseApiV1KnowledgeBasesKbIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchData, ThrowOnError>): RequestResult<UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponses, UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponses, UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchErrors, ThrowOnError>({
-    url: '/api/v1/knowledge-bases/{kb_id}',
+export const updateKnowledgeBaseApiV2KnowledgeBasesKbIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchData, ThrowOnError>): RequestResult<UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchResponses, UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchResponses, UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchErrors, ThrowOnError>({
+    url: '/api/v2/knowledge-bases/{kb_id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -290,13 +295,13 @@ export const updateKnowledgeBaseApiV1KnowledgeBasesKbIdPatch = <ThrowOnError ext
 /**
  * Knowledge Documents
  */
-export const knowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGet = <ThrowOnError extends boolean = false>(options: Options<KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetData, ThrowOnError>): RequestResult<KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponses, KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetErrors, ThrowOnError> => (options.client ?? client).get<KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponses, KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetErrors, ThrowOnError>({ url: '/api/v1/knowledge-bases/{kb_id}/documents', ...options });
+export const knowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGet = <ThrowOnError extends boolean = false>(options: Options<KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetData, ThrowOnError>): RequestResult<KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetResponses, KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetErrors, ThrowOnError> => (options.client ?? client).get<KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetResponses, KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetErrors, ThrowOnError>({ url: '/api/v2/knowledge-bases/{kb_id}/documents', ...options });
 
 /**
  * Add Knowledge Document
  */
-export const addKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPost = <ThrowOnError extends boolean = false>(options: Options<AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostData, ThrowOnError>): RequestResult<AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses, AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostErrors, ThrowOnError> => (options.client ?? client).post<AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses, AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostErrors, ThrowOnError>({
-    url: '/api/v1/knowledge-bases/{kb_id}/documents',
+export const addKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPost = <ThrowOnError extends boolean = false>(options: Options<AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostData, ThrowOnError>): RequestResult<AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostResponses, AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostErrors, ThrowOnError> => (options.client ?? client).post<AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostResponses, AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostErrors, ThrowOnError>({
+    url: '/api/v2/knowledge-bases/{kb_id}/documents',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -307,23 +312,23 @@ export const addKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPost = <ThrowOn
 /**
  * Notifications
  */
-export const notificationsApiV1NotificationsGet = <ThrowOnError extends boolean = false>(options?: Options<NotificationsApiV1NotificationsGetData, ThrowOnError>): RequestResult<NotificationsApiV1NotificationsGetResponses, NotificationsApiV1NotificationsGetErrors, ThrowOnError> => (options?.client ?? client).get<NotificationsApiV1NotificationsGetResponses, NotificationsApiV1NotificationsGetErrors, ThrowOnError>({ url: '/api/v1/notifications', ...options });
+export const notificationsApiV2NotificationsGet = <ThrowOnError extends boolean = false>(options?: Options<NotificationsApiV2NotificationsGetData, ThrowOnError>): RequestResult<NotificationsApiV2NotificationsGetResponses, NotificationsApiV2NotificationsGetErrors, ThrowOnError> => (options?.client ?? client).get<NotificationsApiV2NotificationsGetResponses, NotificationsApiV2NotificationsGetErrors, ThrowOnError>({ url: '/api/v2/notifications', ...options });
 
 /**
  * Mark Notification Read
  */
-export const markNotificationReadApiV1NotificationsNotificationIdReadPatch = <ThrowOnError extends boolean = false>(options: Options<MarkNotificationReadApiV1NotificationsNotificationIdReadPatchData, ThrowOnError>): RequestResult<MarkNotificationReadApiV1NotificationsNotificationIdReadPatchResponses, MarkNotificationReadApiV1NotificationsNotificationIdReadPatchErrors, ThrowOnError> => (options.client ?? client).patch<MarkNotificationReadApiV1NotificationsNotificationIdReadPatchResponses, MarkNotificationReadApiV1NotificationsNotificationIdReadPatchErrors, ThrowOnError>({ url: '/api/v1/notifications/{notification_id}/read', ...options });
+export const markNotificationReadApiV2NotificationsNotificationIdReadPatch = <ThrowOnError extends boolean = false>(options: Options<MarkNotificationReadApiV2NotificationsNotificationIdReadPatchData, ThrowOnError>): RequestResult<MarkNotificationReadApiV2NotificationsNotificationIdReadPatchResponses, MarkNotificationReadApiV2NotificationsNotificationIdReadPatchErrors, ThrowOnError> => (options.client ?? client).patch<MarkNotificationReadApiV2NotificationsNotificationIdReadPatchResponses, MarkNotificationReadApiV2NotificationsNotificationIdReadPatchErrors, ThrowOnError>({ url: '/api/v2/notifications/{notification_id}/read', ...options });
 
 /**
  * Permission Rules
  */
-export const permissionRulesApiV1PermissionsRulesGet = <ThrowOnError extends boolean = false>(options?: Options<PermissionRulesApiV1PermissionsRulesGetData, ThrowOnError>): RequestResult<PermissionRulesApiV1PermissionsRulesGetResponses, PermissionRulesApiV1PermissionsRulesGetErrors, ThrowOnError> => (options?.client ?? client).get<PermissionRulesApiV1PermissionsRulesGetResponses, PermissionRulesApiV1PermissionsRulesGetErrors, ThrowOnError>({ url: '/api/v1/permissions/rules', ...options });
+export const permissionRulesApiV2PermissionsRulesGet = <ThrowOnError extends boolean = false>(options?: Options<PermissionRulesApiV2PermissionsRulesGetData, ThrowOnError>): RequestResult<PermissionRulesApiV2PermissionsRulesGetResponses, PermissionRulesApiV2PermissionsRulesGetErrors, ThrowOnError> => (options?.client ?? client).get<PermissionRulesApiV2PermissionsRulesGetResponses, PermissionRulesApiV2PermissionsRulesGetErrors, ThrowOnError>({ url: '/api/v2/permissions/rules', ...options });
 
 /**
  * Create Permission Rule
  */
-export const createPermissionRuleApiV1PermissionsRulesPost = <ThrowOnError extends boolean = false>(options: Options<CreatePermissionRuleApiV1PermissionsRulesPostData, ThrowOnError>): RequestResult<CreatePermissionRuleApiV1PermissionsRulesPostResponses, CreatePermissionRuleApiV1PermissionsRulesPostErrors, ThrowOnError> => (options.client ?? client).post<CreatePermissionRuleApiV1PermissionsRulesPostResponses, CreatePermissionRuleApiV1PermissionsRulesPostErrors, ThrowOnError>({
-    url: '/api/v1/permissions/rules',
+export const createPermissionRuleApiV2PermissionsRulesPost = <ThrowOnError extends boolean = false>(options: Options<CreatePermissionRuleApiV2PermissionsRulesPostData, ThrowOnError>): RequestResult<CreatePermissionRuleApiV2PermissionsRulesPostResponses, CreatePermissionRuleApiV2PermissionsRulesPostErrors, ThrowOnError> => (options.client ?? client).post<CreatePermissionRuleApiV2PermissionsRulesPostResponses, CreatePermissionRuleApiV2PermissionsRulesPostErrors, ThrowOnError>({
+    url: '/api/v2/permissions/rules',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -334,13 +339,13 @@ export const createPermissionRuleApiV1PermissionsRulesPost = <ThrowOnError exten
 /**
  * Delete Permission Rule
  */
-export const deletePermissionRuleApiV1PermissionsRulesRuleIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteData, ThrowOnError>): RequestResult<DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponses, DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponses, DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteErrors, ThrowOnError>({ url: '/api/v1/permissions/rules/{rule_id}', ...options });
+export const deletePermissionRuleApiV2PermissionsRulesRuleIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteData, ThrowOnError>): RequestResult<DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteResponses, DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteResponses, DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteErrors, ThrowOnError>({ url: '/api/v2/permissions/rules/{rule_id}', ...options });
 
 /**
  * Qa Query
  */
-export const qaQueryApiV1QaQueryPost = <ThrowOnError extends boolean = false>(options: Options<QaQueryApiV1QaQueryPostData, ThrowOnError>): RequestResult<QaQueryApiV1QaQueryPostResponses, QaQueryApiV1QaQueryPostErrors, ThrowOnError> => (options.client ?? client).post<QaQueryApiV1QaQueryPostResponses, QaQueryApiV1QaQueryPostErrors, ThrowOnError>({
-    url: '/api/v1/qa/query',
+export const qaQueryApiV2QaQueryPost = <ThrowOnError extends boolean = false>(options: Options<QaQueryApiV2QaQueryPostData, ThrowOnError>): RequestResult<QaQueryApiV2QaQueryPostResponses, QaQueryApiV2QaQueryPostErrors, ThrowOnError> => (options.client ?? client).post<QaQueryApiV2QaQueryPostResponses, QaQueryApiV2QaQueryPostErrors, ThrowOnError>({
+    url: '/api/v2/qa/query',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -349,27 +354,15 @@ export const qaQueryApiV1QaQueryPost = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * Download Shared File
+ * List Teams
  */
-export const downloadSharedFileApiV1ShareLinksTokenDownloadPost = <ThrowOnError extends boolean = false>(options: Options<DownloadSharedFileApiV1ShareLinksTokenDownloadPostData, ThrowOnError>): RequestResult<DownloadSharedFileApiV1ShareLinksTokenDownloadPostResponses, DownloadSharedFileApiV1ShareLinksTokenDownloadPostErrors, ThrowOnError> => (options.client ?? client).post<DownloadSharedFileApiV1ShareLinksTokenDownloadPostResponses, DownloadSharedFileApiV1ShareLinksTokenDownloadPostErrors, ThrowOnError>({
-    url: '/api/v1/share-links/{token}/download',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Teams
- */
-export const teamsApiV1TeamsGet = <ThrowOnError extends boolean = false>(options?: Options<TeamsApiV1TeamsGetData, ThrowOnError>): RequestResult<TeamsApiV1TeamsGetResponses, TeamsApiV1TeamsGetErrors, ThrowOnError> => (options?.client ?? client).get<TeamsApiV1TeamsGetResponses, TeamsApiV1TeamsGetErrors, ThrowOnError>({ url: '/api/v1/teams', ...options });
+export const listTeamsApiV2TeamsGet = <ThrowOnError extends boolean = false>(options?: Options<ListTeamsApiV2TeamsGetData, ThrowOnError>): RequestResult<ListTeamsApiV2TeamsGetResponses, ListTeamsApiV2TeamsGetErrors, ThrowOnError> => (options?.client ?? client).get<ListTeamsApiV2TeamsGetResponses, ListTeamsApiV2TeamsGetErrors, ThrowOnError>({ url: '/api/v2/teams', ...options });
 
 /**
  * Create Team
  */
-export const createTeamApiV1TeamsPost = <ThrowOnError extends boolean = false>(options: Options<CreateTeamApiV1TeamsPostData, ThrowOnError>): RequestResult<CreateTeamApiV1TeamsPostResponses, CreateTeamApiV1TeamsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTeamApiV1TeamsPostResponses, CreateTeamApiV1TeamsPostErrors, ThrowOnError>({
-    url: '/api/v1/teams',
+export const createTeamApiV2TeamsPost = <ThrowOnError extends boolean = false>(options: Options<CreateTeamApiV2TeamsPostData, ThrowOnError>): RequestResult<CreateTeamApiV2TeamsPostResponses, CreateTeamApiV2TeamsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTeamApiV2TeamsPostResponses, CreateTeamApiV2TeamsPostErrors, ThrowOnError>({
+    url: '/api/v2/teams',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -378,15 +371,32 @@ export const createTeamApiV1TeamsPost = <ThrowOnError extends boolean = false>(o
 });
 
 /**
+ * Delete Team
+ */
+export const deleteTeamApiV2TeamsTeamIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteTeamApiV2TeamsTeamIdDeleteData, ThrowOnError>): RequestResult<DeleteTeamApiV2TeamsTeamIdDeleteResponses, DeleteTeamApiV2TeamsTeamIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTeamApiV2TeamsTeamIdDeleteResponses, DeleteTeamApiV2TeamsTeamIdDeleteErrors, ThrowOnError>({ url: '/api/v2/teams/{team_id}', ...options });
+
+/**
  * Team Detail
  */
-export const teamDetailApiV1TeamsTeamIdGet = <ThrowOnError extends boolean = false>(options: Options<TeamDetailApiV1TeamsTeamIdGetData, ThrowOnError>): RequestResult<TeamDetailApiV1TeamsTeamIdGetResponses, TeamDetailApiV1TeamsTeamIdGetErrors, ThrowOnError> => (options.client ?? client).get<TeamDetailApiV1TeamsTeamIdGetResponses, TeamDetailApiV1TeamsTeamIdGetErrors, ThrowOnError>({ url: '/api/v1/teams/{team_id}', ...options });
+export const teamDetailApiV2TeamsTeamIdGet = <ThrowOnError extends boolean = false>(options: Options<TeamDetailApiV2TeamsTeamIdGetData, ThrowOnError>): RequestResult<TeamDetailApiV2TeamsTeamIdGetResponses, TeamDetailApiV2TeamsTeamIdGetErrors, ThrowOnError> => (options.client ?? client).get<TeamDetailApiV2TeamsTeamIdGetResponses, TeamDetailApiV2TeamsTeamIdGetErrors, ThrowOnError>({ url: '/api/v2/teams/{team_id}', ...options });
+
+/**
+ * Update Team
+ */
+export const updateTeamApiV2TeamsTeamIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateTeamApiV2TeamsTeamIdPatchData, ThrowOnError>): RequestResult<UpdateTeamApiV2TeamsTeamIdPatchResponses, UpdateTeamApiV2TeamsTeamIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateTeamApiV2TeamsTeamIdPatchResponses, UpdateTeamApiV2TeamsTeamIdPatchErrors, ThrowOnError>({
+    url: '/api/v2/teams/{team_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Create Team Invite
  */
-export const createTeamInviteApiV1TeamsTeamIdInvitesPost = <ThrowOnError extends boolean = false>(options: Options<CreateTeamInviteApiV1TeamsTeamIdInvitesPostData, ThrowOnError>): RequestResult<CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses, CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses, CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors, ThrowOnError>({
-    url: '/api/v1/teams/{team_id}/invites',
+export const createTeamInviteApiV2TeamsTeamIdInvitesPost = <ThrowOnError extends boolean = false>(options: Options<CreateTeamInviteApiV2TeamsTeamIdInvitesPostData, ThrowOnError>): RequestResult<CreateTeamInviteApiV2TeamsTeamIdInvitesPostResponses, CreateTeamInviteApiV2TeamsTeamIdInvitesPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTeamInviteApiV2TeamsTeamIdInvitesPostResponses, CreateTeamInviteApiV2TeamsTeamIdInvitesPostErrors, ThrowOnError>({
+    url: '/api/v2/teams/{team_id}/invites',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -397,8 +407,8 @@ export const createTeamInviteApiV1TeamsTeamIdInvitesPost = <ThrowOnError extends
 /**
  * Join Team
  */
-export const joinTeamApiV1TeamsTeamIdMembersPost = <ThrowOnError extends boolean = false>(options: Options<JoinTeamApiV1TeamsTeamIdMembersPostData, ThrowOnError>): RequestResult<JoinTeamApiV1TeamsTeamIdMembersPostResponses, JoinTeamApiV1TeamsTeamIdMembersPostErrors, ThrowOnError> => (options.client ?? client).post<JoinTeamApiV1TeamsTeamIdMembersPostResponses, JoinTeamApiV1TeamsTeamIdMembersPostErrors, ThrowOnError>({
-    url: '/api/v1/teams/{team_id}/members',
+export const joinTeamApiV2TeamsTeamIdMembersPost = <ThrowOnError extends boolean = false>(options: Options<JoinTeamApiV2TeamsTeamIdMembersPostData, ThrowOnError>): RequestResult<JoinTeamApiV2TeamsTeamIdMembersPostResponses, JoinTeamApiV2TeamsTeamIdMembersPostErrors, ThrowOnError> => (options.client ?? client).post<JoinTeamApiV2TeamsTeamIdMembersPostResponses, JoinTeamApiV2TeamsTeamIdMembersPostErrors, ThrowOnError>({
+    url: '/api/v2/teams/{team_id}/members',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -407,15 +417,20 @@ export const joinTeamApiV1TeamsTeamIdMembersPost = <ThrowOnError extends boolean
 });
 
 /**
+ * Leave Team
+ */
+export const leaveTeamApiV2TeamsTeamIdMembersMeDelete = <ThrowOnError extends boolean = false>(options: Options<LeaveTeamApiV2TeamsTeamIdMembersMeDeleteData, ThrowOnError>): RequestResult<LeaveTeamApiV2TeamsTeamIdMembersMeDeleteResponses, LeaveTeamApiV2TeamsTeamIdMembersMeDeleteErrors, ThrowOnError> => (options.client ?? client).delete<LeaveTeamApiV2TeamsTeamIdMembersMeDeleteResponses, LeaveTeamApiV2TeamsTeamIdMembersMeDeleteErrors, ThrowOnError>({ url: '/api/v2/teams/{team_id}/members/me', ...options });
+
+/**
  * Remove Team Member
  */
-export const removeTeamMemberApiV1TeamsTeamIdMembersMemberIdDelete = <ThrowOnError extends boolean = false>(options: Options<RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteData, ThrowOnError>): RequestResult<RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses, RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors, ThrowOnError>({ url: '/api/v1/teams/{team_id}/members/{member_id}', ...options });
+export const removeTeamMemberApiV2TeamsTeamIdMembersMemberIdDelete = <ThrowOnError extends boolean = false>(options: Options<RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteData, ThrowOnError>): RequestResult<RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteResponses, RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteResponses, RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteErrors, ThrowOnError>({ url: '/api/v2/teams/{team_id}/members/{member_id}', ...options });
 
 /**
  * Update Team Member
  */
-export const updateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchData, ThrowOnError>): RequestResult<UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses, UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors, ThrowOnError>({
-    url: '/api/v1/teams/{team_id}/members/{member_id}',
+export const updateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchData, ThrowOnError>): RequestResult<UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchResponses, UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchResponses, UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchErrors, ThrowOnError>({
+    url: '/api/v2/teams/{team_id}/members/{member_id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -426,13 +441,13 @@ export const updateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatch = <ThrowOnErro
 /**
  * Team Messages
  */
-export const teamMessagesApiV1TeamsTeamIdMessagesGet = <ThrowOnError extends boolean = false>(options: Options<TeamMessagesApiV1TeamsTeamIdMessagesGetData, ThrowOnError>): RequestResult<TeamMessagesApiV1TeamsTeamIdMessagesGetResponses, TeamMessagesApiV1TeamsTeamIdMessagesGetErrors, ThrowOnError> => (options.client ?? client).get<TeamMessagesApiV1TeamsTeamIdMessagesGetResponses, TeamMessagesApiV1TeamsTeamIdMessagesGetErrors, ThrowOnError>({ url: '/api/v1/teams/{team_id}/messages', ...options });
+export const teamMessagesApiV2TeamsTeamIdMessagesGet = <ThrowOnError extends boolean = false>(options: Options<TeamMessagesApiV2TeamsTeamIdMessagesGetData, ThrowOnError>): RequestResult<TeamMessagesApiV2TeamsTeamIdMessagesGetResponses, TeamMessagesApiV2TeamsTeamIdMessagesGetErrors, ThrowOnError> => (options.client ?? client).get<TeamMessagesApiV2TeamsTeamIdMessagesGetResponses, TeamMessagesApiV2TeamsTeamIdMessagesGetErrors, ThrowOnError>({ url: '/api/v2/teams/{team_id}/messages', ...options });
 
 /**
  * Create Team Message
  */
-export const createTeamMessageApiV1TeamsTeamIdMessagesPost = <ThrowOnError extends boolean = false>(options: Options<CreateTeamMessageApiV1TeamsTeamIdMessagesPostData, ThrowOnError>): RequestResult<CreateTeamMessageApiV1TeamsTeamIdMessagesPostResponses, CreateTeamMessageApiV1TeamsTeamIdMessagesPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTeamMessageApiV1TeamsTeamIdMessagesPostResponses, CreateTeamMessageApiV1TeamsTeamIdMessagesPostErrors, ThrowOnError>({
-    url: '/api/v1/teams/{team_id}/messages',
+export const createTeamMessageApiV2TeamsTeamIdMessagesPost = <ThrowOnError extends boolean = false>(options: Options<CreateTeamMessageApiV2TeamsTeamIdMessagesPostData, ThrowOnError>): RequestResult<CreateTeamMessageApiV2TeamsTeamIdMessagesPostResponses, CreateTeamMessageApiV2TeamsTeamIdMessagesPostErrors, ThrowOnError> => (options.client ?? client).post<CreateTeamMessageApiV2TeamsTeamIdMessagesPostResponses, CreateTeamMessageApiV2TeamsTeamIdMessagesPostErrors, ThrowOnError>({
+    url: '/api/v2/teams/{team_id}/messages',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -443,18 +458,18 @@ export const createTeamMessageApiV1TeamsTeamIdMessagesPost = <ThrowOnError exten
 /**
  * Tools
  */
-export const toolsApiV1ToolsGet = <ThrowOnError extends boolean = false>(options?: Options<ToolsApiV1ToolsGetData, ThrowOnError>): RequestResult<ToolsApiV1ToolsGetResponses, ToolsApiV1ToolsGetErrors, ThrowOnError> => (options?.client ?? client).get<ToolsApiV1ToolsGetResponses, ToolsApiV1ToolsGetErrors, ThrowOnError>({ url: '/api/v1/tools', ...options });
+export const toolsApiV2ToolsGet = <ThrowOnError extends boolean = false>(options?: Options<ToolsApiV2ToolsGetData, ThrowOnError>): RequestResult<ToolsApiV2ToolsGetResponses, ToolsApiV2ToolsGetErrors, ThrowOnError> => (options?.client ?? client).get<ToolsApiV2ToolsGetResponses, ToolsApiV2ToolsGetErrors, ThrowOnError>({ url: '/api/v2/tools', ...options });
 
 /**
  * Me
  */
-export const meApiV1UsersMeGet = <ThrowOnError extends boolean = false>(options?: Options<MeApiV1UsersMeGetData, ThrowOnError>): RequestResult<MeApiV1UsersMeGetResponses, MeApiV1UsersMeGetErrors, ThrowOnError> => (options?.client ?? client).get<MeApiV1UsersMeGetResponses, MeApiV1UsersMeGetErrors, ThrowOnError>({ url: '/api/v1/users/me', ...options });
+export const meApiV2UsersMeGet = <ThrowOnError extends boolean = false>(options?: Options<MeApiV2UsersMeGetData, ThrowOnError>): RequestResult<MeApiV2UsersMeGetResponses, MeApiV2UsersMeGetErrors, ThrowOnError> => (options?.client ?? client).get<MeApiV2UsersMeGetResponses, MeApiV2UsersMeGetErrors, ThrowOnError>({ url: '/api/v2/users/me', ...options });
 
 /**
  * Update Me
  */
-export const updateMeApiV1UsersMePatch = <ThrowOnError extends boolean = false>(options: Options<UpdateMeApiV1UsersMePatchData, ThrowOnError>): RequestResult<UpdateMeApiV1UsersMePatchResponses, UpdateMeApiV1UsersMePatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateMeApiV1UsersMePatchResponses, UpdateMeApiV1UsersMePatchErrors, ThrowOnError>({
-    url: '/api/v1/users/me',
+export const updateMeApiV2UsersMePatch = <ThrowOnError extends boolean = false>(options: Options<UpdateMeApiV2UsersMePatchData, ThrowOnError>): RequestResult<UpdateMeApiV2UsersMePatchResponses, UpdateMeApiV2UsersMePatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateMeApiV2UsersMePatchResponses, UpdateMeApiV2UsersMePatchErrors, ThrowOnError>({
+    url: '/api/v2/users/me',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -463,15 +478,15 @@ export const updateMeApiV1UsersMePatch = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Workflows
+ * List Workflows
  */
-export const workflowsApiV1WorkflowsGet = <ThrowOnError extends boolean = false>(options?: Options<WorkflowsApiV1WorkflowsGetData, ThrowOnError>): RequestResult<WorkflowsApiV1WorkflowsGetResponses, WorkflowsApiV1WorkflowsGetErrors, ThrowOnError> => (options?.client ?? client).get<WorkflowsApiV1WorkflowsGetResponses, WorkflowsApiV1WorkflowsGetErrors, ThrowOnError>({ url: '/api/v1/workflows', ...options });
+export const listWorkflowsApiV2WorkflowsGet = <ThrowOnError extends boolean = false>(options?: Options<ListWorkflowsApiV2WorkflowsGetData, ThrowOnError>): RequestResult<ListWorkflowsApiV2WorkflowsGetResponses, ListWorkflowsApiV2WorkflowsGetErrors, ThrowOnError> => (options?.client ?? client).get<ListWorkflowsApiV2WorkflowsGetResponses, ListWorkflowsApiV2WorkflowsGetErrors, ThrowOnError>({ url: '/api/v2/workflows', ...options });
 
 /**
  * Create Workflow
  */
-export const createWorkflowApiV1WorkflowsPost = <ThrowOnError extends boolean = false>(options: Options<CreateWorkflowApiV1WorkflowsPostData, ThrowOnError>): RequestResult<CreateWorkflowApiV1WorkflowsPostResponses, CreateWorkflowApiV1WorkflowsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkflowApiV1WorkflowsPostResponses, CreateWorkflowApiV1WorkflowsPostErrors, ThrowOnError>({
-    url: '/api/v1/workflows',
+export const createWorkflowApiV2WorkflowsPost = <ThrowOnError extends boolean = false>(options: Options<CreateWorkflowApiV2WorkflowsPostData, ThrowOnError>): RequestResult<CreateWorkflowApiV2WorkflowsPostResponses, CreateWorkflowApiV2WorkflowsPostErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkflowApiV2WorkflowsPostResponses, CreateWorkflowApiV2WorkflowsPostErrors, ThrowOnError>({
+    url: '/api/v2/workflows',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -482,8 +497,25 @@ export const createWorkflowApiV1WorkflowsPost = <ThrowOnError extends boolean = 
 /**
  * Update Workflow
  */
-export const updateWorkflowApiV1WorkflowsWorkflowIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateWorkflowApiV1WorkflowsWorkflowIdPatchData, ThrowOnError>): RequestResult<UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponses, UpdateWorkflowApiV1WorkflowsWorkflowIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponses, UpdateWorkflowApiV1WorkflowsWorkflowIdPatchErrors, ThrowOnError>({
-    url: '/api/v1/workflows/{workflow_id}',
+export const updateWorkflowApiV2WorkflowsWorkflowIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateWorkflowApiV2WorkflowsWorkflowIdPatchData, ThrowOnError>): RequestResult<UpdateWorkflowApiV2WorkflowsWorkflowIdPatchResponses, UpdateWorkflowApiV2WorkflowsWorkflowIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateWorkflowApiV2WorkflowsWorkflowIdPatchResponses, UpdateWorkflowApiV2WorkflowsWorkflowIdPatchErrors, ThrowOnError>({
+    url: '/api/v2/workflows/{workflow_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Debug Start
+ */
+export const debugStartApiV2WorkflowsWorkflowIdDebugStartPost = <ThrowOnError extends boolean = false>(options: Options<DebugStartApiV2WorkflowsWorkflowIdDebugStartPostData, ThrowOnError>): RequestResult<DebugStartApiV2WorkflowsWorkflowIdDebugStartPostResponses, DebugStartApiV2WorkflowsWorkflowIdDebugStartPostErrors, ThrowOnError> => (options.client ?? client).post<DebugStartApiV2WorkflowsWorkflowIdDebugStartPostResponses, DebugStartApiV2WorkflowsWorkflowIdDebugStartPostErrors, ThrowOnError>({ url: '/api/v2/workflows/{workflow_id}/debug/start', ...options });
+
+/**
+ * Debug Step
+ */
+export const debugStepApiV2WorkflowsWorkflowIdDebugStepPost = <ThrowOnError extends boolean = false>(options: Options<DebugStepApiV2WorkflowsWorkflowIdDebugStepPostData, ThrowOnError>): RequestResult<DebugStepApiV2WorkflowsWorkflowIdDebugStepPostResponses, DebugStepApiV2WorkflowsWorkflowIdDebugStepPostErrors, ThrowOnError> => (options.client ?? client).post<DebugStepApiV2WorkflowsWorkflowIdDebugStepPostResponses, DebugStepApiV2WorkflowsWorkflowIdDebugStepPostErrors, ThrowOnError>({
+    url: '/api/v2/workflows/{workflow_id}/debug/step',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -494,8 +526,8 @@ export const updateWorkflowApiV1WorkflowsWorkflowIdPatch = <ThrowOnError extends
 /**
  * Execute Workflow
  */
-export const executeWorkflowApiV1WorkflowsWorkflowIdExecutionsPost = <ThrowOnError extends boolean = false>(options: Options<ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostData, ThrowOnError>): RequestResult<ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostErrors, ThrowOnError> => (options.client ?? client).post<ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses, ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostErrors, ThrowOnError>({
-    url: '/api/v1/workflows/{workflow_id}/executions',
+export const executeWorkflowApiV2WorkflowsWorkflowIdExecutionsPost = <ThrowOnError extends boolean = false>(options: Options<ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostData, ThrowOnError>): RequestResult<ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostResponses, ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostErrors, ThrowOnError> => (options.client ?? client).post<ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostResponses, ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostErrors, ThrowOnError>({
+    url: '/api/v2/workflows/{workflow_id}/executions',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -506,19 +538,14 @@ export const executeWorkflowApiV1WorkflowsWorkflowIdExecutionsPost = <ThrowOnErr
 /**
  * Publish Workflow
  */
-export const publishWorkflowApiV1WorkflowsWorkflowIdPublishPost = <ThrowOnError extends boolean = false>(options: Options<PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostData, ThrowOnError>): RequestResult<PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponses, PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostErrors, ThrowOnError> => (options.client ?? client).post<PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponses, PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostErrors, ThrowOnError>({ url: '/api/v1/workflows/{workflow_id}/publish', ...options });
+export const publishWorkflowApiV2WorkflowsWorkflowIdPublishPost = <ThrowOnError extends boolean = false>(options: Options<PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostData, ThrowOnError>): RequestResult<PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostResponses, PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostErrors, ThrowOnError> => (options.client ?? client).post<PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostResponses, PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostErrors, ThrowOnError>({ url: '/api/v2/workflows/{workflow_id}/publish', ...options });
 
 /**
  * Validate Workflow
  */
-export const validateWorkflowApiV1WorkflowsWorkflowIdValidatePost = <ThrowOnError extends boolean = false>(options: Options<ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostData, ThrowOnError>): RequestResult<ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponses, ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostErrors, ThrowOnError> => (options.client ?? client).post<ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponses, ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostErrors, ThrowOnError>({ url: '/api/v1/workflows/{workflow_id}/validate', ...options });
+export const validateWorkflowApiV2WorkflowsWorkflowIdValidatePost = <ThrowOnError extends boolean = false>(options: Options<ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostData, ThrowOnError>): RequestResult<ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostResponses, ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostErrors, ThrowOnError> => (options.client ?? client).post<ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostResponses, ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostErrors, ThrowOnError>({ url: '/api/v2/workflows/{workflow_id}/validate', ...options });
 
 /**
  * Workspace Snapshot
  */
-export const workspaceSnapshotApiV1WorkspaceSnapshotGet = <ThrowOnError extends boolean = false>(options?: Options<WorkspaceSnapshotApiV1WorkspaceSnapshotGetData, ThrowOnError>): RequestResult<WorkspaceSnapshotApiV1WorkspaceSnapshotGetResponses, WorkspaceSnapshotApiV1WorkspaceSnapshotGetErrors, ThrowOnError> => (options?.client ?? client).get<WorkspaceSnapshotApiV1WorkspaceSnapshotGetResponses, WorkspaceSnapshotApiV1WorkspaceSnapshotGetErrors, ThrowOnError>({ url: '/api/v1/workspace/snapshot', ...options });
-
-/**
- * Health
- */
-export const healthHealthGet = <ThrowOnError extends boolean = false>(options?: Options<HealthHealthGetData, ThrowOnError>): RequestResult<HealthHealthGetResponses, unknown, ThrowOnError> => (options?.client ?? client).get<HealthHealthGetResponses, unknown, ThrowOnError>({ url: '/health', ...options });
+export const workspaceSnapshotApiV2WorkspaceSnapshotGet = <ThrowOnError extends boolean = false>(options?: Options<WorkspaceSnapshotApiV2WorkspaceSnapshotGetData, ThrowOnError>): RequestResult<WorkspaceSnapshotApiV2WorkspaceSnapshotGetResponses, WorkspaceSnapshotApiV2WorkspaceSnapshotGetErrors, ThrowOnError> => (options?.client ?? client).get<WorkspaceSnapshotApiV2WorkspaceSnapshotGetResponses, WorkspaceSnapshotApiV2WorkspaceSnapshotGetErrors, ThrowOnError>({ url: '/api/v2/workspace/snapshot', ...options });

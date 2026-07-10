@@ -1,8 +1,7 @@
-"""LLM service wrapping OpenAI-compatible APIs with graceful fallback.
+"""LLM service — OpenAI-compatible multi-provider with graceful fallback.
 
-When OPENAI_API_KEY is configured, uses langchain-openai ChatOpenAI
-for answer generation. Otherwise falls back to template-based answers
-so the platform remains fully functional without API keys.
+Supports DeepSeek, OpenAI, and any OpenAI-compatible API.
+When no API key is configured, falls back to template-based answers.
 """
 
 from __future__ import annotations
@@ -21,25 +20,32 @@ def _get_llm() -> object | None:
     if _llm_checked:
         return _llm
     _llm_checked = True
-    api_key = os.environ.get("OPENAI_API_KEY", "")
+
+    api_key = os.environ.get("LLM_API_KEY", "")
     if not api_key:
-        logger.info("OPENAI_API_KEY not set, using template fallback for LLM answers")
+        logger.info("LLM_API_KEY not set, using template fallback")
         return None
+
     try:
         from langchain_openai import ChatOpenAI
 
-        base_url = os.environ.get("OPENAI_BASE_URL")
-        kwargs: dict = {
+        base_url = os.environ.get("LLM_BASE_URL", "")
+        kwargs: dict[str, object] = {
+            "api_key": api_key,
             "model": os.environ.get("LLM_MODEL", "gpt-4.1-mini"),
             "temperature": 0.3,
-            "max_tokens": 1024,
+            "max_tokens": 2048,
         }
         if base_url:
             kwargs["base_url"] = base_url
-        _llm = ChatOpenAI(**kwargs)
-        logger.info("LLM configured: model=%s", kwargs["model"])
+
+        _llm = ChatOpenAI(**kwargs)  # type: ignore[arg-type]
+        logger.info("LLM ready: provider=%s model=%s base=%s",
+                     os.environ.get("LLM_PROVIDER", "openai"),
+                     kwargs["model"],
+                     base_url or "(default)")
     except Exception:
-        logger.warning("Failed to initialize LLM, using fallback", exc_info=True)
+        logger.warning("Failed to init LLM, using fallback", exc_info=True)
         _llm = None
     return _llm
 
@@ -49,12 +55,7 @@ def llm_available() -> bool:
 
 
 def generate_rag_answer(question: str, context_snippets: list[str], kb_name: str) -> str:
-    """Generate an answer from retrieved context snippets.
-
-    When an LLM is available, uses the model to compose a natural-language
-    answer grounded in the provided snippets. Otherwise falls back to
-    concatenating snippets.
-    """
+    """Generate an answer grounded in retrieved context snippets."""
     if not context_snippets:
         return f"知识库「{kb_name}」暂未检索到与问题相关的已索引片段。"
 
@@ -77,22 +78,12 @@ def generate_rag_answer(question: str, context_snippets: list[str], kb_name: str
         response = llm.invoke(prompt)
         return response.content.strip() if hasattr(response, "content") else str(response).strip()
     except Exception:
-        logger.warning("LLM call failed, falling back to template", exc_info=True)
+        logger.warning("LLM RAG call failed, falling back", exc_info=True)
         return _template_answer(question, context_snippets, kb_name)
 
 
-def _template_answer(question: str, snippets: list[str], kb_name: str) -> str:
-    if not snippets:
-        return f"知识库「{kb_name}」未检索到相关内容。"
-    return "\n\n".join(f"[来源 {i + 1}] {s}" for i, s in enumerate(snippets[:5]))
-
-
 def generate_rag_answer_stream(question: str, context_snippets: list[str], kb_name: str):
-    """Yield answer chunks via SSE-compatible generator.
-
-    When LLM is available, streams tokens one at a time. Otherwise
-    yields the template answer as a single chunk.
-    """
+    """Yield answer chunks via SSE-compatible streaming generator."""
     if not context_snippets:
         yield f"知识库「{kb_name}」暂未检索到与问题相关的已索引片段。"
         return
@@ -119,5 +110,31 @@ def generate_rag_answer_stream(question: str, context_snippets: list[str], kb_na
             if content:
                 yield content
     except Exception:
-        logger.warning("LLM stream failed, falling back to template", exc_info=True)
+        logger.warning("LLM stream failed, falling back", exc_info=True)
         yield _template_answer(question, context_snippets, kb_name)
+
+
+def generate_file_summary(filename: str, content_preview: str) -> str:
+    """Generate a concise summary of a file's content."""
+    llm = _get_llm()
+    if llm is None:
+        return f"文件「{filename}」已上传，摘要功能需要配置 LLM。"
+
+    prompt = (
+        "你是一个文件摘要助手。请用 2-3 句话概括以下文件的核心内容。\n"
+        f"【文件名】{filename}\n"
+        f"【内容预览】\n{content_preview[:3000]}\n\n"
+        "【摘要】"
+    )
+    try:
+        response = llm.invoke(prompt)
+        return response.content.strip() if hasattr(response, "content") else str(response).strip()
+    except Exception:
+        logger.warning("LLM summary failed", exc_info=True)
+        return f"文件「{filename}」摘要生成失败，请稍后重试。"
+
+
+def _template_answer(_question: str, snippets: list[str], kb_name: str) -> str:
+    if not snippets:
+        return f"知识库「{kb_name}」未检索到相关内容。"
+    return "\n\n".join(f"[来源 {i + 1}] {s}" for i, s in enumerate(snippets[:5]))

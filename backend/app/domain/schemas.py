@@ -1,613 +1,112 @@
-from __future__ import annotations
-
-from datetime import datetime
-from typing import Any, Literal
-
-from pydantic import BaseModel, ConfigDict, Field
-
-
-class ErrorResponse(BaseModel):
-    code: str
-    message: str
-    detail: dict[str, Any] = Field(default_factory=dict)
-
-
-class UserCreate(BaseModel):
-    username: str = Field(min_length=3, max_length=50)
-    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-    password: str = Field(min_length=8, max_length=128)
-
-
-class LoginRequest(BaseModel):
-    account: str = Field(min_length=1)
-    password: str = Field(min_length=1)
-
-
-class RefreshTokenRequest(BaseModel):
-    refresh_token: str = Field(min_length=1)
-
-
-class UserUpdate(BaseModel):
-    display_name: str | None = Field(default=None, min_length=1, max_length=80)
-    email: str | None = Field(
-        default=None, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-
-
-class UserPublic(BaseModel):
-    id: int
-    username: str
-    email: str
-    display_name: str
-    roles: list[str]
-
-
-class AuthResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: Literal["bearer"] = "bearer"
-    expires_in: int
-    user: UserPublic
-
-
-class CurrentUserResponse(BaseModel):
-    user: UserPublic
-
-
-class FolderItem(BaseModel):
-    id: str
-    name: str
-    parent_id: str | None = None
-    scope: Literal["personal", "team"]
-    permission: str
-    team_id: str | None = None
-    children: list["FolderItem"] = Field(default_factory=list)
-
-
-class FolderCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=128)
-    parent_id: str | None = None
-    scope: Literal["personal", "team"] = "personal"
-
-
-class FolderUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=128)
-    parent_id: str | None = None
-
-
-class FolderTreeResponse(BaseModel):
-    items: list[FolderItem]
-
-
-class FileItem(BaseModel):
-    id: str
-    name: str
-    folder_id: str
-    type: str
-    size: int
-    sha256: str
-    parse_status: Literal["queued", "parsing", "indexed", "failed"]
-    tags: list[str]
-    updated_at: datetime
-    permission_scope: str
-    knowledge_base_ids: list[str]
-
-
-class FileUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=255)
-    folder_id: str | None = None
-    tags: list[str] | None = None
-
-
-class FileCopyRequest(BaseModel):
-    target_folder_id: str = Field(min_length=1)
-    name: str | None = Field(default=None, min_length=1, max_length=255)
-    tags: list[str] | None = None
-
-
-class FileAnnotationCreate(BaseModel):
-    content: str = Field(min_length=1, max_length=2000)
-    position: dict[str, Any] | None = None
-
-
-class FileAnnotationReplyCreate(BaseModel):
-    content: str = Field(min_length=1, max_length=2000)
-
-
-class FileAnnotationReplyItem(BaseModel):
-    id: str
-    annotation_id: str
-    file_id: str
-    author_id: int
-    author_name: str
-    content: str
-    created_at: datetime
-    updated_at: datetime
-
-
-class FileAnnotationItem(BaseModel):
-    id: str
-    file_id: str
-    author_id: int
-    author_name: str
-    content: str
-    position: dict[str, Any] | None
-    created_at: datetime
-    updated_at: datetime
-    replies: list[FileAnnotationReplyItem] = Field(default_factory=list)
-
-
-class FileAnnotationListResponse(BaseModel):
-    items: list[FileAnnotationItem]
-    total: int
-
-
-NotificationType = Literal["invite", "mention", "annotation", "workflow", "system"]
-
-
-class NotificationItem(BaseModel):
-    id: str
-    user_id: int
-    type: NotificationType
-    title: str
-    content: str | None = None
-    target_type: str | None = None
-    target_id: str | None = None
-    is_read: bool
-    created_at: datetime
-
-
-class NotificationListResponse(BaseModel):
-    items: list[NotificationItem]
-    total: int
-    unread_count: int
-
-
-TeamMessageType = Literal["text", "file", "system"]
-
-
-class TeamMessageCreate(BaseModel):
-    content: str = Field(min_length=1, max_length=4000)
-    receiver_id: int | None = None
-    message_type: TeamMessageType = "text"
-
-
-class TeamMessageItem(BaseModel):
-    id: str
-    team_id: str
-    sender_id: int
-    sender_name: str
-    receiver_id: int | None = None
-    content: str
-    message_type: TeamMessageType
-    created_at: datetime
-
-
-class TeamMessageListResponse(BaseModel):
-    items: list[TeamMessageItem]
-    total: int
-
-
-class ShareLinkCreateRequest(BaseModel):
-    password: str | None = Field(default=None, min_length=4, max_length=128)
-    expires_in_seconds: int = Field(default=3600, ge=60)
-    download_limit: int | None = Field(default=None, ge=1)
-
-
-class ShareLinkPublic(BaseModel):
-    id: str
-    file_id: str
-    token: str
-    url: str
-    expires_at: datetime
-    download_limit: int | None
-    download_count: int
-    has_password: bool
-
-
-class ShareLinkDownloadRequest(BaseModel):
-    password: str | None = Field(default=None, min_length=1, max_length=128)
-
-
-MultipartUploadStatus = Literal["uploading", "completed", "expired"]
-
-
-class MultipartUploadInitRequest(BaseModel):
-    filename: str = Field(min_length=1, max_length=255)
-    folder_id: str = Field(min_length=1)
-    size: int = Field(ge=1)
-    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    chunk_size: int = Field(ge=1)
-    tags: list[str] = Field(default_factory=list)
-
-
-class MultipartUploadSession(BaseModel):
-    id: str
-    filename: str
-    folder_id: str
-    size: int
-    sha256: str
-    chunk_size: int
-    total_chunks: int
-    received_chunks: list[int]
-    status: MultipartUploadStatus
-    expires_at: datetime
-
-
-class MultipartChunkResponse(BaseModel):
-    session_id: str
-    chunk_index: int
-    received_chunks: list[int]
-    total_chunks: int
-    status: MultipartUploadStatus
-
-
-class FileVersionItem(BaseModel):
-    id: str
-    file_id: str
-    version_no: int
-    name: str
-    size: int
-    sha256: str
-    created_at: datetime
-    created_by: str
-    is_current: bool
-
-
-class FileVersionListResponse(BaseModel):
-    items: list[FileVersionItem]
-
-
-class FileListResponse(BaseModel):
-    items: list[FileItem]
-    total: int
-
-
-class RecycleBinItem(BaseModel):
-    file: FileItem
-    deleted_at: datetime
-    deleted_by: str
-
-
-class RecycleBinResponse(BaseModel):
-    items: list[RecycleBinItem]
-    total: int
-
-
-PermissionSubjectType = Literal["user", "team", "role"]
-PermissionResourceType = Literal["file",
-                                 "folder", "knowledge_base", "tool", "workflow"]
-PermissionAction = Literal["read", "write", "delete", "manage", "execute"]
-PermissionEffect = Literal["allow", "deny"]
-
-
-class PermissionRuleCreate(BaseModel):
-    subject_type: PermissionSubjectType
-    subject_id: str = Field(min_length=1)
-    resource_type: PermissionResourceType
-    resource_id: str = Field(min_length=1)
-    action: PermissionAction
-    effect: PermissionEffect
-    inherit: bool = False
-
-
-class PermissionRulePublic(BaseModel):
-    id: str
-    subject_type: PermissionSubjectType
-    subject_id: str
-    subject_label: str
-    resource_type: PermissionResourceType
-    resource_id: str
-    resource_label: str
-    action: PermissionAction
-    effect: PermissionEffect
-    inherit: bool
-    created_at: datetime
-    created_by: str
-
-
-class PermissionRuleListResponse(BaseModel):
-    items: list[PermissionRulePublic]
-
-
-class Citation(BaseModel):
-    file_id: str
-    document_id: str
-    chunk_id: str
-    title: str
-    page_no: int
-    paragraph_no: int
-    snippet: str
-
-
-class QARequest(BaseModel):
-    kb_id: str
-    conversation_id: str | None = None
-    question: str = Field(min_length=1)
-    top_k: int = Field(default=5, ge=1, le=20)
-    stream: bool = False
-
-
-class QAResponse(BaseModel):
-    conversation_id: str
-    message_id: str
-    answer: str
-    citations: list[Citation]
-
-
-KnowledgeBaseStatus = Literal["active", "archived"]
-KnowledgeIndexStatus = Literal["queued", "indexing", "indexed", "failed"]
-
-
-class KnowledgeBaseCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=128)
-    description: str | None = Field(default=None, max_length=500)
-
-
-class KnowledgeBaseUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=128)
-    description: str | None = Field(default=None, max_length=500)
-    status: KnowledgeBaseStatus | None = None
-
-
-class KnowledgeBasePublic(BaseModel):
-    id: str
-    name: str
-    description: str
-    status: KnowledgeBaseStatus
-    document_count: int
-    chunk_count: int
-    updated_at: datetime
-
-
-class KnowledgeBaseListResponse(BaseModel):
-    items: list[KnowledgeBasePublic]
-
-
-class KnowledgeDocumentCreate(BaseModel):
-    file_id: str = Field(min_length=1)
-
-
-class KnowledgeDocumentPublic(BaseModel):
-    id: str
-    kb_id: str
-    file_id: str
-    file_name: str
-    index_status: KnowledgeIndexStatus
-    chunk_count: int
-    updated_at: datetime
-
-
-class KnowledgeDocumentListResponse(BaseModel):
-    items: list[KnowledgeDocumentPublic]
-
-
-class ToolDefinition(BaseModel):
-    id: str
-    name: str
-    version: str
-    category: str
-    description: str
-    input_schema: dict[str, Any]
-    output_schema: dict[str, Any]
-    enabled: bool = True
-
-
-class ToolListResponse(BaseModel):
-    items: list[ToolDefinition]
-
-
-class AgentTaskRequest(BaseModel):
-    task: str = Field(min_length=1)
-    kb_id: str | None = None
-    context_file_ids: list[str] = Field(default_factory=list)
-
-
-class AgentStep(BaseModel):
-    type: Literal["thought", "action", "observation", "answer"]
-    title: str
-    content: str
-    tool_name: str | None = None
-    status: Literal["pending", "running", "success", "failed"] = "success"
-    metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-class AgentTaskResponse(BaseModel):
-    id: str
-    task: str
-    status: Literal["queued", "running", "completed", "failed"]
-    steps: list[AgentStep]
-    final_answer: str
-
-
-WorkflowNodeType = Literal["trigger", "tool",
-                           "condition", "loop", "aggregate", "output"]
-
-
-class WorkflowNodeDefinition(BaseModel):
-    id: str = Field(min_length=1, max_length=64)
-    name: str = Field(min_length=1, max_length=128)
-    type: WorkflowNodeType
-    tool_name: str | None = Field(default=None, max_length=80)
-    parameters: dict[str, Any] = Field(default_factory=dict)
-    position: dict[str, float] = Field(default_factory=dict)
-
-
-class WorkflowEdgeDefinition(BaseModel):
-    id: str = Field(min_length=1, max_length=80)
-    source: str = Field(min_length=1, max_length=64)
-    target: str = Field(min_length=1, max_length=64)
-    source_handle: str | None = None
-    target_handle: str | None = None
-
-
-class WorkflowCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=128)
-    description: str | None = Field(default=None, max_length=500)
-    trigger: str = Field(default="manual", min_length=1, max_length=80)
-    nodes: list[WorkflowNodeDefinition] = Field(default_factory=list)
-    edges: list[WorkflowEdgeDefinition] = Field(default_factory=list)
-
-
-class WorkflowUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=128)
-    description: str | None = Field(default=None, max_length=500)
-    trigger: str | None = Field(default=None, min_length=1, max_length=80)
-    nodes: list[WorkflowNodeDefinition] | None = None
-    edges: list[WorkflowEdgeDefinition] | None = None
-
-
-class WorkflowValidationIssue(BaseModel):
-    code: str
-    message: str
-    node_id: str | None = None
-    edge_id: str | None = None
-
-
-class WorkflowValidationResponse(BaseModel):
-    valid: bool
-    issues: list[WorkflowValidationIssue]
-    node_count: int
-    edge_count: int
-
-
-class WorkflowDefinition(BaseModel):
-    id: str
-    name: str
-    description: str
-    trigger: str
-    version: str
-    node_count: int
-    status: Literal["draft", "published"]
-    nodes: list[WorkflowNodeDefinition] = Field(default_factory=list)
-    edges: list[WorkflowEdgeDefinition] = Field(default_factory=list)
-
-
-class WorkflowListResponse(BaseModel):
-    items: list[WorkflowDefinition]
-
-
-class WorkflowExecutionRequest(BaseModel):
-    file_id: str
-    target_kb_id: str | None = None
-
-
-class WorkflowNodeExecution(BaseModel):
-    node_id: str
-    name: str
-    tool_name: str
-    status: Literal["pending", "running", "success", "failed"]
-    input: dict[str, Any] = Field(default_factory=dict)
-    output: dict[str, Any] = Field(default_factory=dict)
-
-
-class WorkflowExecutionResponse(BaseModel):
-    id: str
-    workflow_id: str
-    status: Literal["queued", "running", "completed", "failed"]
-    node_executions: list[WorkflowNodeExecution]
-    output: dict[str, Any]
-
-
-class TeamSummary(BaseModel):
-    id: str
-    name: str
-    description: str = ""
-    role: str
-    member_count: int
-    unread_count: int
-    root_folder_id: str | None = None
-
-
-class TeamListResponse(BaseModel):
-    items: list[TeamSummary]
-
-
-TeamRole = Literal["owner", "admin", "member", "guest"]
-TeamMemberStatus = Literal["active", "invited", "removed"]
-TeamInviteStatus = Literal["pending", "accepted", "revoked", "expired"]
-
-
-class TeamCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=128)
-    description: str | None = Field(default=None, max_length=500)
-
-
-class TeamInviteCreate(BaseModel):
-    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-    role: TeamRole = "member"
-
-
-class TeamMemberJoin(BaseModel):
-    invite_token: str = Field(min_length=1)
-
-
-class TeamMemberUpdate(BaseModel):
-    role: TeamRole
-
-
-class TeamMemberPublic(BaseModel):
-    id: str
-    team_id: str
-    user_id: int
-    username: str
-    email: str
-    display_name: str
-    role: TeamRole
-    status: TeamMemberStatus
-    joined_at: datetime
-
-
-class TeamInvitePublic(BaseModel):
-    id: str
-    team_id: str
-    email: str
-    role: TeamRole
-    status: TeamInviteStatus
-    token: str
-    created_at: datetime
-    expires_at: datetime
-
-
-class TeamDetail(BaseModel):
-    id: str
-    name: str
-    description: str
-    role: TeamRole
-    member_count: int
-    unread_count: int
-    root_folder: FolderItem
-    members: list[TeamMemberPublic]
-    invites: list[TeamInvitePublic]
-
-
-class AuditLogEntry(BaseModel):
-    id: str
-    actor: str
-    action: str
-    resource_type: str
-    resource_name: str
-    created_at: datetime
-
-
-class AuditLogResponse(BaseModel):
-    items: list[AuditLogEntry]
-
-
-class DashboardSummary(BaseModel):
-    file_count: int
-    indexed_count: int
-    knowledge_base_count: int
-    running_workflows: int
-    unread_notifications: int
-    tools_enabled: int
-
-
-class WorkspaceSnapshot(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    summary: DashboardSummary
-    files: list[FileItem]
-    tools: list[ToolDefinition]
-    workflows: list[WorkflowDefinition]
-    teams: list[TeamSummary]
-    audit_logs: list[AuditLogEntry]
+"""Backward-compatible re-exports from domain-specific schema modules.
+
+All classes are now defined in individual modules (auth.py, file.py, etc.)
+and re-exported here so that `from app.domain.schemas import X` continues to work.
+"""
+
+from app.domain.auth import (
+    AuthResponse,
+    CurrentUserResponse,
+    LoginRequest,
+    RefreshTokenRequest,
+    UserCreate,
+    UserPublic,
+    UserUpdate,
+)
+from app.domain.common import (
+    AuditLogEntry,
+    AuditLogResponse,
+    DashboardSummary,
+    ErrorResponse,
+    NotificationItem,
+    NotificationListResponse,
+    NotificationType,
+    PermissionAction,
+    PermissionEffect,
+    PermissionResourceType,
+    PermissionRuleCreate,
+    PermissionRuleListResponse,
+    PermissionRulePublic,
+    PermissionSubjectType,
+    WorkspaceSnapshot,
+)
+from app.domain.file import (
+    FileAnnotationCreate,
+    FileAnnotationItem,
+    FileAnnotationListResponse,
+    FileAnnotationReplyCreate,
+    FileAnnotationReplyItem,
+    FileCopyRequest,
+    FileItem,
+    FileListResponse,
+    FileUpdate,
+    FileVersionItem,
+    FileVersionListResponse,
+    MultipartChunkResponse,
+    MultipartUploadInitRequest,
+    MultipartUploadSession,
+    MultipartUploadStatus,
+    RecycleBinItem,
+    RecycleBinResponse,
+    ShareLinkCreateRequest,
+    ShareLinkDownloadRequest,
+    ShareLinkPublic,
+)
+from app.domain.folder import (
+    FolderCreate,
+    FolderItem,
+    FolderTreeResponse,
+    FolderUpdate,
+)
+from app.domain.knowledge import (
+    Citation,
+    KnowledgeBaseCreate,
+    KnowledgeBaseListResponse,
+    KnowledgeBasePublic,
+    KnowledgeBaseStatus,
+    KnowledgeBaseUpdate,
+    KnowledgeDocumentCreate,
+    KnowledgeDocumentListResponse,
+    KnowledgeDocumentPublic,
+    KnowledgeIndexStatus,
+    QARequest,
+    QAResponse,
+)
+from app.domain.team import (
+    TeamCreate,
+    TeamDetail,
+    TeamInviteCreate,
+    TeamInvitePublic,
+    TeamInviteStatus,
+    TeamListResponse,
+    TeamMemberJoin,
+    TeamMemberPublic,
+    TeamMemberStatus,
+    TeamMemberUpdate,
+    TeamMessageCreate,
+    TeamMessageItem,
+    TeamMessageListResponse,
+    TeamMessageType,
+    TeamRole,
+    TeamSummary,
+    TeamUpdate,
+)
+from app.domain.workflow import (
+    AgentStep,
+    AgentTaskRequest,
+    AgentTaskResponse,
+    ToolDefinition,
+    ToolListResponse,
+    WorkflowCreate,
+    WorkflowDefinition,
+    WorkflowEdgeDefinition,
+    WorkflowExecutionRequest,
+    WorkflowExecutionResponse,
+    WorkflowListResponse,
+    WorkflowNodeDefinition,
+    WorkflowNodeExecution,
+    WorkflowNodeType,
+    WorkflowUpdate,
+    WorkflowValidationIssue,
+    WorkflowValidationResponse,
+)

@@ -144,17 +144,17 @@ export type AuthResponse = {
 };
 
 /**
- * Body_upload_file_api_v1_files_upload_post
+ * Body_upload_file_api_v2_files_upload_post
  */
-export type BodyUploadFileApiV1FilesUploadPost = {
+export type BodyUploadFileApiV2FilesUploadPost = {
     /**
      * File
      */
-    file: Blob | File;
+    file?: Blob | File;
     /**
      * Folder Id
      */
-    folder_id: string;
+    folder_id?: string;
     /**
      * Tags
      */
@@ -162,17 +162,17 @@ export type BodyUploadFileApiV1FilesUploadPost = {
 };
 
 /**
- * Body_upload_multipart_chunk_api_v1_files_multipart_uploads__session_id__chunks__chunk_index__put
+ * Body_upload_multipart_chunk_api_v2_files_multipart_uploads__session_id__chunks__chunk_index__put
  */
-export type BodyUploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPut = {
+export type BodyUploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPut = {
     /**
      * Chunk
      */
-    chunk: Blob | File;
+    chunk?: Blob | File;
     /**
      * Sha256
      */
-    sha256: string;
+    sha256?: string;
 };
 
 /**
@@ -244,26 +244,6 @@ export type DashboardSummary = {
      * Unread Notifications
      */
     unread_notifications: number;
-};
-
-/**
- * ErrorResponse
- */
-export type ErrorResponse = {
-    /**
-     * Code
-     */
-    code: string;
-    /**
-     * Detail
-     */
-    detail?: {
-        [key: string]: unknown;
-    };
-    /**
-     * Message
-     */
-    message: string;
 };
 
 /**
@@ -1136,16 +1116,6 @@ export type ShareLinkCreateRequest = {
 };
 
 /**
- * ShareLinkDownloadRequest
- */
-export type ShareLinkDownloadRequest = {
-    /**
-     * Password
-     */
-    password?: string | null;
-};
-
-/**
  * ShareLinkPublic
  */
 export type ShareLinkPublic = {
@@ -1462,6 +1432,20 @@ export type TeamSummary = {
      * Unread Count
      */
     unread_count: number;
+};
+
+/**
+ * TeamUpdate
+ */
+export type TeamUpdate = {
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Name
+     */
+    name?: string | null;
 };
 
 /**
@@ -1913,7 +1897,7 @@ export type WorkspaceSnapshot = {
     workflows: Array<WorkflowDefinition>;
 };
 
-export type CreateAgentTaskApiV1AgentsTasksPostData = {
+export type CreateAgentTaskApiV2AgentsTasksPostData = {
     body: AgentTaskRequest;
     headers?: {
         /**
@@ -1923,28 +1907,28 @@ export type CreateAgentTaskApiV1AgentsTasksPostData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/agents/tasks';
+    url: '/api/v2/agents/tasks';
 };
 
-export type CreateAgentTaskApiV1AgentsTasksPostErrors = {
+export type CreateAgentTaskApiV2AgentsTasksPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateAgentTaskApiV1AgentsTasksPostError = CreateAgentTaskApiV1AgentsTasksPostErrors[keyof CreateAgentTaskApiV1AgentsTasksPostErrors];
+export type CreateAgentTaskApiV2AgentsTasksPostError = CreateAgentTaskApiV2AgentsTasksPostErrors[keyof CreateAgentTaskApiV2AgentsTasksPostErrors];
 
-export type CreateAgentTaskApiV1AgentsTasksPostResponses = {
+export type CreateAgentTaskApiV2AgentsTasksPostResponses = {
     /**
      * Successful Response
      */
     201: AgentTaskResponse;
 };
 
-export type CreateAgentTaskApiV1AgentsTasksPostResponse = CreateAgentTaskApiV1AgentsTasksPostResponses[keyof CreateAgentTaskApiV1AgentsTasksPostResponses];
+export type CreateAgentTaskApiV2AgentsTasksPostResponse = CreateAgentTaskApiV2AgentsTasksPostResponses[keyof CreateAgentTaskApiV2AgentsTasksPostResponses];
 
-export type ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostData = {
+export type ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostData = {
     body: FileAnnotationReplyCreate;
     headers?: {
         /**
@@ -1959,28 +1943,28 @@ export type ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostData = {
         annotation_id: string;
     };
     query?: never;
-    url: '/api/v1/annotations/{annotation_id}/replies';
+    url: '/api/v2/annotations/{annotation_id}/replies';
 };
 
-export type ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostErrors = {
+export type ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostError = ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostErrors[keyof ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostErrors];
+export type ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostError = ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostErrors[keyof ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostErrors];
 
-export type ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostResponses = {
+export type ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostResponses = {
     /**
      * Successful Response
      */
     201: FileAnnotationReplyItem;
 };
 
-export type ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostResponse = ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostResponses[keyof ReplyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPostResponses];
+export type ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostResponse = ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostResponses[keyof ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostResponses];
 
-export type AuditLogsApiV1AuditLogsGetData = {
+export type AuditLogsApiV2AuditLogsGetData = {
     body?: never;
     headers?: {
         /**
@@ -1990,111 +1974,103 @@ export type AuditLogsApiV1AuditLogsGetData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/audit-logs';
+    url: '/api/v2/audit-logs';
 };
 
-export type AuditLogsApiV1AuditLogsGetErrors = {
+export type AuditLogsApiV2AuditLogsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type AuditLogsApiV1AuditLogsGetError = AuditLogsApiV1AuditLogsGetErrors[keyof AuditLogsApiV1AuditLogsGetErrors];
+export type AuditLogsApiV2AuditLogsGetError = AuditLogsApiV2AuditLogsGetErrors[keyof AuditLogsApiV2AuditLogsGetErrors];
 
-export type AuditLogsApiV1AuditLogsGetResponses = {
+export type AuditLogsApiV2AuditLogsGetResponses = {
     /**
      * Successful Response
      */
     200: AuditLogResponse;
 };
 
-export type AuditLogsApiV1AuditLogsGetResponse = AuditLogsApiV1AuditLogsGetResponses[keyof AuditLogsApiV1AuditLogsGetResponses];
+export type AuditLogsApiV2AuditLogsGetResponse = AuditLogsApiV2AuditLogsGetResponses[keyof AuditLogsApiV2AuditLogsGetResponses];
 
-export type LoginApiV1AuthLoginPostData = {
+export type LoginApiV2AuthLoginPostData = {
     body: LoginRequest;
     path?: never;
     query?: never;
-    url: '/api/v1/auth/login';
+    url: '/api/v2/auth/login';
 };
 
-export type LoginApiV1AuthLoginPostErrors = {
-    /**
-     * Invalid credentials
-     */
-    401: ErrorResponse;
+export type LoginApiV2AuthLoginPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
-    /**
-     * Account temporarily locked
-     */
-    423: ErrorResponse;
 };
 
-export type LoginApiV1AuthLoginPostError = LoginApiV1AuthLoginPostErrors[keyof LoginApiV1AuthLoginPostErrors];
+export type LoginApiV2AuthLoginPostError = LoginApiV2AuthLoginPostErrors[keyof LoginApiV2AuthLoginPostErrors];
 
-export type LoginApiV1AuthLoginPostResponses = {
+export type LoginApiV2AuthLoginPostResponses = {
     /**
      * Successful Response
      */
     200: AuthResponse;
 };
 
-export type LoginApiV1AuthLoginPostResponse = LoginApiV1AuthLoginPostResponses[keyof LoginApiV1AuthLoginPostResponses];
+export type LoginApiV2AuthLoginPostResponse = LoginApiV2AuthLoginPostResponses[keyof LoginApiV2AuthLoginPostResponses];
 
-export type RefreshApiV1AuthRefreshPostData = {
+export type RefreshApiV2AuthRefreshPostData = {
     body: RefreshTokenRequest;
     path?: never;
     query?: never;
-    url: '/api/v1/auth/refresh';
+    url: '/api/v2/auth/refresh';
 };
 
-export type RefreshApiV1AuthRefreshPostErrors = {
+export type RefreshApiV2AuthRefreshPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RefreshApiV1AuthRefreshPostError = RefreshApiV1AuthRefreshPostErrors[keyof RefreshApiV1AuthRefreshPostErrors];
+export type RefreshApiV2AuthRefreshPostError = RefreshApiV2AuthRefreshPostErrors[keyof RefreshApiV2AuthRefreshPostErrors];
 
-export type RefreshApiV1AuthRefreshPostResponses = {
+export type RefreshApiV2AuthRefreshPostResponses = {
     /**
      * Successful Response
      */
     200: AuthResponse;
 };
 
-export type RefreshApiV1AuthRefreshPostResponse = RefreshApiV1AuthRefreshPostResponses[keyof RefreshApiV1AuthRefreshPostResponses];
+export type RefreshApiV2AuthRefreshPostResponse = RefreshApiV2AuthRefreshPostResponses[keyof RefreshApiV2AuthRefreshPostResponses];
 
-export type RegisterApiV1AuthRegisterPostData = {
+export type RegisterApiV2AuthRegisterPostData = {
     body: UserCreate;
     path?: never;
     query?: never;
-    url: '/api/v1/auth/register';
+    url: '/api/v2/auth/register';
 };
 
-export type RegisterApiV1AuthRegisterPostErrors = {
+export type RegisterApiV2AuthRegisterPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RegisterApiV1AuthRegisterPostError = RegisterApiV1AuthRegisterPostErrors[keyof RegisterApiV1AuthRegisterPostErrors];
+export type RegisterApiV2AuthRegisterPostError = RegisterApiV2AuthRegisterPostErrors[keyof RegisterApiV2AuthRegisterPostErrors];
 
-export type RegisterApiV1AuthRegisterPostResponses = {
+export type RegisterApiV2AuthRegisterPostResponses = {
     /**
      * Successful Response
      */
     201: AuthResponse;
 };
 
-export type RegisterApiV1AuthRegisterPostResponse = RegisterApiV1AuthRegisterPostResponses[keyof RegisterApiV1AuthRegisterPostResponses];
+export type RegisterApiV2AuthRegisterPostResponse = RegisterApiV2AuthRegisterPostResponses[keyof RegisterApiV2AuthRegisterPostResponses];
 
-export type FilesApiV1FilesGetData = {
+export type ListFilesApiV2FilesGetData = {
     body?: never;
     headers?: {
         /**
@@ -2103,50 +2079,29 @@ export type FilesApiV1FilesGetData = {
         authorization?: string | null;
     };
     path?: never;
-    query?: {
-        /**
-         * Query
-         */
-        query?: string | null;
-        /**
-         * Tag
-         */
-        tag?: string | null;
-        /**
-         * File Type
-         */
-        file_type?: string | null;
-        /**
-         * Updated From
-         */
-        updated_from?: string | null;
-        /**
-         * Updated To
-         */
-        updated_to?: string | null;
-    };
-    url: '/api/v1/files';
+    query?: never;
+    url: '/api/v2/files';
 };
 
-export type FilesApiV1FilesGetErrors = {
+export type ListFilesApiV2FilesGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type FilesApiV1FilesGetError = FilesApiV1FilesGetErrors[keyof FilesApiV1FilesGetErrors];
+export type ListFilesApiV2FilesGetError = ListFilesApiV2FilesGetErrors[keyof ListFilesApiV2FilesGetErrors];
 
-export type FilesApiV1FilesGetResponses = {
+export type ListFilesApiV2FilesGetResponses = {
     /**
      * Successful Response
      */
     200: FileListResponse;
 };
 
-export type FilesApiV1FilesGetResponse = FilesApiV1FilesGetResponses[keyof FilesApiV1FilesGetResponses];
+export type ListFilesApiV2FilesGetResponse = ListFilesApiV2FilesGetResponses[keyof ListFilesApiV2FilesGetResponses];
 
-export type InitMultipartUploadApiV1FilesMultipartUploadsPostData = {
+export type InitMultipartUploadApiV2FilesMultipartUploadsPostData = {
     body: MultipartUploadInitRequest;
     headers?: {
         /**
@@ -2156,28 +2111,28 @@ export type InitMultipartUploadApiV1FilesMultipartUploadsPostData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/files/multipart-uploads';
+    url: '/api/v2/files/multipart-uploads';
 };
 
-export type InitMultipartUploadApiV1FilesMultipartUploadsPostErrors = {
+export type InitMultipartUploadApiV2FilesMultipartUploadsPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type InitMultipartUploadApiV1FilesMultipartUploadsPostError = InitMultipartUploadApiV1FilesMultipartUploadsPostErrors[keyof InitMultipartUploadApiV1FilesMultipartUploadsPostErrors];
+export type InitMultipartUploadApiV2FilesMultipartUploadsPostError = InitMultipartUploadApiV2FilesMultipartUploadsPostErrors[keyof InitMultipartUploadApiV2FilesMultipartUploadsPostErrors];
 
-export type InitMultipartUploadApiV1FilesMultipartUploadsPostResponses = {
+export type InitMultipartUploadApiV2FilesMultipartUploadsPostResponses = {
     /**
      * Successful Response
      */
     201: MultipartUploadSession;
 };
 
-export type InitMultipartUploadApiV1FilesMultipartUploadsPostResponse = InitMultipartUploadApiV1FilesMultipartUploadsPostResponses[keyof InitMultipartUploadApiV1FilesMultipartUploadsPostResponses];
+export type InitMultipartUploadApiV2FilesMultipartUploadsPostResponse = InitMultipartUploadApiV2FilesMultipartUploadsPostResponses[keyof InitMultipartUploadApiV2FilesMultipartUploadsPostResponses];
 
-export type MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetData = {
+export type MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetData = {
     body?: never;
     headers?: {
         /**
@@ -2192,29 +2147,29 @@ export type MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetData = {
         session_id: string;
     };
     query?: never;
-    url: '/api/v1/files/multipart-uploads/{session_id}';
+    url: '/api/v2/files/multipart-uploads/{session_id}';
 };
 
-export type MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetErrors = {
+export type MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetError = MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetErrors[keyof MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetErrors];
+export type MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetError = MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetErrors[keyof MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetErrors];
 
-export type MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetResponses = {
+export type MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetResponses = {
     /**
      * Successful Response
      */
     200: MultipartUploadSession;
 };
 
-export type MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetResponse = MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetResponses[keyof MultipartUploadStatusApiV1FilesMultipartUploadsSessionIdGetResponses];
+export type MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetResponse = MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetResponses[keyof MultipartUploadStatusApiV2FilesMultipartUploadsSessionIdGetResponses];
 
-export type UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutData = {
-    body: BodyUploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPut;
+export type UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutData = {
+    body?: BodyUploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPut;
     headers?: {
         /**
          * Authorization
@@ -2232,28 +2187,28 @@ export type UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIn
         chunk_index: number;
     };
     query?: never;
-    url: '/api/v1/files/multipart-uploads/{session_id}/chunks/{chunk_index}';
+    url: '/api/v2/files/multipart-uploads/{session_id}/chunks/{chunk_index}';
 };
 
-export type UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors = {
+export type UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutError = UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors[keyof UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors];
+export type UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutError = UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors[keyof UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutErrors];
 
-export type UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses = {
+export type UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses = {
     /**
      * Successful Response
      */
     200: MultipartChunkResponse;
 };
 
-export type UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutResponse = UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses[keyof UploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses];
+export type UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutResponse = UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses[keyof UploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPutResponses];
 
-export type CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostData = {
+export type CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostData = {
     body?: never;
     headers?: {
         /**
@@ -2268,28 +2223,28 @@ export type CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePo
         session_id: string;
     };
     query?: never;
-    url: '/api/v1/files/multipart-uploads/{session_id}/complete';
+    url: '/api/v2/files/multipart-uploads/{session_id}/complete';
 };
 
-export type CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostErrors = {
+export type CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostError = CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostErrors[keyof CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostErrors];
+export type CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostError = CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostErrors[keyof CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostErrors];
 
-export type CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostResponses = {
+export type CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostResponses = {
     /**
      * Successful Response
      */
     201: FileItem;
 };
 
-export type CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostResponse = CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostResponses[keyof CompleteMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePostResponses];
+export type CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostResponse = CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostResponses[keyof CompleteMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePostResponses];
 
-export type RecycleBinApiV1FilesRecycleBinGetData = {
+export type RecycleBinApiV2FilesRecycleBinGetData = {
     body?: never;
     headers?: {
         /**
@@ -2299,29 +2254,29 @@ export type RecycleBinApiV1FilesRecycleBinGetData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/files/recycle-bin';
+    url: '/api/v2/files/recycle-bin';
 };
 
-export type RecycleBinApiV1FilesRecycleBinGetErrors = {
+export type RecycleBinApiV2FilesRecycleBinGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RecycleBinApiV1FilesRecycleBinGetError = RecycleBinApiV1FilesRecycleBinGetErrors[keyof RecycleBinApiV1FilesRecycleBinGetErrors];
+export type RecycleBinApiV2FilesRecycleBinGetError = RecycleBinApiV2FilesRecycleBinGetErrors[keyof RecycleBinApiV2FilesRecycleBinGetErrors];
 
-export type RecycleBinApiV1FilesRecycleBinGetResponses = {
+export type RecycleBinApiV2FilesRecycleBinGetResponses = {
     /**
      * Successful Response
      */
     200: RecycleBinResponse;
 };
 
-export type RecycleBinApiV1FilesRecycleBinGetResponse = RecycleBinApiV1FilesRecycleBinGetResponses[keyof RecycleBinApiV1FilesRecycleBinGetResponses];
+export type RecycleBinApiV2FilesRecycleBinGetResponse = RecycleBinApiV2FilesRecycleBinGetResponses[keyof RecycleBinApiV2FilesRecycleBinGetResponses];
 
-export type UploadFileApiV1FilesUploadPostData = {
-    body: BodyUploadFileApiV1FilesUploadPost;
+export type UploadFileApiV2FilesUploadPostData = {
+    body?: BodyUploadFileApiV2FilesUploadPost;
     headers?: {
         /**
          * Authorization
@@ -2330,28 +2285,28 @@ export type UploadFileApiV1FilesUploadPostData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/files/upload';
+    url: '/api/v2/files/upload';
 };
 
-export type UploadFileApiV1FilesUploadPostErrors = {
+export type UploadFileApiV2FilesUploadPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UploadFileApiV1FilesUploadPostError = UploadFileApiV1FilesUploadPostErrors[keyof UploadFileApiV1FilesUploadPostErrors];
+export type UploadFileApiV2FilesUploadPostError = UploadFileApiV2FilesUploadPostErrors[keyof UploadFileApiV2FilesUploadPostErrors];
 
-export type UploadFileApiV1FilesUploadPostResponses = {
+export type UploadFileApiV2FilesUploadPostResponses = {
     /**
      * Successful Response
      */
     201: FileItem;
 };
 
-export type UploadFileApiV1FilesUploadPostResponse = UploadFileApiV1FilesUploadPostResponses[keyof UploadFileApiV1FilesUploadPostResponses];
+export type UploadFileApiV2FilesUploadPostResponse = UploadFileApiV2FilesUploadPostResponses[keyof UploadFileApiV2FilesUploadPostResponses];
 
-export type DeleteFileApiV1FilesFileIdDeleteData = {
+export type DeleteFileApiV2FilesFileIdDeleteData = {
     body?: never;
     headers?: {
         /**
@@ -2366,28 +2321,28 @@ export type DeleteFileApiV1FilesFileIdDeleteData = {
         file_id: string;
     };
     query?: never;
-    url: '/api/v1/files/{file_id}';
+    url: '/api/v2/files/{file_id}';
 };
 
-export type DeleteFileApiV1FilesFileIdDeleteErrors = {
+export type DeleteFileApiV2FilesFileIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteFileApiV1FilesFileIdDeleteError = DeleteFileApiV1FilesFileIdDeleteErrors[keyof DeleteFileApiV1FilesFileIdDeleteErrors];
+export type DeleteFileApiV2FilesFileIdDeleteError = DeleteFileApiV2FilesFileIdDeleteErrors[keyof DeleteFileApiV2FilesFileIdDeleteErrors];
 
-export type DeleteFileApiV1FilesFileIdDeleteResponses = {
+export type DeleteFileApiV2FilesFileIdDeleteResponses = {
     /**
      * Successful Response
      */
     204: void;
 };
 
-export type DeleteFileApiV1FilesFileIdDeleteResponse = DeleteFileApiV1FilesFileIdDeleteResponses[keyof DeleteFileApiV1FilesFileIdDeleteResponses];
+export type DeleteFileApiV2FilesFileIdDeleteResponse = DeleteFileApiV2FilesFileIdDeleteResponses[keyof DeleteFileApiV2FilesFileIdDeleteResponses];
 
-export type UpdateFileApiV1FilesFileIdPatchData = {
+export type UpdateFileApiV2FilesFileIdPatchData = {
     body: FileUpdate;
     headers?: {
         /**
@@ -2402,28 +2357,28 @@ export type UpdateFileApiV1FilesFileIdPatchData = {
         file_id: string;
     };
     query?: never;
-    url: '/api/v1/files/{file_id}';
+    url: '/api/v2/files/{file_id}';
 };
 
-export type UpdateFileApiV1FilesFileIdPatchErrors = {
+export type UpdateFileApiV2FilesFileIdPatchErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateFileApiV1FilesFileIdPatchError = UpdateFileApiV1FilesFileIdPatchErrors[keyof UpdateFileApiV1FilesFileIdPatchErrors];
+export type UpdateFileApiV2FilesFileIdPatchError = UpdateFileApiV2FilesFileIdPatchErrors[keyof UpdateFileApiV2FilesFileIdPatchErrors];
 
-export type UpdateFileApiV1FilesFileIdPatchResponses = {
+export type UpdateFileApiV2FilesFileIdPatchResponses = {
     /**
      * Successful Response
      */
     200: FileItem;
 };
 
-export type UpdateFileApiV1FilesFileIdPatchResponse = UpdateFileApiV1FilesFileIdPatchResponses[keyof UpdateFileApiV1FilesFileIdPatchResponses];
+export type UpdateFileApiV2FilesFileIdPatchResponse = UpdateFileApiV2FilesFileIdPatchResponses[keyof UpdateFileApiV2FilesFileIdPatchResponses];
 
-export type FileAnnotationsApiV1FilesFileIdAnnotationsGetData = {
+export type FileAnnotationsApiV2FilesFileIdAnnotationsGetData = {
     body?: never;
     headers?: {
         /**
@@ -2438,28 +2393,28 @@ export type FileAnnotationsApiV1FilesFileIdAnnotationsGetData = {
         file_id: string;
     };
     query?: never;
-    url: '/api/v1/files/{file_id}/annotations';
+    url: '/api/v2/files/{file_id}/annotations';
 };
 
-export type FileAnnotationsApiV1FilesFileIdAnnotationsGetErrors = {
+export type FileAnnotationsApiV2FilesFileIdAnnotationsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type FileAnnotationsApiV1FilesFileIdAnnotationsGetError = FileAnnotationsApiV1FilesFileIdAnnotationsGetErrors[keyof FileAnnotationsApiV1FilesFileIdAnnotationsGetErrors];
+export type FileAnnotationsApiV2FilesFileIdAnnotationsGetError = FileAnnotationsApiV2FilesFileIdAnnotationsGetErrors[keyof FileAnnotationsApiV2FilesFileIdAnnotationsGetErrors];
 
-export type FileAnnotationsApiV1FilesFileIdAnnotationsGetResponses = {
+export type FileAnnotationsApiV2FilesFileIdAnnotationsGetResponses = {
     /**
      * Successful Response
      */
     200: FileAnnotationListResponse;
 };
 
-export type FileAnnotationsApiV1FilesFileIdAnnotationsGetResponse = FileAnnotationsApiV1FilesFileIdAnnotationsGetResponses[keyof FileAnnotationsApiV1FilesFileIdAnnotationsGetResponses];
+export type FileAnnotationsApiV2FilesFileIdAnnotationsGetResponse = FileAnnotationsApiV2FilesFileIdAnnotationsGetResponses[keyof FileAnnotationsApiV2FilesFileIdAnnotationsGetResponses];
 
-export type CreateFileAnnotationApiV1FilesFileIdAnnotationsPostData = {
+export type CreateFileAnnotationApiV2FilesFileIdAnnotationsPostData = {
     body: FileAnnotationCreate;
     headers?: {
         /**
@@ -2474,28 +2429,28 @@ export type CreateFileAnnotationApiV1FilesFileIdAnnotationsPostData = {
         file_id: string;
     };
     query?: never;
-    url: '/api/v1/files/{file_id}/annotations';
+    url: '/api/v2/files/{file_id}/annotations';
 };
 
-export type CreateFileAnnotationApiV1FilesFileIdAnnotationsPostErrors = {
+export type CreateFileAnnotationApiV2FilesFileIdAnnotationsPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateFileAnnotationApiV1FilesFileIdAnnotationsPostError = CreateFileAnnotationApiV1FilesFileIdAnnotationsPostErrors[keyof CreateFileAnnotationApiV1FilesFileIdAnnotationsPostErrors];
+export type CreateFileAnnotationApiV2FilesFileIdAnnotationsPostError = CreateFileAnnotationApiV2FilesFileIdAnnotationsPostErrors[keyof CreateFileAnnotationApiV2FilesFileIdAnnotationsPostErrors];
 
-export type CreateFileAnnotationApiV1FilesFileIdAnnotationsPostResponses = {
+export type CreateFileAnnotationApiV2FilesFileIdAnnotationsPostResponses = {
     /**
      * Successful Response
      */
     201: FileAnnotationItem;
 };
 
-export type CreateFileAnnotationApiV1FilesFileIdAnnotationsPostResponse = CreateFileAnnotationApiV1FilesFileIdAnnotationsPostResponses[keyof CreateFileAnnotationApiV1FilesFileIdAnnotationsPostResponses];
+export type CreateFileAnnotationApiV2FilesFileIdAnnotationsPostResponse = CreateFileAnnotationApiV2FilesFileIdAnnotationsPostResponses[keyof CreateFileAnnotationApiV2FilesFileIdAnnotationsPostResponses];
 
-export type DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteData = {
+export type DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteData = {
     body?: never;
     headers?: {
         /**
@@ -2514,28 +2469,28 @@ export type DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteDat
         annotation_id: string;
     };
     query?: never;
-    url: '/api/v1/files/{file_id}/annotations/{annotation_id}';
+    url: '/api/v2/files/{file_id}/annotations/{annotation_id}';
 };
 
-export type DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteErrors = {
+export type DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteError = DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteErrors[keyof DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteErrors];
+export type DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteError = DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteErrors[keyof DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteErrors];
 
-export type DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteResponses = {
+export type DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteResponses = {
     /**
      * Successful Response
      */
     204: void;
 };
 
-export type DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteResponse = DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteResponses[keyof DeleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDeleteResponses];
+export type DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteResponse = DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteResponses[keyof DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteResponses];
 
-export type CopyFileApiV1FilesFileIdCopyPostData = {
+export type CopyFileApiV2FilesFileIdCopyPostData = {
     body: FileCopyRequest;
     headers?: {
         /**
@@ -2550,28 +2505,28 @@ export type CopyFileApiV1FilesFileIdCopyPostData = {
         file_id: string;
     };
     query?: never;
-    url: '/api/v1/files/{file_id}/copy';
+    url: '/api/v2/files/{file_id}/copy';
 };
 
-export type CopyFileApiV1FilesFileIdCopyPostErrors = {
+export type CopyFileApiV2FilesFileIdCopyPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CopyFileApiV1FilesFileIdCopyPostError = CopyFileApiV1FilesFileIdCopyPostErrors[keyof CopyFileApiV1FilesFileIdCopyPostErrors];
+export type CopyFileApiV2FilesFileIdCopyPostError = CopyFileApiV2FilesFileIdCopyPostErrors[keyof CopyFileApiV2FilesFileIdCopyPostErrors];
 
-export type CopyFileApiV1FilesFileIdCopyPostResponses = {
+export type CopyFileApiV2FilesFileIdCopyPostResponses = {
     /**
      * Successful Response
      */
     201: FileItem;
 };
 
-export type CopyFileApiV1FilesFileIdCopyPostResponse = CopyFileApiV1FilesFileIdCopyPostResponses[keyof CopyFileApiV1FilesFileIdCopyPostResponses];
+export type CopyFileApiV2FilesFileIdCopyPostResponse = CopyFileApiV2FilesFileIdCopyPostResponses[keyof CopyFileApiV2FilesFileIdCopyPostResponses];
 
-export type DownloadFileApiV1FilesFileIdDownloadGetData = {
+export type DownloadFileApiV2FilesFileIdDownloadGetData = {
     body?: never;
     headers?: {
         /**
@@ -2586,26 +2541,26 @@ export type DownloadFileApiV1FilesFileIdDownloadGetData = {
         file_id: string;
     };
     query?: never;
-    url: '/api/v1/files/{file_id}/download';
+    url: '/api/v2/files/{file_id}/download';
 };
 
-export type DownloadFileApiV1FilesFileIdDownloadGetErrors = {
+export type DownloadFileApiV2FilesFileIdDownloadGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DownloadFileApiV1FilesFileIdDownloadGetError = DownloadFileApiV1FilesFileIdDownloadGetErrors[keyof DownloadFileApiV1FilesFileIdDownloadGetErrors];
+export type DownloadFileApiV2FilesFileIdDownloadGetError = DownloadFileApiV2FilesFileIdDownloadGetErrors[keyof DownloadFileApiV2FilesFileIdDownloadGetErrors];
 
-export type DownloadFileApiV1FilesFileIdDownloadGetResponses = {
+export type DownloadFileApiV2FilesFileIdDownloadGetResponses = {
     /**
      * Successful Response
      */
     200: unknown;
 };
 
-export type RestoreDeletedFileApiV1FilesFileIdRestorePostData = {
+export type RestoreDeletedFileApiV2FilesFileIdRestorePostData = {
     body?: never;
     headers?: {
         /**
@@ -2620,28 +2575,28 @@ export type RestoreDeletedFileApiV1FilesFileIdRestorePostData = {
         file_id: string;
     };
     query?: never;
-    url: '/api/v1/files/{file_id}/restore';
+    url: '/api/v2/files/{file_id}/restore';
 };
 
-export type RestoreDeletedFileApiV1FilesFileIdRestorePostErrors = {
+export type RestoreDeletedFileApiV2FilesFileIdRestorePostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RestoreDeletedFileApiV1FilesFileIdRestorePostError = RestoreDeletedFileApiV1FilesFileIdRestorePostErrors[keyof RestoreDeletedFileApiV1FilesFileIdRestorePostErrors];
+export type RestoreDeletedFileApiV2FilesFileIdRestorePostError = RestoreDeletedFileApiV2FilesFileIdRestorePostErrors[keyof RestoreDeletedFileApiV2FilesFileIdRestorePostErrors];
 
-export type RestoreDeletedFileApiV1FilesFileIdRestorePostResponses = {
+export type RestoreDeletedFileApiV2FilesFileIdRestorePostResponses = {
     /**
      * Successful Response
      */
     200: FileItem;
 };
 
-export type RestoreDeletedFileApiV1FilesFileIdRestorePostResponse = RestoreDeletedFileApiV1FilesFileIdRestorePostResponses[keyof RestoreDeletedFileApiV1FilesFileIdRestorePostResponses];
+export type RestoreDeletedFileApiV2FilesFileIdRestorePostResponse = RestoreDeletedFileApiV2FilesFileIdRestorePostResponses[keyof RestoreDeletedFileApiV2FilesFileIdRestorePostResponses];
 
-export type CreateFileShareLinkApiV1FilesFileIdShareLinksPostData = {
+export type CreateFileShareLinkApiV2FilesFileIdShareLinksPostData = {
     body: ShareLinkCreateRequest;
     headers?: {
         /**
@@ -2656,28 +2611,28 @@ export type CreateFileShareLinkApiV1FilesFileIdShareLinksPostData = {
         file_id: string;
     };
     query?: never;
-    url: '/api/v1/files/{file_id}/share-links';
+    url: '/api/v2/files/{file_id}/share-links';
 };
 
-export type CreateFileShareLinkApiV1FilesFileIdShareLinksPostErrors = {
+export type CreateFileShareLinkApiV2FilesFileIdShareLinksPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateFileShareLinkApiV1FilesFileIdShareLinksPostError = CreateFileShareLinkApiV1FilesFileIdShareLinksPostErrors[keyof CreateFileShareLinkApiV1FilesFileIdShareLinksPostErrors];
+export type CreateFileShareLinkApiV2FilesFileIdShareLinksPostError = CreateFileShareLinkApiV2FilesFileIdShareLinksPostErrors[keyof CreateFileShareLinkApiV2FilesFileIdShareLinksPostErrors];
 
-export type CreateFileShareLinkApiV1FilesFileIdShareLinksPostResponses = {
+export type CreateFileShareLinkApiV2FilesFileIdShareLinksPostResponses = {
     /**
      * Successful Response
      */
     201: ShareLinkPublic;
 };
 
-export type CreateFileShareLinkApiV1FilesFileIdShareLinksPostResponse = CreateFileShareLinkApiV1FilesFileIdShareLinksPostResponses[keyof CreateFileShareLinkApiV1FilesFileIdShareLinksPostResponses];
+export type CreateFileShareLinkApiV2FilesFileIdShareLinksPostResponse = CreateFileShareLinkApiV2FilesFileIdShareLinksPostResponses[keyof CreateFileShareLinkApiV2FilesFileIdShareLinksPostResponses];
 
-export type FileVersionsApiV1FilesFileIdVersionsGetData = {
+export type FileVersionsApiV2FilesFileIdVersionsGetData = {
     body?: never;
     headers?: {
         /**
@@ -2692,28 +2647,28 @@ export type FileVersionsApiV1FilesFileIdVersionsGetData = {
         file_id: string;
     };
     query?: never;
-    url: '/api/v1/files/{file_id}/versions';
+    url: '/api/v2/files/{file_id}/versions';
 };
 
-export type FileVersionsApiV1FilesFileIdVersionsGetErrors = {
+export type FileVersionsApiV2FilesFileIdVersionsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type FileVersionsApiV1FilesFileIdVersionsGetError = FileVersionsApiV1FilesFileIdVersionsGetErrors[keyof FileVersionsApiV1FilesFileIdVersionsGetErrors];
+export type FileVersionsApiV2FilesFileIdVersionsGetError = FileVersionsApiV2FilesFileIdVersionsGetErrors[keyof FileVersionsApiV2FilesFileIdVersionsGetErrors];
 
-export type FileVersionsApiV1FilesFileIdVersionsGetResponses = {
+export type FileVersionsApiV2FilesFileIdVersionsGetResponses = {
     /**
      * Successful Response
      */
     200: FileVersionListResponse;
 };
 
-export type FileVersionsApiV1FilesFileIdVersionsGetResponse = FileVersionsApiV1FilesFileIdVersionsGetResponses[keyof FileVersionsApiV1FilesFileIdVersionsGetResponses];
+export type FileVersionsApiV2FilesFileIdVersionsGetResponse = FileVersionsApiV2FilesFileIdVersionsGetResponses[keyof FileVersionsApiV2FilesFileIdVersionsGetResponses];
 
-export type RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostData = {
+export type RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostData = {
     body?: never;
     headers?: {
         /**
@@ -2732,28 +2687,28 @@ export type RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostData =
         version_id: string;
     };
     query?: never;
-    url: '/api/v1/files/{file_id}/versions/{version_id}/restore';
+    url: '/api/v2/files/{file_id}/versions/{version_id}/restore';
 };
 
-export type RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors = {
+export type RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostError = RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors[keyof RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostErrors];
+export type RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostError = RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostErrors[keyof RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostErrors];
 
-export type RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses = {
+export type RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostResponses = {
     /**
      * Successful Response
      */
     200: FileItem;
 };
 
-export type RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponse = RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses[keyof RestoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePostResponses];
+export type RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostResponse = RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostResponses[keyof RestoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePostResponses];
 
-export type CreateFolderApiV1FoldersPostData = {
+export type CreateFolderApiV2FoldersPostData = {
     body: FolderCreate;
     headers?: {
         /**
@@ -2763,28 +2718,28 @@ export type CreateFolderApiV1FoldersPostData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/folders';
+    url: '/api/v2/folders';
 };
 
-export type CreateFolderApiV1FoldersPostErrors = {
+export type CreateFolderApiV2FoldersPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateFolderApiV1FoldersPostError = CreateFolderApiV1FoldersPostErrors[keyof CreateFolderApiV1FoldersPostErrors];
+export type CreateFolderApiV2FoldersPostError = CreateFolderApiV2FoldersPostErrors[keyof CreateFolderApiV2FoldersPostErrors];
 
-export type CreateFolderApiV1FoldersPostResponses = {
+export type CreateFolderApiV2FoldersPostResponses = {
     /**
      * Successful Response
      */
     201: FolderItem;
 };
 
-export type CreateFolderApiV1FoldersPostResponse = CreateFolderApiV1FoldersPostResponses[keyof CreateFolderApiV1FoldersPostResponses];
+export type CreateFolderApiV2FoldersPostResponse = CreateFolderApiV2FoldersPostResponses[keyof CreateFolderApiV2FoldersPostResponses];
 
-export type FoldersApiV1FoldersTreeGetData = {
+export type FolderTreeApiV2FoldersTreeGetData = {
     body?: never;
     headers?: {
         /**
@@ -2794,28 +2749,28 @@ export type FoldersApiV1FoldersTreeGetData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/folders/tree';
+    url: '/api/v2/folders/tree';
 };
 
-export type FoldersApiV1FoldersTreeGetErrors = {
+export type FolderTreeApiV2FoldersTreeGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type FoldersApiV1FoldersTreeGetError = FoldersApiV1FoldersTreeGetErrors[keyof FoldersApiV1FoldersTreeGetErrors];
+export type FolderTreeApiV2FoldersTreeGetError = FolderTreeApiV2FoldersTreeGetErrors[keyof FolderTreeApiV2FoldersTreeGetErrors];
 
-export type FoldersApiV1FoldersTreeGetResponses = {
+export type FolderTreeApiV2FoldersTreeGetResponses = {
     /**
      * Successful Response
      */
     200: FolderTreeResponse;
 };
 
-export type FoldersApiV1FoldersTreeGetResponse = FoldersApiV1FoldersTreeGetResponses[keyof FoldersApiV1FoldersTreeGetResponses];
+export type FolderTreeApiV2FoldersTreeGetResponse = FolderTreeApiV2FoldersTreeGetResponses[keyof FolderTreeApiV2FoldersTreeGetResponses];
 
-export type DeleteFolderApiV1FoldersFolderIdDeleteData = {
+export type DeleteFolderApiV2FoldersFolderIdDeleteData = {
     body?: never;
     headers?: {
         /**
@@ -2830,28 +2785,28 @@ export type DeleteFolderApiV1FoldersFolderIdDeleteData = {
         folder_id: string;
     };
     query?: never;
-    url: '/api/v1/folders/{folder_id}';
+    url: '/api/v2/folders/{folder_id}';
 };
 
-export type DeleteFolderApiV1FoldersFolderIdDeleteErrors = {
+export type DeleteFolderApiV2FoldersFolderIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteFolderApiV1FoldersFolderIdDeleteError = DeleteFolderApiV1FoldersFolderIdDeleteErrors[keyof DeleteFolderApiV1FoldersFolderIdDeleteErrors];
+export type DeleteFolderApiV2FoldersFolderIdDeleteError = DeleteFolderApiV2FoldersFolderIdDeleteErrors[keyof DeleteFolderApiV2FoldersFolderIdDeleteErrors];
 
-export type DeleteFolderApiV1FoldersFolderIdDeleteResponses = {
+export type DeleteFolderApiV2FoldersFolderIdDeleteResponses = {
     /**
      * Successful Response
      */
     204: void;
 };
 
-export type DeleteFolderApiV1FoldersFolderIdDeleteResponse = DeleteFolderApiV1FoldersFolderIdDeleteResponses[keyof DeleteFolderApiV1FoldersFolderIdDeleteResponses];
+export type DeleteFolderApiV2FoldersFolderIdDeleteResponse = DeleteFolderApiV2FoldersFolderIdDeleteResponses[keyof DeleteFolderApiV2FoldersFolderIdDeleteResponses];
 
-export type UpdateFolderApiV1FoldersFolderIdPatchData = {
+export type UpdateFolderApiV2FoldersFolderIdPatchData = {
     body: FolderUpdate;
     headers?: {
         /**
@@ -2866,28 +2821,48 @@ export type UpdateFolderApiV1FoldersFolderIdPatchData = {
         folder_id: string;
     };
     query?: never;
-    url: '/api/v1/folders/{folder_id}';
+    url: '/api/v2/folders/{folder_id}';
 };
 
-export type UpdateFolderApiV1FoldersFolderIdPatchErrors = {
+export type UpdateFolderApiV2FoldersFolderIdPatchErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateFolderApiV1FoldersFolderIdPatchError = UpdateFolderApiV1FoldersFolderIdPatchErrors[keyof UpdateFolderApiV1FoldersFolderIdPatchErrors];
+export type UpdateFolderApiV2FoldersFolderIdPatchError = UpdateFolderApiV2FoldersFolderIdPatchErrors[keyof UpdateFolderApiV2FoldersFolderIdPatchErrors];
 
-export type UpdateFolderApiV1FoldersFolderIdPatchResponses = {
+export type UpdateFolderApiV2FoldersFolderIdPatchResponses = {
     /**
      * Successful Response
      */
     200: FolderItem;
 };
 
-export type UpdateFolderApiV1FoldersFolderIdPatchResponse = UpdateFolderApiV1FoldersFolderIdPatchResponses[keyof UpdateFolderApiV1FoldersFolderIdPatchResponses];
+export type UpdateFolderApiV2FoldersFolderIdPatchResponse = UpdateFolderApiV2FoldersFolderIdPatchResponses[keyof UpdateFolderApiV2FoldersFolderIdPatchResponses];
 
-export type KnowledgeBasesApiV1KnowledgeBasesGetData = {
+export type HealthApiV2HealthGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v2/health';
+};
+
+export type HealthApiV2HealthGetResponses = {
+    /**
+     * Response Health Api V2 Health Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type HealthApiV2HealthGetResponse = HealthApiV2HealthGetResponses[keyof HealthApiV2HealthGetResponses];
+
+export type ListKnowledgeBasesApiV2KnowledgeBasesGetData = {
     body?: never;
     headers?: {
         /**
@@ -2897,28 +2872,28 @@ export type KnowledgeBasesApiV1KnowledgeBasesGetData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/knowledge-bases';
+    url: '/api/v2/knowledge-bases';
 };
 
-export type KnowledgeBasesApiV1KnowledgeBasesGetErrors = {
+export type ListKnowledgeBasesApiV2KnowledgeBasesGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type KnowledgeBasesApiV1KnowledgeBasesGetError = KnowledgeBasesApiV1KnowledgeBasesGetErrors[keyof KnowledgeBasesApiV1KnowledgeBasesGetErrors];
+export type ListKnowledgeBasesApiV2KnowledgeBasesGetError = ListKnowledgeBasesApiV2KnowledgeBasesGetErrors[keyof ListKnowledgeBasesApiV2KnowledgeBasesGetErrors];
 
-export type KnowledgeBasesApiV1KnowledgeBasesGetResponses = {
+export type ListKnowledgeBasesApiV2KnowledgeBasesGetResponses = {
     /**
      * Successful Response
      */
     200: KnowledgeBaseListResponse;
 };
 
-export type KnowledgeBasesApiV1KnowledgeBasesGetResponse = KnowledgeBasesApiV1KnowledgeBasesGetResponses[keyof KnowledgeBasesApiV1KnowledgeBasesGetResponses];
+export type ListKnowledgeBasesApiV2KnowledgeBasesGetResponse = ListKnowledgeBasesApiV2KnowledgeBasesGetResponses[keyof ListKnowledgeBasesApiV2KnowledgeBasesGetResponses];
 
-export type CreateKnowledgeBaseApiV1KnowledgeBasesPostData = {
+export type CreateKnowledgeBaseApiV2KnowledgeBasesPostData = {
     body: KnowledgeBaseCreate;
     headers?: {
         /**
@@ -2928,28 +2903,28 @@ export type CreateKnowledgeBaseApiV1KnowledgeBasesPostData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/knowledge-bases';
+    url: '/api/v2/knowledge-bases';
 };
 
-export type CreateKnowledgeBaseApiV1KnowledgeBasesPostErrors = {
+export type CreateKnowledgeBaseApiV2KnowledgeBasesPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateKnowledgeBaseApiV1KnowledgeBasesPostError = CreateKnowledgeBaseApiV1KnowledgeBasesPostErrors[keyof CreateKnowledgeBaseApiV1KnowledgeBasesPostErrors];
+export type CreateKnowledgeBaseApiV2KnowledgeBasesPostError = CreateKnowledgeBaseApiV2KnowledgeBasesPostErrors[keyof CreateKnowledgeBaseApiV2KnowledgeBasesPostErrors];
 
-export type CreateKnowledgeBaseApiV1KnowledgeBasesPostResponses = {
+export type CreateKnowledgeBaseApiV2KnowledgeBasesPostResponses = {
     /**
      * Successful Response
      */
     201: KnowledgeBasePublic;
 };
 
-export type CreateKnowledgeBaseApiV1KnowledgeBasesPostResponse = CreateKnowledgeBaseApiV1KnowledgeBasesPostResponses[keyof CreateKnowledgeBaseApiV1KnowledgeBasesPostResponses];
+export type CreateKnowledgeBaseApiV2KnowledgeBasesPostResponse = CreateKnowledgeBaseApiV2KnowledgeBasesPostResponses[keyof CreateKnowledgeBaseApiV2KnowledgeBasesPostResponses];
 
-export type UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchData = {
+export type UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchData = {
     body: KnowledgeBaseUpdate;
     headers?: {
         /**
@@ -2964,28 +2939,28 @@ export type UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchData = {
         kb_id: string;
     };
     query?: never;
-    url: '/api/v1/knowledge-bases/{kb_id}';
+    url: '/api/v2/knowledge-bases/{kb_id}';
 };
 
-export type UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchErrors = {
+export type UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchError = UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchErrors[keyof UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchErrors];
+export type UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchError = UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchErrors[keyof UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchErrors];
 
-export type UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponses = {
+export type UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchResponses = {
     /**
      * Successful Response
      */
     200: KnowledgeBasePublic;
 };
 
-export type UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponse = UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponses[keyof UpdateKnowledgeBaseApiV1KnowledgeBasesKbIdPatchResponses];
+export type UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchResponse = UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchResponses[keyof UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchResponses];
 
-export type KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetData = {
+export type KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetData = {
     body?: never;
     headers?: {
         /**
@@ -3000,28 +2975,28 @@ export type KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetData = {
         kb_id: string;
     };
     query?: never;
-    url: '/api/v1/knowledge-bases/{kb_id}/documents';
+    url: '/api/v2/knowledge-bases/{kb_id}/documents';
 };
 
-export type KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetErrors = {
+export type KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetError = KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetErrors[keyof KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetErrors];
+export type KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetError = KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetErrors[keyof KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetErrors];
 
-export type KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponses = {
+export type KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetResponses = {
     /**
      * Successful Response
      */
     200: KnowledgeDocumentListResponse;
 };
 
-export type KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponse = KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponses[keyof KnowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGetResponses];
+export type KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetResponse = KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetResponses[keyof KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetResponses];
 
-export type AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostData = {
+export type AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostData = {
     body: KnowledgeDocumentCreate;
     headers?: {
         /**
@@ -3036,28 +3011,28 @@ export type AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostData = {
         kb_id: string;
     };
     query?: never;
-    url: '/api/v1/knowledge-bases/{kb_id}/documents';
+    url: '/api/v2/knowledge-bases/{kb_id}/documents';
 };
 
-export type AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostErrors = {
+export type AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostError = AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostErrors[keyof AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostErrors];
+export type AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostError = AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostErrors[keyof AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostErrors];
 
-export type AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses = {
+export type AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostResponses = {
     /**
      * Successful Response
      */
     201: KnowledgeDocumentPublic;
 };
 
-export type AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponse = AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses[keyof AddKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPostResponses];
+export type AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostResponse = AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostResponses[keyof AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostResponses];
 
-export type NotificationsApiV1NotificationsGetData = {
+export type NotificationsApiV2NotificationsGetData = {
     body?: never;
     headers?: {
         /**
@@ -3067,28 +3042,28 @@ export type NotificationsApiV1NotificationsGetData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/notifications';
+    url: '/api/v2/notifications';
 };
 
-export type NotificationsApiV1NotificationsGetErrors = {
+export type NotificationsApiV2NotificationsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type NotificationsApiV1NotificationsGetError = NotificationsApiV1NotificationsGetErrors[keyof NotificationsApiV1NotificationsGetErrors];
+export type NotificationsApiV2NotificationsGetError = NotificationsApiV2NotificationsGetErrors[keyof NotificationsApiV2NotificationsGetErrors];
 
-export type NotificationsApiV1NotificationsGetResponses = {
+export type NotificationsApiV2NotificationsGetResponses = {
     /**
      * Successful Response
      */
     200: NotificationListResponse;
 };
 
-export type NotificationsApiV1NotificationsGetResponse = NotificationsApiV1NotificationsGetResponses[keyof NotificationsApiV1NotificationsGetResponses];
+export type NotificationsApiV2NotificationsGetResponse = NotificationsApiV2NotificationsGetResponses[keyof NotificationsApiV2NotificationsGetResponses];
 
-export type MarkNotificationReadApiV1NotificationsNotificationIdReadPatchData = {
+export type MarkNotificationReadApiV2NotificationsNotificationIdReadPatchData = {
     body?: never;
     headers?: {
         /**
@@ -3103,28 +3078,28 @@ export type MarkNotificationReadApiV1NotificationsNotificationIdReadPatchData = 
         notification_id: string;
     };
     query?: never;
-    url: '/api/v1/notifications/{notification_id}/read';
+    url: '/api/v2/notifications/{notification_id}/read';
 };
 
-export type MarkNotificationReadApiV1NotificationsNotificationIdReadPatchErrors = {
+export type MarkNotificationReadApiV2NotificationsNotificationIdReadPatchErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type MarkNotificationReadApiV1NotificationsNotificationIdReadPatchError = MarkNotificationReadApiV1NotificationsNotificationIdReadPatchErrors[keyof MarkNotificationReadApiV1NotificationsNotificationIdReadPatchErrors];
+export type MarkNotificationReadApiV2NotificationsNotificationIdReadPatchError = MarkNotificationReadApiV2NotificationsNotificationIdReadPatchErrors[keyof MarkNotificationReadApiV2NotificationsNotificationIdReadPatchErrors];
 
-export type MarkNotificationReadApiV1NotificationsNotificationIdReadPatchResponses = {
+export type MarkNotificationReadApiV2NotificationsNotificationIdReadPatchResponses = {
     /**
      * Successful Response
      */
     200: NotificationItem;
 };
 
-export type MarkNotificationReadApiV1NotificationsNotificationIdReadPatchResponse = MarkNotificationReadApiV1NotificationsNotificationIdReadPatchResponses[keyof MarkNotificationReadApiV1NotificationsNotificationIdReadPatchResponses];
+export type MarkNotificationReadApiV2NotificationsNotificationIdReadPatchResponse = MarkNotificationReadApiV2NotificationsNotificationIdReadPatchResponses[keyof MarkNotificationReadApiV2NotificationsNotificationIdReadPatchResponses];
 
-export type PermissionRulesApiV1PermissionsRulesGetData = {
+export type PermissionRulesApiV2PermissionsRulesGetData = {
     body?: never;
     headers?: {
         /**
@@ -3134,28 +3109,28 @@ export type PermissionRulesApiV1PermissionsRulesGetData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/permissions/rules';
+    url: '/api/v2/permissions/rules';
 };
 
-export type PermissionRulesApiV1PermissionsRulesGetErrors = {
+export type PermissionRulesApiV2PermissionsRulesGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type PermissionRulesApiV1PermissionsRulesGetError = PermissionRulesApiV1PermissionsRulesGetErrors[keyof PermissionRulesApiV1PermissionsRulesGetErrors];
+export type PermissionRulesApiV2PermissionsRulesGetError = PermissionRulesApiV2PermissionsRulesGetErrors[keyof PermissionRulesApiV2PermissionsRulesGetErrors];
 
-export type PermissionRulesApiV1PermissionsRulesGetResponses = {
+export type PermissionRulesApiV2PermissionsRulesGetResponses = {
     /**
      * Successful Response
      */
     200: PermissionRuleListResponse;
 };
 
-export type PermissionRulesApiV1PermissionsRulesGetResponse = PermissionRulesApiV1PermissionsRulesGetResponses[keyof PermissionRulesApiV1PermissionsRulesGetResponses];
+export type PermissionRulesApiV2PermissionsRulesGetResponse = PermissionRulesApiV2PermissionsRulesGetResponses[keyof PermissionRulesApiV2PermissionsRulesGetResponses];
 
-export type CreatePermissionRuleApiV1PermissionsRulesPostData = {
+export type CreatePermissionRuleApiV2PermissionsRulesPostData = {
     body: PermissionRuleCreate;
     headers?: {
         /**
@@ -3165,28 +3140,28 @@ export type CreatePermissionRuleApiV1PermissionsRulesPostData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/permissions/rules';
+    url: '/api/v2/permissions/rules';
 };
 
-export type CreatePermissionRuleApiV1PermissionsRulesPostErrors = {
+export type CreatePermissionRuleApiV2PermissionsRulesPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreatePermissionRuleApiV1PermissionsRulesPostError = CreatePermissionRuleApiV1PermissionsRulesPostErrors[keyof CreatePermissionRuleApiV1PermissionsRulesPostErrors];
+export type CreatePermissionRuleApiV2PermissionsRulesPostError = CreatePermissionRuleApiV2PermissionsRulesPostErrors[keyof CreatePermissionRuleApiV2PermissionsRulesPostErrors];
 
-export type CreatePermissionRuleApiV1PermissionsRulesPostResponses = {
+export type CreatePermissionRuleApiV2PermissionsRulesPostResponses = {
     /**
      * Successful Response
      */
     201: PermissionRulePublic;
 };
 
-export type CreatePermissionRuleApiV1PermissionsRulesPostResponse = CreatePermissionRuleApiV1PermissionsRulesPostResponses[keyof CreatePermissionRuleApiV1PermissionsRulesPostResponses];
+export type CreatePermissionRuleApiV2PermissionsRulesPostResponse = CreatePermissionRuleApiV2PermissionsRulesPostResponses[keyof CreatePermissionRuleApiV2PermissionsRulesPostResponses];
 
-export type DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteData = {
+export type DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteData = {
     body?: never;
     headers?: {
         /**
@@ -3201,28 +3176,28 @@ export type DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteData = {
         rule_id: string;
     };
     query?: never;
-    url: '/api/v1/permissions/rules/{rule_id}';
+    url: '/api/v2/permissions/rules/{rule_id}';
 };
 
-export type DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteErrors = {
+export type DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteError = DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteErrors[keyof DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteErrors];
+export type DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteError = DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteErrors[keyof DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteErrors];
 
-export type DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponses = {
+export type DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteResponses = {
     /**
      * Successful Response
      */
     204: void;
 };
 
-export type DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponse = DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponses[keyof DeletePermissionRuleApiV1PermissionsRulesRuleIdDeleteResponses];
+export type DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteResponse = DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteResponses[keyof DeletePermissionRuleApiV2PermissionsRulesRuleIdDeleteResponses];
 
-export type QaQueryApiV1QaQueryPostData = {
+export type QaQueryApiV2QaQueryPostData = {
     body: QaRequest;
     headers?: {
         /**
@@ -3232,59 +3207,28 @@ export type QaQueryApiV1QaQueryPostData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/qa/query';
+    url: '/api/v2/qa/query';
 };
 
-export type QaQueryApiV1QaQueryPostErrors = {
+export type QaQueryApiV2QaQueryPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type QaQueryApiV1QaQueryPostError = QaQueryApiV1QaQueryPostErrors[keyof QaQueryApiV1QaQueryPostErrors];
+export type QaQueryApiV2QaQueryPostError = QaQueryApiV2QaQueryPostErrors[keyof QaQueryApiV2QaQueryPostErrors];
 
-export type QaQueryApiV1QaQueryPostResponses = {
+export type QaQueryApiV2QaQueryPostResponses = {
     /**
      * Successful Response
      */
     200: QaResponse;
 };
 
-export type QaQueryApiV1QaQueryPostResponse = QaQueryApiV1QaQueryPostResponses[keyof QaQueryApiV1QaQueryPostResponses];
+export type QaQueryApiV2QaQueryPostResponse = QaQueryApiV2QaQueryPostResponses[keyof QaQueryApiV2QaQueryPostResponses];
 
-export type DownloadSharedFileApiV1ShareLinksTokenDownloadPostData = {
-    /**
-     * Payload
-     */
-    body?: ShareLinkDownloadRequest | null;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-    };
-    query?: never;
-    url: '/api/v1/share-links/{token}/download';
-};
-
-export type DownloadSharedFileApiV1ShareLinksTokenDownloadPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DownloadSharedFileApiV1ShareLinksTokenDownloadPostError = DownloadSharedFileApiV1ShareLinksTokenDownloadPostErrors[keyof DownloadSharedFileApiV1ShareLinksTokenDownloadPostErrors];
-
-export type DownloadSharedFileApiV1ShareLinksTokenDownloadPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type TeamsApiV1TeamsGetData = {
+export type ListTeamsApiV2TeamsGetData = {
     body?: never;
     headers?: {
         /**
@@ -3294,28 +3238,28 @@ export type TeamsApiV1TeamsGetData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/teams';
+    url: '/api/v2/teams';
 };
 
-export type TeamsApiV1TeamsGetErrors = {
+export type ListTeamsApiV2TeamsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type TeamsApiV1TeamsGetError = TeamsApiV1TeamsGetErrors[keyof TeamsApiV1TeamsGetErrors];
+export type ListTeamsApiV2TeamsGetError = ListTeamsApiV2TeamsGetErrors[keyof ListTeamsApiV2TeamsGetErrors];
 
-export type TeamsApiV1TeamsGetResponses = {
+export type ListTeamsApiV2TeamsGetResponses = {
     /**
      * Successful Response
      */
     200: TeamListResponse;
 };
 
-export type TeamsApiV1TeamsGetResponse = TeamsApiV1TeamsGetResponses[keyof TeamsApiV1TeamsGetResponses];
+export type ListTeamsApiV2TeamsGetResponse = ListTeamsApiV2TeamsGetResponses[keyof ListTeamsApiV2TeamsGetResponses];
 
-export type CreateTeamApiV1TeamsPostData = {
+export type CreateTeamApiV2TeamsPostData = {
     body: TeamCreate;
     headers?: {
         /**
@@ -3325,28 +3269,28 @@ export type CreateTeamApiV1TeamsPostData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/teams';
+    url: '/api/v2/teams';
 };
 
-export type CreateTeamApiV1TeamsPostErrors = {
+export type CreateTeamApiV2TeamsPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateTeamApiV1TeamsPostError = CreateTeamApiV1TeamsPostErrors[keyof CreateTeamApiV1TeamsPostErrors];
+export type CreateTeamApiV2TeamsPostError = CreateTeamApiV2TeamsPostErrors[keyof CreateTeamApiV2TeamsPostErrors];
 
-export type CreateTeamApiV1TeamsPostResponses = {
+export type CreateTeamApiV2TeamsPostResponses = {
     /**
      * Successful Response
      */
     201: TeamDetail;
 };
 
-export type CreateTeamApiV1TeamsPostResponse = CreateTeamApiV1TeamsPostResponses[keyof CreateTeamApiV1TeamsPostResponses];
+export type CreateTeamApiV2TeamsPostResponse = CreateTeamApiV2TeamsPostResponses[keyof CreateTeamApiV2TeamsPostResponses];
 
-export type TeamDetailApiV1TeamsTeamIdGetData = {
+export type DeleteTeamApiV2TeamsTeamIdDeleteData = {
     body?: never;
     headers?: {
         /**
@@ -3361,28 +3305,100 @@ export type TeamDetailApiV1TeamsTeamIdGetData = {
         team_id: string;
     };
     query?: never;
-    url: '/api/v1/teams/{team_id}';
+    url: '/api/v2/teams/{team_id}';
 };
 
-export type TeamDetailApiV1TeamsTeamIdGetErrors = {
+export type DeleteTeamApiV2TeamsTeamIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type TeamDetailApiV1TeamsTeamIdGetError = TeamDetailApiV1TeamsTeamIdGetErrors[keyof TeamDetailApiV1TeamsTeamIdGetErrors];
+export type DeleteTeamApiV2TeamsTeamIdDeleteError = DeleteTeamApiV2TeamsTeamIdDeleteErrors[keyof DeleteTeamApiV2TeamsTeamIdDeleteErrors];
 
-export type TeamDetailApiV1TeamsTeamIdGetResponses = {
+export type DeleteTeamApiV2TeamsTeamIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteTeamApiV2TeamsTeamIdDeleteResponse = DeleteTeamApiV2TeamsTeamIdDeleteResponses[keyof DeleteTeamApiV2TeamsTeamIdDeleteResponses];
+
+export type TeamDetailApiV2TeamsTeamIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Team Id
+         */
+        team_id: string;
+    };
+    query?: never;
+    url: '/api/v2/teams/{team_id}';
+};
+
+export type TeamDetailApiV2TeamsTeamIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TeamDetailApiV2TeamsTeamIdGetError = TeamDetailApiV2TeamsTeamIdGetErrors[keyof TeamDetailApiV2TeamsTeamIdGetErrors];
+
+export type TeamDetailApiV2TeamsTeamIdGetResponses = {
     /**
      * Successful Response
      */
     200: TeamDetail;
 };
 
-export type TeamDetailApiV1TeamsTeamIdGetResponse = TeamDetailApiV1TeamsTeamIdGetResponses[keyof TeamDetailApiV1TeamsTeamIdGetResponses];
+export type TeamDetailApiV2TeamsTeamIdGetResponse = TeamDetailApiV2TeamsTeamIdGetResponses[keyof TeamDetailApiV2TeamsTeamIdGetResponses];
 
-export type CreateTeamInviteApiV1TeamsTeamIdInvitesPostData = {
+export type UpdateTeamApiV2TeamsTeamIdPatchData = {
+    body: TeamUpdate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Team Id
+         */
+        team_id: string;
+    };
+    query?: never;
+    url: '/api/v2/teams/{team_id}';
+};
+
+export type UpdateTeamApiV2TeamsTeamIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateTeamApiV2TeamsTeamIdPatchError = UpdateTeamApiV2TeamsTeamIdPatchErrors[keyof UpdateTeamApiV2TeamsTeamIdPatchErrors];
+
+export type UpdateTeamApiV2TeamsTeamIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: TeamDetail;
+};
+
+export type UpdateTeamApiV2TeamsTeamIdPatchResponse = UpdateTeamApiV2TeamsTeamIdPatchResponses[keyof UpdateTeamApiV2TeamsTeamIdPatchResponses];
+
+export type CreateTeamInviteApiV2TeamsTeamIdInvitesPostData = {
     body: TeamInviteCreate;
     headers?: {
         /**
@@ -3397,28 +3413,28 @@ export type CreateTeamInviteApiV1TeamsTeamIdInvitesPostData = {
         team_id: string;
     };
     query?: never;
-    url: '/api/v1/teams/{team_id}/invites';
+    url: '/api/v2/teams/{team_id}/invites';
 };
 
-export type CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors = {
+export type CreateTeamInviteApiV2TeamsTeamIdInvitesPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateTeamInviteApiV1TeamsTeamIdInvitesPostError = CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors[keyof CreateTeamInviteApiV1TeamsTeamIdInvitesPostErrors];
+export type CreateTeamInviteApiV2TeamsTeamIdInvitesPostError = CreateTeamInviteApiV2TeamsTeamIdInvitesPostErrors[keyof CreateTeamInviteApiV2TeamsTeamIdInvitesPostErrors];
 
-export type CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses = {
+export type CreateTeamInviteApiV2TeamsTeamIdInvitesPostResponses = {
     /**
      * Successful Response
      */
     201: TeamInvitePublic;
 };
 
-export type CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponse = CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses[keyof CreateTeamInviteApiV1TeamsTeamIdInvitesPostResponses];
+export type CreateTeamInviteApiV2TeamsTeamIdInvitesPostResponse = CreateTeamInviteApiV2TeamsTeamIdInvitesPostResponses[keyof CreateTeamInviteApiV2TeamsTeamIdInvitesPostResponses];
 
-export type JoinTeamApiV1TeamsTeamIdMembersPostData = {
+export type JoinTeamApiV2TeamsTeamIdMembersPostData = {
     body: TeamMemberJoin;
     headers?: {
         /**
@@ -3433,28 +3449,64 @@ export type JoinTeamApiV1TeamsTeamIdMembersPostData = {
         team_id: string;
     };
     query?: never;
-    url: '/api/v1/teams/{team_id}/members';
+    url: '/api/v2/teams/{team_id}/members';
 };
 
-export type JoinTeamApiV1TeamsTeamIdMembersPostErrors = {
+export type JoinTeamApiV2TeamsTeamIdMembersPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type JoinTeamApiV1TeamsTeamIdMembersPostError = JoinTeamApiV1TeamsTeamIdMembersPostErrors[keyof JoinTeamApiV1TeamsTeamIdMembersPostErrors];
+export type JoinTeamApiV2TeamsTeamIdMembersPostError = JoinTeamApiV2TeamsTeamIdMembersPostErrors[keyof JoinTeamApiV2TeamsTeamIdMembersPostErrors];
 
-export type JoinTeamApiV1TeamsTeamIdMembersPostResponses = {
+export type JoinTeamApiV2TeamsTeamIdMembersPostResponses = {
     /**
      * Successful Response
      */
     201: TeamMemberPublic;
 };
 
-export type JoinTeamApiV1TeamsTeamIdMembersPostResponse = JoinTeamApiV1TeamsTeamIdMembersPostResponses[keyof JoinTeamApiV1TeamsTeamIdMembersPostResponses];
+export type JoinTeamApiV2TeamsTeamIdMembersPostResponse = JoinTeamApiV2TeamsTeamIdMembersPostResponses[keyof JoinTeamApiV2TeamsTeamIdMembersPostResponses];
 
-export type RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteData = {
+export type LeaveTeamApiV2TeamsTeamIdMembersMeDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Team Id
+         */
+        team_id: string;
+    };
+    query?: never;
+    url: '/api/v2/teams/{team_id}/members/me';
+};
+
+export type LeaveTeamApiV2TeamsTeamIdMembersMeDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LeaveTeamApiV2TeamsTeamIdMembersMeDeleteError = LeaveTeamApiV2TeamsTeamIdMembersMeDeleteErrors[keyof LeaveTeamApiV2TeamsTeamIdMembersMeDeleteErrors];
+
+export type LeaveTeamApiV2TeamsTeamIdMembersMeDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type LeaveTeamApiV2TeamsTeamIdMembersMeDeleteResponse = LeaveTeamApiV2TeamsTeamIdMembersMeDeleteResponses[keyof LeaveTeamApiV2TeamsTeamIdMembersMeDeleteResponses];
+
+export type RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteData = {
     body?: never;
     headers?: {
         /**
@@ -3473,28 +3525,28 @@ export type RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteData = {
         member_id: string;
     };
     query?: never;
-    url: '/api/v1/teams/{team_id}/members/{member_id}';
+    url: '/api/v2/teams/{team_id}/members/{member_id}';
 };
 
-export type RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors = {
+export type RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteError = RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors[keyof RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteErrors];
+export type RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteError = RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteErrors[keyof RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteErrors];
 
-export type RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses = {
+export type RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteResponses = {
     /**
      * Successful Response
      */
     204: void;
 };
 
-export type RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponse = RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses[keyof RemoveTeamMemberApiV1TeamsTeamIdMembersMemberIdDeleteResponses];
+export type RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteResponse = RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteResponses[keyof RemoveTeamMemberApiV2TeamsTeamIdMembersMemberIdDeleteResponses];
 
-export type UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchData = {
+export type UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchData = {
     body: TeamMemberUpdate;
     headers?: {
         /**
@@ -3513,28 +3565,28 @@ export type UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchData = {
         member_id: string;
     };
     query?: never;
-    url: '/api/v1/teams/{team_id}/members/{member_id}';
+    url: '/api/v2/teams/{team_id}/members/{member_id}';
 };
 
-export type UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors = {
+export type UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchError = UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors[keyof UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchErrors];
+export type UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchError = UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchErrors[keyof UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchErrors];
 
-export type UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses = {
+export type UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchResponses = {
     /**
      * Successful Response
      */
     200: TeamMemberPublic;
 };
 
-export type UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponse = UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses[keyof UpdateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatchResponses];
+export type UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchResponse = UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchResponses[keyof UpdateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatchResponses];
 
-export type TeamMessagesApiV1TeamsTeamIdMessagesGetData = {
+export type TeamMessagesApiV2TeamsTeamIdMessagesGetData = {
     body?: never;
     headers?: {
         /**
@@ -3549,28 +3601,28 @@ export type TeamMessagesApiV1TeamsTeamIdMessagesGetData = {
         team_id: string;
     };
     query?: never;
-    url: '/api/v1/teams/{team_id}/messages';
+    url: '/api/v2/teams/{team_id}/messages';
 };
 
-export type TeamMessagesApiV1TeamsTeamIdMessagesGetErrors = {
+export type TeamMessagesApiV2TeamsTeamIdMessagesGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type TeamMessagesApiV1TeamsTeamIdMessagesGetError = TeamMessagesApiV1TeamsTeamIdMessagesGetErrors[keyof TeamMessagesApiV1TeamsTeamIdMessagesGetErrors];
+export type TeamMessagesApiV2TeamsTeamIdMessagesGetError = TeamMessagesApiV2TeamsTeamIdMessagesGetErrors[keyof TeamMessagesApiV2TeamsTeamIdMessagesGetErrors];
 
-export type TeamMessagesApiV1TeamsTeamIdMessagesGetResponses = {
+export type TeamMessagesApiV2TeamsTeamIdMessagesGetResponses = {
     /**
      * Successful Response
      */
     200: TeamMessageListResponse;
 };
 
-export type TeamMessagesApiV1TeamsTeamIdMessagesGetResponse = TeamMessagesApiV1TeamsTeamIdMessagesGetResponses[keyof TeamMessagesApiV1TeamsTeamIdMessagesGetResponses];
+export type TeamMessagesApiV2TeamsTeamIdMessagesGetResponse = TeamMessagesApiV2TeamsTeamIdMessagesGetResponses[keyof TeamMessagesApiV2TeamsTeamIdMessagesGetResponses];
 
-export type CreateTeamMessageApiV1TeamsTeamIdMessagesPostData = {
+export type CreateTeamMessageApiV2TeamsTeamIdMessagesPostData = {
     body: TeamMessageCreate;
     headers?: {
         /**
@@ -3585,28 +3637,28 @@ export type CreateTeamMessageApiV1TeamsTeamIdMessagesPostData = {
         team_id: string;
     };
     query?: never;
-    url: '/api/v1/teams/{team_id}/messages';
+    url: '/api/v2/teams/{team_id}/messages';
 };
 
-export type CreateTeamMessageApiV1TeamsTeamIdMessagesPostErrors = {
+export type CreateTeamMessageApiV2TeamsTeamIdMessagesPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateTeamMessageApiV1TeamsTeamIdMessagesPostError = CreateTeamMessageApiV1TeamsTeamIdMessagesPostErrors[keyof CreateTeamMessageApiV1TeamsTeamIdMessagesPostErrors];
+export type CreateTeamMessageApiV2TeamsTeamIdMessagesPostError = CreateTeamMessageApiV2TeamsTeamIdMessagesPostErrors[keyof CreateTeamMessageApiV2TeamsTeamIdMessagesPostErrors];
 
-export type CreateTeamMessageApiV1TeamsTeamIdMessagesPostResponses = {
+export type CreateTeamMessageApiV2TeamsTeamIdMessagesPostResponses = {
     /**
      * Successful Response
      */
     201: TeamMessageItem;
 };
 
-export type CreateTeamMessageApiV1TeamsTeamIdMessagesPostResponse = CreateTeamMessageApiV1TeamsTeamIdMessagesPostResponses[keyof CreateTeamMessageApiV1TeamsTeamIdMessagesPostResponses];
+export type CreateTeamMessageApiV2TeamsTeamIdMessagesPostResponse = CreateTeamMessageApiV2TeamsTeamIdMessagesPostResponses[keyof CreateTeamMessageApiV2TeamsTeamIdMessagesPostResponses];
 
-export type ToolsApiV1ToolsGetData = {
+export type ToolsApiV2ToolsGetData = {
     body?: never;
     headers?: {
         /**
@@ -3616,28 +3668,28 @@ export type ToolsApiV1ToolsGetData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/tools';
+    url: '/api/v2/tools';
 };
 
-export type ToolsApiV1ToolsGetErrors = {
+export type ToolsApiV2ToolsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ToolsApiV1ToolsGetError = ToolsApiV1ToolsGetErrors[keyof ToolsApiV1ToolsGetErrors];
+export type ToolsApiV2ToolsGetError = ToolsApiV2ToolsGetErrors[keyof ToolsApiV2ToolsGetErrors];
 
-export type ToolsApiV1ToolsGetResponses = {
+export type ToolsApiV2ToolsGetResponses = {
     /**
      * Successful Response
      */
     200: ToolListResponse;
 };
 
-export type ToolsApiV1ToolsGetResponse = ToolsApiV1ToolsGetResponses[keyof ToolsApiV1ToolsGetResponses];
+export type ToolsApiV2ToolsGetResponse = ToolsApiV2ToolsGetResponses[keyof ToolsApiV2ToolsGetResponses];
 
-export type MeApiV1UsersMeGetData = {
+export type MeApiV2UsersMeGetData = {
     body?: never;
     headers?: {
         /**
@@ -3647,28 +3699,28 @@ export type MeApiV1UsersMeGetData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/users/me';
+    url: '/api/v2/users/me';
 };
 
-export type MeApiV1UsersMeGetErrors = {
+export type MeApiV2UsersMeGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type MeApiV1UsersMeGetError = MeApiV1UsersMeGetErrors[keyof MeApiV1UsersMeGetErrors];
+export type MeApiV2UsersMeGetError = MeApiV2UsersMeGetErrors[keyof MeApiV2UsersMeGetErrors];
 
-export type MeApiV1UsersMeGetResponses = {
+export type MeApiV2UsersMeGetResponses = {
     /**
      * Successful Response
      */
     200: CurrentUserResponse;
 };
 
-export type MeApiV1UsersMeGetResponse = MeApiV1UsersMeGetResponses[keyof MeApiV1UsersMeGetResponses];
+export type MeApiV2UsersMeGetResponse = MeApiV2UsersMeGetResponses[keyof MeApiV2UsersMeGetResponses];
 
-export type UpdateMeApiV1UsersMePatchData = {
+export type UpdateMeApiV2UsersMePatchData = {
     body: UserUpdate;
     headers?: {
         /**
@@ -3678,28 +3730,28 @@ export type UpdateMeApiV1UsersMePatchData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/users/me';
+    url: '/api/v2/users/me';
 };
 
-export type UpdateMeApiV1UsersMePatchErrors = {
+export type UpdateMeApiV2UsersMePatchErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateMeApiV1UsersMePatchError = UpdateMeApiV1UsersMePatchErrors[keyof UpdateMeApiV1UsersMePatchErrors];
+export type UpdateMeApiV2UsersMePatchError = UpdateMeApiV2UsersMePatchErrors[keyof UpdateMeApiV2UsersMePatchErrors];
 
-export type UpdateMeApiV1UsersMePatchResponses = {
+export type UpdateMeApiV2UsersMePatchResponses = {
     /**
      * Successful Response
      */
     200: CurrentUserResponse;
 };
 
-export type UpdateMeApiV1UsersMePatchResponse = UpdateMeApiV1UsersMePatchResponses[keyof UpdateMeApiV1UsersMePatchResponses];
+export type UpdateMeApiV2UsersMePatchResponse = UpdateMeApiV2UsersMePatchResponses[keyof UpdateMeApiV2UsersMePatchResponses];
 
-export type WorkflowsApiV1WorkflowsGetData = {
+export type ListWorkflowsApiV2WorkflowsGetData = {
     body?: never;
     headers?: {
         /**
@@ -3709,28 +3761,28 @@ export type WorkflowsApiV1WorkflowsGetData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/workflows';
+    url: '/api/v2/workflows';
 };
 
-export type WorkflowsApiV1WorkflowsGetErrors = {
+export type ListWorkflowsApiV2WorkflowsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type WorkflowsApiV1WorkflowsGetError = WorkflowsApiV1WorkflowsGetErrors[keyof WorkflowsApiV1WorkflowsGetErrors];
+export type ListWorkflowsApiV2WorkflowsGetError = ListWorkflowsApiV2WorkflowsGetErrors[keyof ListWorkflowsApiV2WorkflowsGetErrors];
 
-export type WorkflowsApiV1WorkflowsGetResponses = {
+export type ListWorkflowsApiV2WorkflowsGetResponses = {
     /**
      * Successful Response
      */
     200: WorkflowListResponse;
 };
 
-export type WorkflowsApiV1WorkflowsGetResponse = WorkflowsApiV1WorkflowsGetResponses[keyof WorkflowsApiV1WorkflowsGetResponses];
+export type ListWorkflowsApiV2WorkflowsGetResponse = ListWorkflowsApiV2WorkflowsGetResponses[keyof ListWorkflowsApiV2WorkflowsGetResponses];
 
-export type CreateWorkflowApiV1WorkflowsPostData = {
+export type CreateWorkflowApiV2WorkflowsPostData = {
     body: WorkflowCreate;
     headers?: {
         /**
@@ -3740,28 +3792,28 @@ export type CreateWorkflowApiV1WorkflowsPostData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/workflows';
+    url: '/api/v2/workflows';
 };
 
-export type CreateWorkflowApiV1WorkflowsPostErrors = {
+export type CreateWorkflowApiV2WorkflowsPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateWorkflowApiV1WorkflowsPostError = CreateWorkflowApiV1WorkflowsPostErrors[keyof CreateWorkflowApiV1WorkflowsPostErrors];
+export type CreateWorkflowApiV2WorkflowsPostError = CreateWorkflowApiV2WorkflowsPostErrors[keyof CreateWorkflowApiV2WorkflowsPostErrors];
 
-export type CreateWorkflowApiV1WorkflowsPostResponses = {
+export type CreateWorkflowApiV2WorkflowsPostResponses = {
     /**
      * Successful Response
      */
     201: WorkflowDefinition;
 };
 
-export type CreateWorkflowApiV1WorkflowsPostResponse = CreateWorkflowApiV1WorkflowsPostResponses[keyof CreateWorkflowApiV1WorkflowsPostResponses];
+export type CreateWorkflowApiV2WorkflowsPostResponse = CreateWorkflowApiV2WorkflowsPostResponses[keyof CreateWorkflowApiV2WorkflowsPostResponses];
 
-export type UpdateWorkflowApiV1WorkflowsWorkflowIdPatchData = {
+export type UpdateWorkflowApiV2WorkflowsWorkflowIdPatchData = {
     body: WorkflowUpdate;
     headers?: {
         /**
@@ -3776,28 +3828,113 @@ export type UpdateWorkflowApiV1WorkflowsWorkflowIdPatchData = {
         workflow_id: string;
     };
     query?: never;
-    url: '/api/v1/workflows/{workflow_id}';
+    url: '/api/v2/workflows/{workflow_id}';
 };
 
-export type UpdateWorkflowApiV1WorkflowsWorkflowIdPatchErrors = {
+export type UpdateWorkflowApiV2WorkflowsWorkflowIdPatchErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateWorkflowApiV1WorkflowsWorkflowIdPatchError = UpdateWorkflowApiV1WorkflowsWorkflowIdPatchErrors[keyof UpdateWorkflowApiV1WorkflowsWorkflowIdPatchErrors];
+export type UpdateWorkflowApiV2WorkflowsWorkflowIdPatchError = UpdateWorkflowApiV2WorkflowsWorkflowIdPatchErrors[keyof UpdateWorkflowApiV2WorkflowsWorkflowIdPatchErrors];
 
-export type UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponses = {
+export type UpdateWorkflowApiV2WorkflowsWorkflowIdPatchResponses = {
     /**
      * Successful Response
      */
     200: WorkflowDefinition;
 };
 
-export type UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponse = UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponses[keyof UpdateWorkflowApiV1WorkflowsWorkflowIdPatchResponses];
+export type UpdateWorkflowApiV2WorkflowsWorkflowIdPatchResponse = UpdateWorkflowApiV2WorkflowsWorkflowIdPatchResponses[keyof UpdateWorkflowApiV2WorkflowsWorkflowIdPatchResponses];
 
-export type ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostData = {
+export type DebugStartApiV2WorkflowsWorkflowIdDebugStartPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/v2/workflows/{workflow_id}/debug/start';
+};
+
+export type DebugStartApiV2WorkflowsWorkflowIdDebugStartPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DebugStartApiV2WorkflowsWorkflowIdDebugStartPostError = DebugStartApiV2WorkflowsWorkflowIdDebugStartPostErrors[keyof DebugStartApiV2WorkflowsWorkflowIdDebugStartPostErrors];
+
+export type DebugStartApiV2WorkflowsWorkflowIdDebugStartPostResponses = {
+    /**
+     * Response Debug Start Api V2 Workflows  Workflow Id  Debug Start Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type DebugStartApiV2WorkflowsWorkflowIdDebugStartPostResponse = DebugStartApiV2WorkflowsWorkflowIdDebugStartPostResponses[keyof DebugStartApiV2WorkflowsWorkflowIdDebugStartPostResponses];
+
+export type DebugStepApiV2WorkflowsWorkflowIdDebugStepPostData = {
+    /**
+     * Body
+     */
+    body: {
+        [key: string]: unknown;
+    };
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/v2/workflows/{workflow_id}/debug/step';
+};
+
+export type DebugStepApiV2WorkflowsWorkflowIdDebugStepPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DebugStepApiV2WorkflowsWorkflowIdDebugStepPostError = DebugStepApiV2WorkflowsWorkflowIdDebugStepPostErrors[keyof DebugStepApiV2WorkflowsWorkflowIdDebugStepPostErrors];
+
+export type DebugStepApiV2WorkflowsWorkflowIdDebugStepPostResponses = {
+    /**
+     * Response Debug Step Api V2 Workflows  Workflow Id  Debug Step Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type DebugStepApiV2WorkflowsWorkflowIdDebugStepPostResponse = DebugStepApiV2WorkflowsWorkflowIdDebugStepPostResponses[keyof DebugStepApiV2WorkflowsWorkflowIdDebugStepPostResponses];
+
+export type ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostData = {
     body: WorkflowExecutionRequest;
     headers?: {
         /**
@@ -3812,28 +3949,28 @@ export type ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostData = {
         workflow_id: string;
     };
     query?: never;
-    url: '/api/v1/workflows/{workflow_id}/executions';
+    url: '/api/v2/workflows/{workflow_id}/executions';
 };
 
-export type ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostErrors = {
+export type ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostError = ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostErrors[keyof ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostErrors];
+export type ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostError = ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostErrors[keyof ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostErrors];
 
-export type ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses = {
+export type ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostResponses = {
     /**
      * Successful Response
      */
     201: WorkflowExecutionResponse;
 };
 
-export type ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponse = ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses[keyof ExecuteWorkflowApiV1WorkflowsWorkflowIdExecutionsPostResponses];
+export type ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostResponse = ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostResponses[keyof ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostResponses];
 
-export type PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostData = {
+export type PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostData = {
     body?: never;
     headers?: {
         /**
@@ -3848,28 +3985,28 @@ export type PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostData = {
         workflow_id: string;
     };
     query?: never;
-    url: '/api/v1/workflows/{workflow_id}/publish';
+    url: '/api/v2/workflows/{workflow_id}/publish';
 };
 
-export type PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostErrors = {
+export type PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostError = PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostErrors[keyof PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostErrors];
+export type PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostError = PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostErrors[keyof PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostErrors];
 
-export type PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponses = {
+export type PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostResponses = {
     /**
      * Successful Response
      */
     200: WorkflowDefinition;
 };
 
-export type PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponse = PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponses[keyof PublishWorkflowApiV1WorkflowsWorkflowIdPublishPostResponses];
+export type PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostResponse = PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostResponses[keyof PublishWorkflowApiV2WorkflowsWorkflowIdPublishPostResponses];
 
-export type ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostData = {
+export type ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostData = {
     body?: never;
     headers?: {
         /**
@@ -3884,28 +4021,28 @@ export type ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostData = {
         workflow_id: string;
     };
     query?: never;
-    url: '/api/v1/workflows/{workflow_id}/validate';
+    url: '/api/v2/workflows/{workflow_id}/validate';
 };
 
-export type ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostErrors = {
+export type ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostError = ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostErrors[keyof ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostErrors];
+export type ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostError = ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostErrors[keyof ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostErrors];
 
-export type ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponses = {
+export type ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostResponses = {
     /**
      * Successful Response
      */
     200: WorkflowValidationResponse;
 };
 
-export type ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponse = ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponses[keyof ValidateWorkflowApiV1WorkflowsWorkflowIdValidatePostResponses];
+export type ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostResponse = ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostResponses[keyof ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostResponses];
 
-export type WorkspaceSnapshotApiV1WorkspaceSnapshotGetData = {
+export type WorkspaceSnapshotApiV2WorkspaceSnapshotGetData = {
     body?: never;
     headers?: {
         /**
@@ -3915,43 +4052,23 @@ export type WorkspaceSnapshotApiV1WorkspaceSnapshotGetData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/workspace/snapshot';
+    url: '/api/v2/workspace/snapshot';
 };
 
-export type WorkspaceSnapshotApiV1WorkspaceSnapshotGetErrors = {
+export type WorkspaceSnapshotApiV2WorkspaceSnapshotGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type WorkspaceSnapshotApiV1WorkspaceSnapshotGetError = WorkspaceSnapshotApiV1WorkspaceSnapshotGetErrors[keyof WorkspaceSnapshotApiV1WorkspaceSnapshotGetErrors];
+export type WorkspaceSnapshotApiV2WorkspaceSnapshotGetError = WorkspaceSnapshotApiV2WorkspaceSnapshotGetErrors[keyof WorkspaceSnapshotApiV2WorkspaceSnapshotGetErrors];
 
-export type WorkspaceSnapshotApiV1WorkspaceSnapshotGetResponses = {
+export type WorkspaceSnapshotApiV2WorkspaceSnapshotGetResponses = {
     /**
      * Successful Response
      */
     200: WorkspaceSnapshot;
 };
 
-export type WorkspaceSnapshotApiV1WorkspaceSnapshotGetResponse = WorkspaceSnapshotApiV1WorkspaceSnapshotGetResponses[keyof WorkspaceSnapshotApiV1WorkspaceSnapshotGetResponses];
-
-export type HealthHealthGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/health';
-};
-
-export type HealthHealthGetResponses = {
-    /**
-     * Response Health Health Get
-     *
-     * Successful Response
-     */
-    200: {
-        [key: string]: string;
-    };
-};
-
-export type HealthHealthGetResponse = HealthHealthGetResponses[keyof HealthHealthGetResponses];
+export type WorkspaceSnapshotApiV2WorkspaceSnapshotGetResponse = WorkspaceSnapshotApiV2WorkspaceSnapshotGetResponses[keyof WorkspaceSnapshotApiV2WorkspaceSnapshotGetResponses];

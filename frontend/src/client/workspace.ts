@@ -1,55 +1,55 @@
 import { createAuthorizationHeader } from '@/auth/workspaceAccess'
 import {
-  addKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPost,
-  completeMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePost,
-  copyFileApiV1FilesFileIdCopyPost,
-  createFileAnnotationApiV1FilesFileIdAnnotationsPost,
-  createFileShareLinkApiV1FilesFileIdShareLinksPost,
-  createFolderApiV1FoldersPost,
-  createKnowledgeBaseApiV1KnowledgeBasesPost,
-  createPermissionRuleApiV1PermissionsRulesPost,
-  createTeamApiV1TeamsPost,
-  createTeamInviteApiV1TeamsTeamIdInvitesPost,
-  createTeamMessageApiV1TeamsTeamIdMessagesPost,
-  createWorkflowApiV1WorkflowsPost,
-  deleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDelete,
-  deleteFileApiV1FilesFileIdDelete,
-  deleteFolderApiV1FoldersFolderIdDelete,
-  deletePermissionRuleApiV1PermissionsRulesRuleIdDelete,
-  downloadFileApiV1FilesFileIdDownloadGet,
-  executeWorkflowApiV1WorkflowsWorkflowIdExecutionsPost,
-  fileAnnotationsApiV1FilesFileIdAnnotationsGet,
-  filesApiV1FilesGet,
-  fileVersionsApiV1FilesFileIdVersionsGet,
-  foldersApiV1FoldersTreeGet,
-  joinTeamApiV1TeamsTeamIdMembersPost,
-  knowledgeBasesApiV1KnowledgeBasesGet,
-  knowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGet,
-  markNotificationReadApiV1NotificationsNotificationIdReadPatch,
-  multipartUploadStatusApiV1FilesMultipartUploadsSessionIdGet,
-  notificationsApiV1NotificationsGet,
-  permissionRulesApiV1PermissionsRulesGet,
-  publishWorkflowApiV1WorkflowsWorkflowIdPublishPost,
-  removeTeamMemberApiV1TeamsTeamIdMembersMemberIdDelete,
-  replyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPost,
-  restoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePost,
-  teamDetailApiV1TeamsTeamIdGet,
-  teamMessagesApiV1TeamsTeamIdMessagesGet,
-  teamsApiV1TeamsGet,
-  updateFileApiV1FilesFileIdPatch,
-  updateFolderApiV1FoldersFolderIdPatch,
-  updateKnowledgeBaseApiV1KnowledgeBasesKbIdPatch,
-  updateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatch,
-  updateWorkflowApiV1WorkflowsWorkflowIdPatch,
-  initMultipartUploadApiV1FilesMultipartUploadsPost,
-  uploadFileApiV1FilesUploadPost,
-  uploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPut,
-  qaQueryApiV1QaQueryPost,
-  recycleBinApiV1FilesRecycleBinGet,
-  validateWorkflowApiV1WorkflowsWorkflowIdValidatePost,
-  restoreDeletedFileApiV1FilesFileIdRestorePost,
-  workflowsApiV1WorkflowsGet,
-  workspaceSnapshotApiV1WorkspaceSnapshotGet,
+  addKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPost,
+  completeMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePost,
+  copyFileApiV2FilesFileIdCopyPost,
+  createFileAnnotationApiV2FilesFileIdAnnotationsPost,
+  createFileShareLinkApiV2FilesFileIdShareLinksPost,
+  createFolderApiV2FoldersPost,
+  createKnowledgeBaseApiV2KnowledgeBasesPost,
+  createPermissionRuleApiV2PermissionsRulesPost,
+  createTeamApiV2TeamsPost,
+  createTeamInviteApiV2TeamsTeamIdInvitesPost,
+  createTeamMessageApiV2TeamsTeamIdMessagesPost,
+  createWorkflowApiV2WorkflowsPost,
+  deleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDelete,
+  deleteFileApiV2FilesFileIdDelete,
+  deleteFolderApiV2FoldersFolderIdDelete,
+  deletePermissionRuleApiV2PermissionsRulesRuleIdDelete,
+  downloadFileApiV2FilesFileIdDownloadGet,
+  executeWorkflowApiV2WorkflowsWorkflowIdExecutionsPost,
+  fileAnnotationsApiV2FilesFileIdAnnotationsGet,
+  listFilesApiV2FilesGet,
+  fileVersionsApiV2FilesFileIdVersionsGet,
+  folderTreeApiV2FoldersTreeGet,
+  joinTeamApiV2TeamsTeamIdMembersPost,
+  listKnowledgeBasesApiV2KnowledgeBasesGet,
+  knowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGet,
+  markNotificationReadApiV2NotificationsNotificationIdReadPatch,
+  multipartUploadStatusApiV2FilesMultipartUploadsSessionIdGet,
+  notificationsApiV2NotificationsGet,
+  permissionRulesApiV2PermissionsRulesGet,
+  publishWorkflowApiV2WorkflowsWorkflowIdPublishPost,
+  removeTeamMemberApiV2TeamsTeamIdMembersMemberIdDelete,
+  replyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPost,
+  restoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePost,
+  teamDetailApiV2TeamsTeamIdGet,
+  teamMessagesApiV2TeamsTeamIdMessagesGet,
+  listTeamsApiV2TeamsGet,
+  updateFileApiV2FilesFileIdPatch,
+  updateFolderApiV2FoldersFolderIdPatch,
+  updateKnowledgeBaseApiV2KnowledgeBasesKbIdPatch,
+  updateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatch,
+  updateWorkflowApiV2WorkflowsWorkflowIdPatch,
+  initMultipartUploadApiV2FilesMultipartUploadsPost,
+  uploadFileApiV2FilesUploadPost,
+  uploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPut,
+  qaQueryApiV2QaQueryPost,
+  recycleBinApiV2FilesRecycleBinGet,
+  validateWorkflowApiV2WorkflowsWorkflowIdValidatePost,
+  restoreDeletedFileApiV2FilesFileIdRestorePost,
+  listWorkflowsApiV2WorkflowsGet,
+  workspaceSnapshotApiV2WorkspaceSnapshotGet,
 } from '@/client/generated'
 import type {
   AgentStep as GeneratedAgentStep,
@@ -275,7 +275,7 @@ export interface WorkspaceNarrative {
 
 
 export async function fetchWorkspaceSnapshot(token: string): Promise<WorkspaceSnapshot> {
-  const response = await workspaceSnapshotApiV1WorkspaceSnapshotGet({
+  const response = await workspaceSnapshotApiV2WorkspaceSnapshotGet({
     headers: createAuthorizationHeader(token),
   })
 
@@ -287,7 +287,7 @@ export async function fetchWorkspaceSnapshot(token: string): Promise<WorkspaceSn
 }
 
 export async function listWorkspaceWorkflows(token: string): Promise<WorkflowListResponse> {
-  const response = await workflowsApiV1WorkflowsGet({
+  const response = await listWorkflowsApiV2WorkflowsGet({
     headers: createAuthorizationHeader(token),
   })
 
@@ -309,7 +309,7 @@ export async function createWorkspaceWorkflow(
     nodes: payload.nodes ?? [],
     trigger: payload.trigger ?? 'manual',
   }
-  const response = await createWorkflowApiV1WorkflowsPost({
+  const response = await createWorkflowApiV2WorkflowsPost({
     body,
     headers: createAuthorizationHeader(token),
   })
@@ -343,7 +343,7 @@ export async function updateWorkspaceWorkflow(
     body.trigger = payload.trigger ?? null
   }
 
-  const response = await updateWorkflowApiV1WorkflowsWorkflowIdPatch({
+  const response = await updateWorkflowApiV2WorkflowsWorkflowIdPatch({
     body,
     headers: createAuthorizationHeader(token),
     path: { workflow_id: workflowId },
@@ -360,7 +360,7 @@ export async function validateWorkspaceWorkflow(
   token: string,
   workflowId: string,
 ): Promise<WorkspaceWorkflowValidation> {
-  const response = await validateWorkflowApiV1WorkflowsWorkflowIdValidatePost({
+  const response = await validateWorkflowApiV2WorkflowsWorkflowIdValidatePost({
     headers: createAuthorizationHeader(token),
     path: { workflow_id: workflowId },
   })
@@ -373,7 +373,7 @@ export async function validateWorkspaceWorkflow(
 }
 
 export async function publishWorkspaceWorkflow(token: string, workflowId: string): Promise<WorkspaceWorkflow> {
-  const response = await publishWorkflowApiV1WorkflowsWorkflowIdPublishPost({
+  const response = await publishWorkflowApiV2WorkflowsWorkflowIdPublishPost({
     headers: createAuthorizationHeader(token),
     path: { workflow_id: workflowId },
   })
@@ -390,7 +390,7 @@ export async function executeWorkspaceWorkflow(
   workflowId: string,
   payload: WorkspaceWorkflowExecuteInput,
 ): Promise<WorkspaceWorkflowExecution> {
-  const response = await executeWorkflowApiV1WorkflowsWorkflowIdExecutionsPost({
+  const response = await executeWorkflowApiV2WorkflowsWorkflowIdExecutionsPost({
     body: {
       file_id: payload.fileId,
       target_kb_id: payload.targetKbId ?? null,
@@ -407,7 +407,7 @@ export async function executeWorkspaceWorkflow(
 }
 
 export async function listKnowledgeBases(token: string): Promise<WorkspaceKnowledgeBaseListResponse> {
-  const response = await knowledgeBasesApiV1KnowledgeBasesGet({
+  const response = await listKnowledgeBasesApiV2KnowledgeBasesGet({
     headers: createAuthorizationHeader(token),
   })
 
@@ -422,7 +422,7 @@ export async function createKnowledgeBase(
   token: string,
   payload: WorkspaceKnowledgeBaseCreateInput,
 ): Promise<WorkspaceKnowledgeBase> {
-  const response = await createKnowledgeBaseApiV1KnowledgeBasesPost({
+  const response = await createKnowledgeBaseApiV2KnowledgeBasesPost({
     body: {
       description: payload.description ?? null,
       name: payload.name,
@@ -453,7 +453,7 @@ export async function updateKnowledgeBase(
     body.status = payload.status ?? null
   }
 
-  const response = await updateKnowledgeBaseApiV1KnowledgeBasesKbIdPatch({
+  const response = await updateKnowledgeBaseApiV2KnowledgeBasesKbIdPatch({
     body,
     headers: createAuthorizationHeader(token),
     path: { kb_id: kbId },
@@ -470,7 +470,7 @@ export async function listKnowledgeDocuments(
   token: string,
   kbId: string,
 ): Promise<WorkspaceKnowledgeDocumentListResponse> {
-  const response = await knowledgeDocumentsApiV1KnowledgeBasesKbIdDocumentsGet({
+  const response = await knowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGet({
     headers: createAuthorizationHeader(token),
     path: { kb_id: kbId },
   })
@@ -487,7 +487,7 @@ export async function addKnowledgeDocument(
   kbId: string,
   fileId: string,
 ): Promise<WorkspaceKnowledgeDocument> {
-  const response = await addKnowledgeDocumentApiV1KnowledgeBasesKbIdDocumentsPost({
+  const response = await addKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPost({
     body: { file_id: fileId },
     headers: createAuthorizationHeader(token),
     path: { kb_id: kbId },
@@ -504,7 +504,7 @@ export async function askWorkspaceQuestion(
   token: string,
   payload: WorkspaceQuestionInput,
 ): Promise<WorkspaceQuestionResponse> {
-  const response = await qaQueryApiV1QaQueryPost({
+  const response = await qaQueryApiV2QaQueryPost({
     body: {
       conversation_id: payload.conversationId ?? null,
       kb_id: payload.kbId,
@@ -523,7 +523,7 @@ export async function askWorkspaceQuestion(
 }
 
 export async function listWorkspaceTeams(token: string): Promise<TeamListResponse> {
-  const response = await teamsApiV1TeamsGet({
+  const response = await listTeamsApiV2TeamsGet({
     headers: createAuthorizationHeader(token),
   })
 
@@ -535,7 +535,7 @@ export async function listWorkspaceTeams(token: string): Promise<TeamListRespons
 }
 
 export async function listWorkspacePermissionRules(token: string): Promise<WorkspacePermissionRuleListResponse> {
-  const response = await permissionRulesApiV1PermissionsRulesGet({
+  const response = await permissionRulesApiV2PermissionsRulesGet({
     headers: createAuthorizationHeader(token),
   })
 
@@ -559,7 +559,7 @@ export async function createWorkspacePermissionRule(
     subject_id: payload.subjectId,
     subject_type: payload.subjectType,
   }
-  const response = await createPermissionRuleApiV1PermissionsRulesPost({
+  const response = await createPermissionRuleApiV2PermissionsRulesPost({
     body,
     headers: createAuthorizationHeader(token),
   })
@@ -572,7 +572,7 @@ export async function createWorkspacePermissionRule(
 }
 
 export async function deleteWorkspacePermissionRule(token: string, ruleId: string): Promise<void> {
-  const response = await deletePermissionRuleApiV1PermissionsRulesRuleIdDelete({
+  const response = await deletePermissionRuleApiV2PermissionsRulesRuleIdDelete({
     headers: createAuthorizationHeader(token),
     path: { rule_id: ruleId },
   })
@@ -586,7 +586,7 @@ export async function createWorkspaceTeam(
   token: string,
   payload: WorkspaceTeamCreateInput,
 ): Promise<WorkspaceTeamDetail> {
-  const response = await createTeamApiV1TeamsPost({
+  const response = await createTeamApiV2TeamsPost({
     body: {
       description: payload.description ?? null,
       name: payload.name,
@@ -602,7 +602,7 @@ export async function createWorkspaceTeam(
 }
 
 export async function loadWorkspaceTeamDetail(token: string, teamId: string): Promise<WorkspaceTeamDetail> {
-  const response = await teamDetailApiV1TeamsTeamIdGet({
+  const response = await teamDetailApiV2TeamsTeamIdGet({
     headers: createAuthorizationHeader(token),
     path: { team_id: teamId },
   })
@@ -618,7 +618,7 @@ export async function listWorkspaceTeamMessages(
   token: string,
   teamId: string,
 ): Promise<WorkspaceTeamMessageListResponse> {
-  const response = await teamMessagesApiV1TeamsTeamIdMessagesGet({
+  const response = await teamMessagesApiV2TeamsTeamIdMessagesGet({
     headers: createAuthorizationHeader(token),
     path: { team_id: teamId },
   })
@@ -635,7 +635,7 @@ export async function sendWorkspaceTeamMessage(
   teamId: string,
   payload: WorkspaceTeamMessageCreateInput,
 ): Promise<WorkspaceTeamMessage> {
-  const response = await createTeamMessageApiV1TeamsTeamIdMessagesPost({
+  const response = await createTeamMessageApiV2TeamsTeamIdMessagesPost({
     body: {
       content: payload.content,
       message_type: payload.message_type ?? 'text',
@@ -657,7 +657,7 @@ export async function createWorkspaceTeamInvite(
   teamId: string,
   payload: WorkspaceTeamInviteInput,
 ): Promise<WorkspaceTeamInvite> {
-  const response = await createTeamInviteApiV1TeamsTeamIdInvitesPost({
+  const response = await createTeamInviteApiV2TeamsTeamIdInvitesPost({
     body: {
       email: payload.email,
       role: payload.role,
@@ -678,7 +678,7 @@ export async function joinWorkspaceTeam(
   teamId: string,
   inviteToken: string,
 ): Promise<WorkspaceTeamMember> {
-  const response = await joinTeamApiV1TeamsTeamIdMembersPost({
+  const response = await joinTeamApiV2TeamsTeamIdMembersPost({
     body: { invite_token: inviteToken },
     headers: createAuthorizationHeader(token),
     path: { team_id: teamId },
@@ -697,7 +697,7 @@ export async function updateWorkspaceTeamMember(
   memberId: string,
   role: WorkspaceTeamRole,
 ): Promise<WorkspaceTeamMember> {
-  const response = await updateTeamMemberApiV1TeamsTeamIdMembersMemberIdPatch({
+  const response = await updateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatch({
     body: { role },
     headers: createAuthorizationHeader(token),
     path: { member_id: memberId, team_id: teamId },
@@ -711,7 +711,7 @@ export async function updateWorkspaceTeamMember(
 }
 
 export async function removeWorkspaceTeamMember(token: string, teamId: string, memberId: string): Promise<void> {
-  const response = await removeTeamMemberApiV1TeamsTeamIdMembersMemberIdDelete({
+  const response = await removeTeamMemberApiV2TeamsTeamIdMembersMemberIdDelete({
     headers: createAuthorizationHeader(token),
     path: { member_id: memberId, team_id: teamId },
   })
@@ -722,7 +722,7 @@ export async function removeWorkspaceTeamMember(token: string, teamId: string, m
 }
 
 export async function listWorkspaceFolders(token: string): Promise<FolderTreeResponse> {
-  const response = await foldersApiV1FoldersTreeGet({
+  const response = await folderTreeApiV2FoldersTreeGet({
     headers: createAuthorizationHeader(token),
   })
 
@@ -734,7 +734,7 @@ export async function listWorkspaceFolders(token: string): Promise<FolderTreeRes
 }
 
 export async function listWorkspaceFiles(token: string, filters: WorkspaceFileFilters): Promise<FileListResponse> {
-  const response = await filesApiV1FilesGet({
+  const response = await listFilesApiV2FilesGet({
     headers: createAuthorizationHeader(token),
     query: {
       file_type: filters.fileType || null,
@@ -756,7 +756,7 @@ export async function createWorkspaceFolder(
   token: string,
   payload: WorkspaceFolderCreateInput,
 ): Promise<WorkspaceFolder> {
-  const response = await createFolderApiV1FoldersPost({
+  const response = await createFolderApiV2FoldersPost({
     body: {
       name: payload.name,
       parent_id: payload.parentId ?? null,
@@ -785,7 +785,7 @@ export async function updateWorkspaceFolder(
     body.parent_id = payload.parentId ?? null
   }
 
-  const response = await updateFolderApiV1FoldersFolderIdPatch({
+  const response = await updateFolderApiV2FoldersFolderIdPatch({
     body,
     headers: createAuthorizationHeader(token),
     path: { folder_id: folderId },
@@ -799,7 +799,7 @@ export async function updateWorkspaceFolder(
 }
 
 export async function deleteWorkspaceFolder(token: string, folderId: string): Promise<void> {
-  const response = await deleteFolderApiV1FoldersFolderIdDelete({
+  const response = await deleteFolderApiV2FoldersFolderIdDelete({
     headers: createAuthorizationHeader(token),
     path: { folder_id: folderId },
   })
@@ -810,7 +810,7 @@ export async function deleteWorkspaceFolder(token: string, folderId: string): Pr
 }
 
 export async function uploadWorkspaceFile(token: string, payload: WorkspaceFileUploadInput): Promise<WorkspaceFile> {
-  const response = await uploadFileApiV1FilesUploadPost({
+  const response = await uploadFileApiV2FilesUploadPost({
     body: {
       file: payload.file,
       folder_id: payload.folderId,
@@ -830,7 +830,7 @@ export async function initWorkspaceMultipartUpload(
   token: string,
   payload: WorkspaceMultipartUploadInitInput,
 ): Promise<WorkspaceMultipartUploadSession> {
-  const response = await initMultipartUploadApiV1FilesMultipartUploadsPost({
+  const response = await initMultipartUploadApiV2FilesMultipartUploadsPost({
     body: {
       chunk_size: payload.chunkSize,
       filename: payload.filename,
@@ -855,7 +855,7 @@ export async function uploadWorkspaceMultipartChunk(
   chunkIndex: number,
   chunk: Blob,
 ): Promise<WorkspaceMultipartChunkResponse> {
-  const response = await uploadMultipartChunkApiV1FilesMultipartUploadsSessionIdChunksChunkIndexPut({
+  const response = await uploadMultipartChunkApiV2FilesMultipartUploadsSessionIdChunksChunkIndexPut({
     body: {
       chunk,
       sha256: await sha256Blob(chunk),
@@ -875,7 +875,7 @@ export async function getWorkspaceMultipartUpload(
   token: string,
   sessionId: string,
 ): Promise<WorkspaceMultipartUploadSession> {
-  const response = await multipartUploadStatusApiV1FilesMultipartUploadsSessionIdGet({
+  const response = await multipartUploadStatusApiV2FilesMultipartUploadsSessionIdGet({
     headers: createAuthorizationHeader(token),
     path: { session_id: sessionId },
   })
@@ -888,7 +888,7 @@ export async function getWorkspaceMultipartUpload(
 }
 
 export async function completeWorkspaceMultipartUpload(token: string, sessionId: string): Promise<WorkspaceFile> {
-  const response = await completeMultipartUploadApiV1FilesMultipartUploadsSessionIdCompletePost({
+  const response = await completeMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePost({
     headers: createAuthorizationHeader(token),
     path: { session_id: sessionId },
   })
@@ -938,7 +938,7 @@ export async function updateWorkspaceFile(
     body.tags = payload.tags ?? null
   }
 
-  const response = await updateFileApiV1FilesFileIdPatch({
+  const response = await updateFileApiV2FilesFileIdPatch({
     body,
     headers: createAuthorizationHeader(token),
     path: { file_id: fileId },
@@ -973,7 +973,7 @@ export async function copyWorkspaceFile(
     body.tags = payload.tags ?? null
   }
 
-  const response = await copyFileApiV1FilesFileIdCopyPost({
+  const response = await copyFileApiV2FilesFileIdCopyPost({
     body,
     headers: createAuthorizationHeader(token),
     path: { file_id: fileId },
@@ -991,7 +991,7 @@ export async function createWorkspaceFileShareLink(
   fileId: string,
   payload: WorkspaceShareLinkCreateInput,
 ): Promise<WorkspaceShareLink> {
-  const response = await createFileShareLinkApiV1FilesFileIdShareLinksPost({
+  const response = await createFileShareLinkApiV2FilesFileIdShareLinksPost({
     body: {
       download_limit: payload.downloadLimit ?? null,
       expires_in_seconds: payload.expiresInSeconds ?? 3600,
@@ -1012,7 +1012,7 @@ export async function listWorkspaceFileAnnotations(
   token: string,
   fileId: string,
 ): Promise<WorkspaceFileAnnotationListResponse> {
-  const response = await fileAnnotationsApiV1FilesFileIdAnnotationsGet({
+  const response = await fileAnnotationsApiV2FilesFileIdAnnotationsGet({
     headers: createAuthorizationHeader(token),
     path: { file_id: fileId },
   })
@@ -1029,7 +1029,7 @@ export async function createWorkspaceFileAnnotation(
   fileId: string,
   payload: WorkspaceFileAnnotationCreateInput,
 ): Promise<WorkspaceFileAnnotation> {
-  const response = await createFileAnnotationApiV1FilesFileIdAnnotationsPost({
+  const response = await createFileAnnotationApiV2FilesFileIdAnnotationsPost({
     body: {
       content: payload.content,
       position: payload.position ?? null,
@@ -1050,7 +1050,7 @@ export async function replyWorkspaceFileAnnotation(
   annotationId: string,
   payload: WorkspaceFileAnnotationReplyInput,
 ): Promise<WorkspaceFileAnnotationReply> {
-  const response = await replyFileAnnotationApiV1AnnotationsAnnotationIdRepliesPost({
+  const response = await replyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPost({
     body: {
       content: payload.content,
     },
@@ -1070,7 +1070,7 @@ export async function deleteWorkspaceFileAnnotation(
   fileId: string,
   annotationId: string,
 ): Promise<void> {
-  const response = await deleteFileAnnotationApiV1FilesFileIdAnnotationsAnnotationIdDelete({
+  const response = await deleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDelete({
     headers: createAuthorizationHeader(token),
     path: { annotation_id: annotationId, file_id: fileId },
   })
@@ -1081,7 +1081,7 @@ export async function deleteWorkspaceFileAnnotation(
 }
 
 export async function listWorkspaceNotifications(token: string): Promise<WorkspaceNotificationListResponse> {
-  const response = await notificationsApiV1NotificationsGet({
+  const response = await notificationsApiV2NotificationsGet({
     headers: createAuthorizationHeader(token),
   })
 
@@ -1096,7 +1096,7 @@ export async function markWorkspaceNotificationRead(
   token: string,
   notificationId: string,
 ): Promise<WorkspaceNotification> {
-  const response = await markNotificationReadApiV1NotificationsNotificationIdReadPatch({
+  const response = await markNotificationReadApiV2NotificationsNotificationIdReadPatch({
     headers: createAuthorizationHeader(token),
     path: { notification_id: notificationId },
   })
@@ -1109,7 +1109,7 @@ export async function markWorkspaceNotificationRead(
 }
 
 export async function downloadWorkspaceFile(token: string, fileId: string): Promise<Blob> {
-  const response = await downloadFileApiV1FilesFileIdDownloadGet({
+  const response = await downloadFileApiV2FilesFileIdDownloadGet({
     headers: createAuthorizationHeader(token),
     parseAs: 'blob',
     path: { file_id: fileId },
@@ -1130,7 +1130,7 @@ export async function listWorkspaceFileVersions(
   token: string,
   fileId: string,
 ): Promise<WorkspaceFileVersionListResponse> {
-  const response = await fileVersionsApiV1FilesFileIdVersionsGet({
+  const response = await fileVersionsApiV2FilesFileIdVersionsGet({
     headers: createAuthorizationHeader(token),
     path: { file_id: fileId },
   })
@@ -1147,7 +1147,7 @@ export async function restoreWorkspaceFileVersion(
   fileId: string,
   versionId: string,
 ): Promise<WorkspaceFile> {
-  const response = await restoreFileVersionApiV1FilesFileIdVersionsVersionIdRestorePost({
+  const response = await restoreFileVersionApiV2FilesFileIdVersionsVersionIdRestorePost({
     headers: createAuthorizationHeader(token),
     path: { file_id: fileId, version_id: versionId },
   })
@@ -1160,7 +1160,7 @@ export async function restoreWorkspaceFileVersion(
 }
 
 export async function listWorkspaceRecycleBin(token: string): Promise<WorkspaceRecycleBinResponse> {
-  const response = await recycleBinApiV1FilesRecycleBinGet({
+  const response = await recycleBinApiV2FilesRecycleBinGet({
     headers: createAuthorizationHeader(token),
   })
 
@@ -1172,7 +1172,7 @@ export async function listWorkspaceRecycleBin(token: string): Promise<WorkspaceR
 }
 
 export async function restoreWorkspaceDeletedFile(token: string, fileId: string): Promise<WorkspaceFile> {
-  const response = await restoreDeletedFileApiV1FilesFileIdRestorePost({
+  const response = await restoreDeletedFileApiV2FilesFileIdRestorePost({
     headers: createAuthorizationHeader(token),
     path: { file_id: fileId },
   })
@@ -1185,7 +1185,7 @@ export async function restoreWorkspaceDeletedFile(token: string, fileId: string)
 }
 
 export async function deleteWorkspaceFile(token: string, fileId: string): Promise<void> {
-  const response = await deleteFileApiV1FilesFileIdDelete({
+  const response = await deleteFileApiV2FilesFileIdDelete({
     headers: createAuthorizationHeader(token),
     path: { file_id: fileId },
   })
@@ -1193,4 +1193,45 @@ export async function deleteWorkspaceFile(token: string, fileId: string): Promis
   if (response.error) {
     throw response.error
   }
+}
+
+// ── Team management (V2) ──
+import {
+  deleteTeamApiV2TeamsTeamIdDelete,
+  updateTeamApiV2TeamsTeamIdPatch,
+  leaveTeamApiV2TeamsTeamIdMembersMeDelete,
+} from '@/client/generated'
+
+export async function deleteWorkspaceTeam(token: string, teamId: string): Promise<void> {
+  const response = await deleteTeamApiV2TeamsTeamIdDelete({
+    headers: createAuthorizationHeader(token),
+    path: { team_id: teamId },
+  })
+  if (response.error) throw response.error
+}
+
+export async function updateWorkspaceTeam(
+  token: string,
+  teamId: string,
+  payload: { name?: string | null; description?: string | null },
+): Promise<any> {
+  const response = await updateTeamApiV2TeamsTeamIdPatch({
+    headers: createAuthorizationHeader(token),
+    path: { team_id: teamId },
+    body: payload as any,
+  })
+  if (response.error) throw response.error
+  return response.data
+}
+
+export async function leaveWorkspaceTeam(token: string, teamId: string): Promise<void> {
+  const response = await leaveTeamApiV2TeamsTeamIdMembersMeDelete({
+    headers: createAuthorizationHeader(token),
+    path: { team_id: teamId },
+  })
+  if (response.error) throw response.error
+}
+
+export function buildTeamInviteUrl(teamId: string, token: string): string {
+  return `${window.location.origin}/team-chat?join=${teamId}&token=${encodeURIComponent(token)}`
 }

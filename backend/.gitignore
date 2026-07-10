@@ -211,3 +211,5 @@ secrets.txtresult.json
 *.pdf
 /rag_store
 /datamodels/
+.env.*
+*.dbwhucs.db

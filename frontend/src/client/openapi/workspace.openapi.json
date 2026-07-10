@@ -219,7 +219,7 @@
         "title": "AuthResponse",
         "type": "object"
       },
-      "Body_upload_file_api_v1_files_upload_post": {
+      "Body_upload_file_api_v2_files_upload_post": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -227,6 +227,7 @@
             "type": "string"
           },
           "folder_id": {
+            "default": "personal-root",
             "title": "Folder Id",
             "type": "string"
           },
@@ -242,14 +243,10 @@
             "title": "Tags"
           }
         },
-        "required": [
-          "file",
-          "folder_id"
-        ],
-        "title": "Body_upload_file_api_v1_files_upload_post",
+        "title": "Body_upload_file_api_v2_files_upload_post",
         "type": "object"
       },
-      "Body_upload_multipart_chunk_api_v1_files_multipart_uploads__session_id__chunks__chunk_index__put": {
+      "Body_upload_multipart_chunk_api_v2_files_multipart_uploads__session_id__chunks__chunk_index__put": {
         "properties": {
           "chunk": {
             "contentMediaType": "application/octet-stream",
@@ -257,15 +254,12 @@
             "type": "string"
           },
           "sha256": {
+            "default": "",
             "title": "Sha256",
             "type": "string"
           }
         },
-        "required": [
-          "chunk",
-          "sha256"
-        ],
-        "title": "Body_upload_multipart_chunk_api_v1_files_multipart_uploads__session_id__chunks__chunk_index__put",
+        "title": "Body_upload_multipart_chunk_api_v2_files_multipart_uploads__session_id__chunks__chunk_index__put",
         "type": "object"
       },
       "Citation": {
@@ -359,29 +353,6 @@
           "tools_enabled"
         ],
         "title": "DashboardSummary",
-        "type": "object"
-      },
-      "ErrorResponse": {
-        "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "detail": {
-            "additionalProperties": true,
-            "title": "Detail",
-            "type": "object"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message"
-        ],
-        "title": "ErrorResponse",
         "type": "object"
       },
       "FileAnnotationCreate": {
@@ -1809,25 +1780,6 @@
         "title": "ShareLinkCreateRequest",
         "type": "object"
       },
-      "ShareLinkDownloadRequest": {
-        "properties": {
-          "password": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Password"
-          }
-        },
-        "title": "ShareLinkDownloadRequest",
-        "type": "object"
-      },
       "ShareLinkPublic": {
         "properties": {
           "download_count": {
@@ -2340,6 +2292,37 @@
           "unread_count"
         ],
         "title": "TeamSummary",
+        "type": "object"
+      },
+      "TeamUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "TeamUpdate",
         "type": "object"
       },
       "ToolDefinition": {
@@ -3087,15 +3070,14 @@
     }
   },
   "info": {
-    "description": "Report-aligned MVP API for intelligent file management and agent collaboration.",
-    "title": "WHU Intelligent File Workspace API",
-    "version": "0.1.0"
+    "title": "WHU API v2",
+    "version": "2.0.0"
   },
   "openapi": "3.1.0",
   "paths": {
-    "/api/v1/agents/tasks": {
+    "/api/v2/agents/tasks": {
       "post": {
-        "operationId": "create_agent_task_api_v1_agents_tasks_post",
+        "operationId": "create_agent_task_api_v2_agents_tasks_post",
         "parameters": [
           {
             "in": "header",
@@ -3149,9 +3131,9 @@
         "summary": "Create Agent Task"
       }
     },
-    "/api/v1/annotations/{annotation_id}/replies": {
+    "/api/v2/annotations/{annotation_id}/replies": {
       "post": {
-        "operationId": "reply_file_annotation_api_v1_annotations__annotation_id__replies_post",
+        "operationId": "reply_file_annotation_api_v2_annotations__annotation_id__replies_post",
         "parameters": [
           {
             "in": "path",
@@ -3214,9 +3196,9 @@
         "summary": "Reply File Annotation"
       }
     },
-    "/api/v1/audit-logs": {
+    "/api/v2/audit-logs": {
       "get": {
-        "operationId": "audit_logs_api_v1_audit_logs_get",
+        "operationId": "audit_logs_api_v2_audit_logs_get",
         "parameters": [
           {
             "in": "header",
@@ -3260,9 +3242,9 @@
         "summary": "Audit Logs"
       }
     },
-    "/api/v1/auth/login": {
+    "/api/v2/auth/login": {
       "post": {
-        "operationId": "login_api_v1_auth_login_post",
+        "operationId": "login_api_v2_auth_login_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3284,16 +3266,6 @@
             },
             "description": "Successful Response"
           },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Invalid credentials"
-          },
           "422": {
             "content": {
               "application/json": {
@@ -3303,24 +3275,14 @@
               }
             },
             "description": "Validation Error"
-          },
-          "423": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Account temporarily locked"
           }
         },
         "summary": "Login"
       }
     },
-    "/api/v1/auth/refresh": {
+    "/api/v2/auth/refresh": {
       "post": {
-        "operationId": "refresh_api_v1_auth_refresh_post",
+        "operationId": "refresh_api_v2_auth_refresh_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3356,9 +3318,9 @@
         "summary": "Refresh"
       }
     },
-    "/api/v1/auth/register": {
+    "/api/v2/auth/register": {
       "post": {
-        "operationId": "register_api_v1_auth_register_post",
+        "operationId": "register_api_v2_auth_register_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3394,92 +3356,10 @@
         "summary": "Register"
       }
     },
-    "/api/v1/files": {
+    "/api/v2/files": {
       "get": {
-        "operationId": "files_api_v1_files_get",
+        "operationId": "list_files_api_v2_files_get",
         "parameters": [
-          {
-            "in": "query",
-            "name": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Query"
-            }
-          },
-          {
-            "in": "query",
-            "name": "tag",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Tag"
-            }
-          },
-          {
-            "in": "query",
-            "name": "file_type",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "File Type"
-            }
-          },
-          {
-            "in": "query",
-            "name": "updated_from",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Updated From"
-            }
-          },
-          {
-            "in": "query",
-            "name": "updated_to",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Updated To"
-            }
-          },
           {
             "in": "header",
             "name": "authorization",
@@ -3519,12 +3399,12 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Files"
+        "summary": "List Files"
       }
     },
-    "/api/v1/files/multipart-uploads": {
+    "/api/v2/files/multipart-uploads": {
       "post": {
-        "operationId": "init_multipart_upload_api_v1_files_multipart_uploads_post",
+        "operationId": "init_multipart_upload_api_v2_files_multipart_uploads_post",
         "parameters": [
           {
             "in": "header",
@@ -3578,9 +3458,9 @@
         "summary": "Init Multipart Upload"
       }
     },
-    "/api/v1/files/multipart-uploads/{session_id}": {
+    "/api/v2/files/multipart-uploads/{session_id}": {
       "get": {
-        "operationId": "multipart_upload_status_api_v1_files_multipart_uploads__session_id__get",
+        "operationId": "multipart_upload_status_api_v2_files_multipart_uploads__session_id__get",
         "parameters": [
           {
             "in": "path",
@@ -3633,9 +3513,9 @@
         "summary": "Multipart Upload Status"
       }
     },
-    "/api/v1/files/multipart-uploads/{session_id}/chunks/{chunk_index}": {
+    "/api/v2/files/multipart-uploads/{session_id}/chunks/{chunk_index}": {
       "put": {
-        "operationId": "upload_multipart_chunk_api_v1_files_multipart_uploads__session_id__chunks__chunk_index__put",
+        "operationId": "upload_multipart_chunk_api_v2_files_multipart_uploads__session_id__chunks__chunk_index__put",
         "parameters": [
           {
             "in": "path",
@@ -3676,11 +3556,10 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_multipart_chunk_api_v1_files_multipart_uploads__session_id__chunks__chunk_index__put"
+                "$ref": "#/components/schemas/Body_upload_multipart_chunk_api_v2_files_multipart_uploads__session_id__chunks__chunk_index__put"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -3707,9 +3586,9 @@
         "summary": "Upload Multipart Chunk"
       }
     },
-    "/api/v1/files/multipart-uploads/{session_id}/complete": {
+    "/api/v2/files/multipart-uploads/{session_id}/complete": {
       "post": {
-        "operationId": "complete_multipart_upload_api_v1_files_multipart_uploads__session_id__complete_post",
+        "operationId": "complete_multipart_upload_api_v2_files_multipart_uploads__session_id__complete_post",
         "parameters": [
           {
             "in": "path",
@@ -3762,9 +3641,9 @@
         "summary": "Complete Multipart Upload"
       }
     },
-    "/api/v1/files/recycle-bin": {
+    "/api/v2/files/recycle-bin": {
       "get": {
-        "operationId": "recycle_bin_api_v1_files_recycle_bin_get",
+        "operationId": "recycle_bin_api_v2_files_recycle_bin_get",
         "parameters": [
           {
             "in": "header",
@@ -3808,9 +3687,9 @@
         "summary": "Recycle Bin"
       }
     },
-    "/api/v1/files/upload": {
+    "/api/v2/files/upload": {
       "post": {
-        "operationId": "upload_file_api_v1_files_upload_post",
+        "operationId": "upload_file_api_v2_files_upload_post",
         "parameters": [
           {
             "in": "header",
@@ -3833,11 +3712,10 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_file_api_v1_files_upload_post"
+                "$ref": "#/components/schemas/Body_upload_file_api_v2_files_upload_post"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -3864,9 +3742,9 @@
         "summary": "Upload File"
       }
     },
-    "/api/v1/files/{file_id}": {
+    "/api/v2/files/{file_id}": {
       "delete": {
-        "operationId": "delete_file_api_v1_files__file_id__delete",
+        "operationId": "delete_file_api_v2_files__file_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -3912,7 +3790,7 @@
         "summary": "Delete File"
       },
       "patch": {
-        "operationId": "update_file_api_v1_files__file_id__patch",
+        "operationId": "update_file_api_v2_files__file_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -3975,9 +3853,9 @@
         "summary": "Update File"
       }
     },
-    "/api/v1/files/{file_id}/annotations": {
+    "/api/v2/files/{file_id}/annotations": {
       "get": {
-        "operationId": "file_annotations_api_v1_files__file_id__annotations_get",
+        "operationId": "file_annotations_api_v2_files__file_id__annotations_get",
         "parameters": [
           {
             "in": "path",
@@ -4030,7 +3908,7 @@
         "summary": "File Annotations"
       },
       "post": {
-        "operationId": "create_file_annotation_api_v1_files__file_id__annotations_post",
+        "operationId": "create_file_annotation_api_v2_files__file_id__annotations_post",
         "parameters": [
           {
             "in": "path",
@@ -4093,9 +3971,9 @@
         "summary": "Create File Annotation"
       }
     },
-    "/api/v1/files/{file_id}/annotations/{annotation_id}": {
+    "/api/v2/files/{file_id}/annotations/{annotation_id}": {
       "delete": {
-        "operationId": "delete_file_annotation_api_v1_files__file_id__annotations__annotation_id__delete",
+        "operationId": "delete_file_annotation_api_v2_files__file_id__annotations__annotation_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -4150,9 +4028,9 @@
         "summary": "Delete File Annotation"
       }
     },
-    "/api/v1/files/{file_id}/copy": {
+    "/api/v2/files/{file_id}/copy": {
       "post": {
-        "operationId": "copy_file_api_v1_files__file_id__copy_post",
+        "operationId": "copy_file_api_v2_files__file_id__copy_post",
         "parameters": [
           {
             "in": "path",
@@ -4215,9 +4093,9 @@
         "summary": "Copy File"
       }
     },
-    "/api/v1/files/{file_id}/download": {
+    "/api/v2/files/{file_id}/download": {
       "get": {
-        "operationId": "download_file_api_v1_files__file_id__download_get",
+        "operationId": "download_file_api_v2_files__file_id__download_get",
         "parameters": [
           {
             "in": "path",
@@ -4268,9 +4146,9 @@
         "summary": "Download File"
       }
     },
-    "/api/v1/files/{file_id}/restore": {
+    "/api/v2/files/{file_id}/restore": {
       "post": {
-        "operationId": "restore_deleted_file_api_v1_files__file_id__restore_post",
+        "operationId": "restore_deleted_file_api_v2_files__file_id__restore_post",
         "parameters": [
           {
             "in": "path",
@@ -4323,9 +4201,9 @@
         "summary": "Restore Deleted File"
       }
     },
-    "/api/v1/files/{file_id}/share-links": {
+    "/api/v2/files/{file_id}/share-links": {
       "post": {
-        "operationId": "create_file_share_link_api_v1_files__file_id__share_links_post",
+        "operationId": "create_file_share_link_api_v2_files__file_id__share_links_post",
         "parameters": [
           {
             "in": "path",
@@ -4388,9 +4266,9 @@
         "summary": "Create File Share Link"
       }
     },
-    "/api/v1/files/{file_id}/versions": {
+    "/api/v2/files/{file_id}/versions": {
       "get": {
-        "operationId": "file_versions_api_v1_files__file_id__versions_get",
+        "operationId": "file_versions_api_v2_files__file_id__versions_get",
         "parameters": [
           {
             "in": "path",
@@ -4443,9 +4321,9 @@
         "summary": "File Versions"
       }
     },
-    "/api/v1/files/{file_id}/versions/{version_id}/restore": {
+    "/api/v2/files/{file_id}/versions/{version_id}/restore": {
       "post": {
-        "operationId": "restore_file_version_api_v1_files__file_id__versions__version_id__restore_post",
+        "operationId": "restore_file_version_api_v2_files__file_id__versions__version_id__restore_post",
         "parameters": [
           {
             "in": "path",
@@ -4507,9 +4385,9 @@
         "summary": "Restore File Version"
       }
     },
-    "/api/v1/folders": {
+    "/api/v2/folders": {
       "post": {
-        "operationId": "create_folder_api_v1_folders_post",
+        "operationId": "create_folder_api_v2_folders_post",
         "parameters": [
           {
             "in": "header",
@@ -4563,9 +4441,9 @@
         "summary": "Create Folder"
       }
     },
-    "/api/v1/folders/tree": {
+    "/api/v2/folders/tree": {
       "get": {
-        "operationId": "folders_api_v1_folders_tree_get",
+        "operationId": "folder_tree_api_v2_folders_tree_get",
         "parameters": [
           {
             "in": "header",
@@ -4606,12 +4484,12 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Folders"
+        "summary": "Folder Tree"
       }
     },
-    "/api/v1/folders/{folder_id}": {
+    "/api/v2/folders/{folder_id}": {
       "delete": {
-        "operationId": "delete_folder_api_v1_folders__folder_id__delete",
+        "operationId": "delete_folder_api_v2_folders__folder_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -4657,7 +4535,7 @@
         "summary": "Delete Folder"
       },
       "patch": {
-        "operationId": "update_folder_api_v1_folders__folder_id__patch",
+        "operationId": "update_folder_api_v2_folders__folder_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -4720,9 +4598,29 @@
         "summary": "Update Folder"
       }
     },
-    "/api/v1/knowledge-bases": {
+    "/api/v2/health": {
       "get": {
-        "operationId": "knowledge_bases_api_v1_knowledge_bases_get",
+        "operationId": "health_api_v2_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Api V2 Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/api/v2/knowledge-bases": {
+      "get": {
+        "operationId": "list_knowledge_bases_api_v2_knowledge_bases_get",
         "parameters": [
           {
             "in": "header",
@@ -4763,10 +4661,10 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Knowledge Bases"
+        "summary": "List Knowledge Bases"
       },
       "post": {
-        "operationId": "create_knowledge_base_api_v1_knowledge_bases_post",
+        "operationId": "create_knowledge_base_api_v2_knowledge_bases_post",
         "parameters": [
           {
             "in": "header",
@@ -4820,9 +4718,9 @@
         "summary": "Create Knowledge Base"
       }
     },
-    "/api/v1/knowledge-bases/{kb_id}": {
+    "/api/v2/knowledge-bases/{kb_id}": {
       "patch": {
-        "operationId": "update_knowledge_base_api_v1_knowledge_bases__kb_id__patch",
+        "operationId": "update_knowledge_base_api_v2_knowledge_bases__kb_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -4885,9 +4783,9 @@
         "summary": "Update Knowledge Base"
       }
     },
-    "/api/v1/knowledge-bases/{kb_id}/documents": {
+    "/api/v2/knowledge-bases/{kb_id}/documents": {
       "get": {
-        "operationId": "knowledge_documents_api_v1_knowledge_bases__kb_id__documents_get",
+        "operationId": "knowledge_documents_api_v2_knowledge_bases__kb_id__documents_get",
         "parameters": [
           {
             "in": "path",
@@ -4940,7 +4838,7 @@
         "summary": "Knowledge Documents"
       },
       "post": {
-        "operationId": "add_knowledge_document_api_v1_knowledge_bases__kb_id__documents_post",
+        "operationId": "add_knowledge_document_api_v2_knowledge_bases__kb_id__documents_post",
         "parameters": [
           {
             "in": "path",
@@ -5003,9 +4901,9 @@
         "summary": "Add Knowledge Document"
       }
     },
-    "/api/v1/notifications": {
+    "/api/v2/notifications": {
       "get": {
-        "operationId": "notifications_api_v1_notifications_get",
+        "operationId": "notifications_api_v2_notifications_get",
         "parameters": [
           {
             "in": "header",
@@ -5049,9 +4947,9 @@
         "summary": "Notifications"
       }
     },
-    "/api/v1/notifications/{notification_id}/read": {
+    "/api/v2/notifications/{notification_id}/read": {
       "patch": {
-        "operationId": "mark_notification_read_api_v1_notifications__notification_id__read_patch",
+        "operationId": "mark_notification_read_api_v2_notifications__notification_id__read_patch",
         "parameters": [
           {
             "in": "path",
@@ -5104,9 +5002,9 @@
         "summary": "Mark Notification Read"
       }
     },
-    "/api/v1/permissions/rules": {
+    "/api/v2/permissions/rules": {
       "get": {
-        "operationId": "permission_rules_api_v1_permissions_rules_get",
+        "operationId": "permission_rules_api_v2_permissions_rules_get",
         "parameters": [
           {
             "in": "header",
@@ -5150,7 +5048,7 @@
         "summary": "Permission Rules"
       },
       "post": {
-        "operationId": "create_permission_rule_api_v1_permissions_rules_post",
+        "operationId": "create_permission_rule_api_v2_permissions_rules_post",
         "parameters": [
           {
             "in": "header",
@@ -5204,9 +5102,9 @@
         "summary": "Create Permission Rule"
       }
     },
-    "/api/v1/permissions/rules/{rule_id}": {
+    "/api/v2/permissions/rules/{rule_id}": {
       "delete": {
-        "operationId": "delete_permission_rule_api_v1_permissions_rules__rule_id__delete",
+        "operationId": "delete_permission_rule_api_v2_permissions_rules__rule_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -5252,9 +5150,9 @@
         "summary": "Delete Permission Rule"
       }
     },
-    "/api/v1/qa/query": {
+    "/api/v2/qa/query": {
       "post": {
-        "operationId": "qa_query_api_v1_qa_query_post",
+        "operationId": "qa_query_api_v2_qa_query_post",
         "parameters": [
           {
             "in": "header",
@@ -5308,63 +5206,9 @@
         "summary": "Qa Query"
       }
     },
-    "/api/v1/share-links/{token}/download": {
-      "post": {
-        "operationId": "download_shared_file_api_v1_share_links__token__download_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/ShareLinkDownloadRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Download Shared File"
-      }
-    },
-    "/api/v1/teams": {
+    "/api/v2/teams": {
       "get": {
-        "operationId": "teams_api_v1_teams_get",
+        "operationId": "list_teams_api_v2_teams_get",
         "parameters": [
           {
             "in": "header",
@@ -5405,10 +5249,10 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Teams"
+        "summary": "List Teams"
       },
       "post": {
-        "operationId": "create_team_api_v1_teams_post",
+        "operationId": "create_team_api_v2_teams_post",
         "parameters": [
           {
             "in": "header",
@@ -5462,9 +5306,55 @@
         "summary": "Create Team"
       }
     },
-    "/api/v1/teams/{team_id}": {
+    "/api/v2/teams/{team_id}": {
+      "delete": {
+        "operationId": "delete_team_api_v2_teams__team_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Team"
+      },
       "get": {
-        "operationId": "team_detail_api_v1_teams__team_id__get",
+        "operationId": "team_detail_api_v2_teams__team_id__get",
         "parameters": [
           {
             "in": "path",
@@ -5515,11 +5405,74 @@
           }
         },
         "summary": "Team Detail"
+      },
+      "patch": {
+        "operationId": "update_team_api_v2_teams__team_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Team"
       }
     },
-    "/api/v1/teams/{team_id}/invites": {
+    "/api/v2/teams/{team_id}/invites": {
       "post": {
-        "operationId": "create_team_invite_api_v1_teams__team_id__invites_post",
+        "operationId": "create_team_invite_api_v2_teams__team_id__invites_post",
         "parameters": [
           {
             "in": "path",
@@ -5582,9 +5535,9 @@
         "summary": "Create Team Invite"
       }
     },
-    "/api/v1/teams/{team_id}/members": {
+    "/api/v2/teams/{team_id}/members": {
       "post": {
-        "operationId": "join_team_api_v1_teams__team_id__members_post",
+        "operationId": "join_team_api_v2_teams__team_id__members_post",
         "parameters": [
           {
             "in": "path",
@@ -5647,9 +5600,57 @@
         "summary": "Join Team"
       }
     },
-    "/api/v1/teams/{team_id}/members/{member_id}": {
+    "/api/v2/teams/{team_id}/members/me": {
       "delete": {
-        "operationId": "remove_team_member_api_v1_teams__team_id__members__member_id__delete",
+        "operationId": "leave_team_api_v2_teams__team_id__members_me_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leave Team"
+      }
+    },
+    "/api/v2/teams/{team_id}/members/{member_id}": {
+      "delete": {
+        "operationId": "remove_team_member_api_v2_teams__team_id__members__member_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -5704,7 +5705,7 @@
         "summary": "Remove Team Member"
       },
       "patch": {
-        "operationId": "update_team_member_api_v1_teams__team_id__members__member_id__patch",
+        "operationId": "update_team_member_api_v2_teams__team_id__members__member_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -5776,9 +5777,9 @@
         "summary": "Update Team Member"
       }
     },
-    "/api/v1/teams/{team_id}/messages": {
+    "/api/v2/teams/{team_id}/messages": {
       "get": {
-        "operationId": "team_messages_api_v1_teams__team_id__messages_get",
+        "operationId": "team_messages_api_v2_teams__team_id__messages_get",
         "parameters": [
           {
             "in": "path",
@@ -5831,7 +5832,7 @@
         "summary": "Team Messages"
       },
       "post": {
-        "operationId": "create_team_message_api_v1_teams__team_id__messages_post",
+        "operationId": "create_team_message_api_v2_teams__team_id__messages_post",
         "parameters": [
           {
             "in": "path",
@@ -5894,9 +5895,9 @@
         "summary": "Create Team Message"
       }
     },
-    "/api/v1/tools": {
+    "/api/v2/tools": {
       "get": {
-        "operationId": "tools_api_v1_tools_get",
+        "operationId": "tools_api_v2_tools_get",
         "parameters": [
           {
             "in": "header",
@@ -5940,9 +5941,9 @@
         "summary": "Tools"
       }
     },
-    "/api/v1/users/me": {
+    "/api/v2/users/me": {
       "get": {
-        "operationId": "me_api_v1_users_me_get",
+        "operationId": "me_api_v2_users_me_get",
         "parameters": [
           {
             "in": "header",
@@ -5986,7 +5987,7 @@
         "summary": "Me"
       },
       "patch": {
-        "operationId": "update_me_api_v1_users_me_patch",
+        "operationId": "update_me_api_v2_users_me_patch",
         "parameters": [
           {
             "in": "header",
@@ -6040,9 +6041,9 @@
         "summary": "Update Me"
       }
     },
-    "/api/v1/workflows": {
+    "/api/v2/workflows": {
       "get": {
-        "operationId": "workflows_api_v1_workflows_get",
+        "operationId": "list_workflows_api_v2_workflows_get",
         "parameters": [
           {
             "in": "header",
@@ -6083,10 +6084,10 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Workflows"
+        "summary": "List Workflows"
       },
       "post": {
-        "operationId": "create_workflow_api_v1_workflows_post",
+        "operationId": "create_workflow_api_v2_workflows_post",
         "parameters": [
           {
             "in": "header",
@@ -6140,9 +6141,9 @@
         "summary": "Create Workflow"
       }
     },
-    "/api/v1/workflows/{workflow_id}": {
+    "/api/v2/workflows/{workflow_id}": {
       "patch": {
-        "operationId": "update_workflow_api_v1_workflows__workflow_id__patch",
+        "operationId": "update_workflow_api_v2_workflows__workflow_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -6205,9 +6206,135 @@
         "summary": "Update Workflow"
       }
     },
-    "/api/v1/workflows/{workflow_id}/executions": {
+    "/api/v2/workflows/{workflow_id}/debug/start": {
       "post": {
-        "operationId": "execute_workflow_api_v1_workflows__workflow_id__executions_post",
+        "operationId": "debug_start_api_v2_workflows__workflow_id__debug_start_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Debug Start Api V2 Workflows  Workflow Id  Debug Start Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Debug Start"
+      }
+    },
+    "/api/v2/workflows/{workflow_id}/debug/step": {
+      "post": {
+        "operationId": "debug_step_api_v2_workflows__workflow_id__debug_step_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Debug Step Api V2 Workflows  Workflow Id  Debug Step Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Debug Step"
+      }
+    },
+    "/api/v2/workflows/{workflow_id}/executions": {
+      "post": {
+        "operationId": "execute_workflow_api_v2_workflows__workflow_id__executions_post",
         "parameters": [
           {
             "in": "path",
@@ -6270,9 +6397,9 @@
         "summary": "Execute Workflow"
       }
     },
-    "/api/v1/workflows/{workflow_id}/publish": {
+    "/api/v2/workflows/{workflow_id}/publish": {
       "post": {
-        "operationId": "publish_workflow_api_v1_workflows__workflow_id__publish_post",
+        "operationId": "publish_workflow_api_v2_workflows__workflow_id__publish_post",
         "parameters": [
           {
             "in": "path",
@@ -6325,9 +6452,9 @@
         "summary": "Publish Workflow"
       }
     },
-    "/api/v1/workflows/{workflow_id}/validate": {
+    "/api/v2/workflows/{workflow_id}/validate": {
       "post": {
-        "operationId": "validate_workflow_api_v1_workflows__workflow_id__validate_post",
+        "operationId": "validate_workflow_api_v2_workflows__workflow_id__validate_post",
         "parameters": [
           {
             "in": "path",
@@ -6380,9 +6507,9 @@
         "summary": "Validate Workflow"
       }
     },
-    "/api/v1/workspace/snapshot": {
+    "/api/v2/workspace/snapshot": {
       "get": {
-        "operationId": "workspace_snapshot_api_v1_workspace_snapshot_get",
+        "operationId": "workspace_snapshot_api_v2_workspace_snapshot_get",
         "parameters": [
           {
             "in": "header",
@@ -6424,28 +6551,6 @@
           }
         },
         "summary": "Workspace Snapshot"
-      }
-    },
-    "/health": {
-      "get": {
-        "operationId": "health_health_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Health Health Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Health"
       }
     }
   },

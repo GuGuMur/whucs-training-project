@@ -9,11 +9,11 @@ import {
   type WorkspaceAuthSession,
 } from '@/auth'
 import {
-  loginApiV1AuthLoginPost,
-  meApiV1UsersMeGet,
-  refreshApiV1AuthRefreshPost,
-  registerApiV1AuthRegisterPost,
-  updateMeApiV1UsersMePatch,
+  loginApiV2AuthLoginPost,
+  meApiV2UsersMeGet,
+  refreshApiV2AuthRefreshPost,
+  registerApiV2AuthRegisterPost,
+  updateMeApiV2UsersMePatch,
 } from '@/client/generated'
 import type { AuthResponse, UserCreate, UserPublic, UserUpdate } from '@/client/generated'
 
@@ -93,7 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!s?.accessToken) { currentUser.value = null; return false }
     loading.value = true
     try {
-      const r = await meApiV1UsersMeGet({ headers: createAuthorizationHeader(s.accessToken) })
+      const r = await meApiV2UsersMeGet({ headers: createAuthorizationHeader(s.accessToken) })
       if (r.error || !r.data) { logout(); return false }
       currentUser.value = r.data.user
       session.value = { ...s, displayName: r.data.user.display_name, userId: String(r.data.user.id) }
@@ -105,7 +105,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function loginWithPassword(credentials: LoginCredentials) {
     loading.value = true
     try {
-      const r = await loginApiV1AuthLoginPost({ body: credentials })
+      const r = await loginApiV2AuthLoginPost({ body: credentials })
       if (r.error || !r.data) { errorMessage.value = loginErrorMessage(r.error); throw r.error ?? new Error(errorMessage.value) }
       applyAuthResponse(r.data)
       return r.data
@@ -117,7 +117,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!s?.refreshToken) { logout(); return false }
     loading.value = true
     try {
-      const r = await refreshApiV1AuthRefreshPost({ body: { refresh_token: s.refreshToken } })
+      const r = await refreshApiV2AuthRefreshPost({ body: { refresh_token: s.refreshToken } })
       if (r.error || !r.data) { logout(); return false }
       applyAuthResponse(r.data)
       return r.data
@@ -127,7 +127,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function registerWithPassword(credentials: RegisterCredentials) {
     loading.value = true
     try {
-      const r = await registerApiV1AuthRegisterPost({ body: credentials })
+      const r = await registerApiV2AuthRegisterPost({ body: credentials })
       if (r.error || !r.data) { errorMessage.value = '注册失败，请检查用户名、邮箱和密码'; throw r.error ?? new Error(errorMessage.value) }
       applyAuthResponse(r.data)
       return r.data
@@ -139,7 +139,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token) throw new Error('未登录')
     loading.value = true
     try {
-      const r = await updateMeApiV1UsersMePatch({ body: payload, headers: createAuthorizationHeader(token) })
+      const r = await updateMeApiV2UsersMePatch({ body: payload, headers: createAuthorizationHeader(token) })
       if (r.error || !r.data) { errorMessage.value = '更新失败'; throw r.error ?? new Error(errorMessage.value) }
       currentUser.value = r.data.user
       if (session.value) { session.value = { ...session.value, displayName: r.data.user.display_name }; saveWorkspaceSession(session.value) }

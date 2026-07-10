@@ -2,11 +2,11 @@
 import { computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 
-import AgentWorkflowPanel from '@/components/workspace/AgentWorkflowPanel.vue'
-import FileWorkbench from '@/components/workspace/FileWorkbench.vue'
-import RagInsightPanel from '@/components/workspace/RagInsightPanel.vue'
-import SummaryStrip from '@/components/workspace/SummaryStrip.vue'
-import TeamAuditPanel from '@/components/workspace/TeamAuditPanel.vue'
+import AgentWorkflowPanel from '@/components/workflow/AgentWorkflowPanel.vue'
+import FileWorkbench from '@/components/files/FileWorkbench.vue'
+import RagInsightPanel from '@/components/rag/RagInsightPanel.vue'
+import SummaryStrip from '@/components/shared/SummaryStrip.vue'
+import TeamAuditPanel from '@/components/team/TeamAuditPanel.vue'
 import type {
   WorkspaceFile,
   WorkspaceFileAnnotationCreateInput,

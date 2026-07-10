@@ -82,7 +82,7 @@ interface ValidationIssue {
 
 const message = useMessage()
 const workspace = useWorkspaceStore()
-const { apiState, summary } = storeToRefs(workspace)
+const { apiState, summary, narrative } = storeToRefs(workspace)
 const { isMobileLayout } = useWorkspaceLayoutMode()
 const { apiStateLabel, apiStateType, navItems } = useWorkspaceNavigation(apiState, 'workflow')
 const workspaceLayout = computed(() => (isMobileLayout.value ? MobileWorkspaceLayout : DesktopWorkspaceLayout))
@@ -110,6 +110,13 @@ const templateOptions = [
   { label: '新文件自动摘要', value: 'summary' },
   { label: '团队周报生成', value: 'weekly' },
   { label: '文件内容比对', value: 'compare' },
+]
+
+const flowTemplateOptions = [
+  { label: '新文件自动摘要', key: 'auto-summary' },
+  { label: '团队周报生成', key: 'team-weekly' },
+  { label: '文件内容比对', key: 'file-compare' },
+  { label: '批量问答', key: 'batch-qa' },
 ]
 
 const triggerOptions = [
@@ -289,16 +296,41 @@ async function runFlow() {
   finally { running.value = false }
 }
 
-function singleStep() {
-  const orderedNodes = [...nodes.value].sort((a, b) => a.position.x - b.position.x)
-  const next = orderedNodes.find((node) => node.data.status === 'idle') ?? orderedNodes[0]
-  if (!next) return
-  next.data.status = next.data.status === 'success' ? 'idle' : 'success'
-  selectedNodeId.value = next.id
-  executionProgress.value = Math.round((orderedNodes.filter((node) => node.data.status === 'success').length / orderedNodes.length) * 100)
+const debugSessionId = ref('')
+function authToken() { const s = JSON.parse(localStorage.getItem('whu-workspace-session')||'{}'); return s.accessToken || '' }
+const debugStepResult = ref<{done?: boolean; node_name?: string; status?: string; remaining?: number} | null>(null)
+
+async function singleStep() {
+  const wfId = activeWorkflowId.value
+  if (!wfId) return
+  try {
+    if (!debugSessionId.value) {
+      const resp = await fetch(`/api/v2/workflows/${wfId}/debug/start`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken()}` },
+        body: JSON.stringify({ fileId: '', targetKbId: null }),
+      })
+      const data = await resp.json()
+      debugSessionId.value = data.session_id
+      message.success('调试会话已启动')
+    }
+    const stepResp = await fetch(`/api/v2/workflows/${wfId}/debug/step`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken()}` },
+      body: JSON.stringify({ session_id: debugSessionId.value }),
+    })
+    const stepData = await stepResp.json()
+    debugStepResult.value = stepData
+    executionProgress.value = Math.round(((stepData.step || 0) / 3) * 100)
+    if (stepData.done) {
+      debugSessionId.value = ''
+      message.success('调试完成')
+    }
+    selectedNodeId.value = `node-${stepData.step || 1}`
+  } catch { message.error('单步调试失败') }
 }
 
 function resetRunState() {
+  debugSessionId.value = ''
+  debugStepResult.value = null
   nodes.value.forEach((node) => (node.data.status = 'idle'))
   executionProgress.value = 0
   activeRunStep.value = 0
@@ -371,6 +403,87 @@ function loadTemplate(value: string) {
   nextTick(() => flow.fitView({ padding: 0.25 }))
 }
 
+function loadFlowTemplate(key: string) {
+  resetRunState()
+
+  if (key === 'auto-summary') {
+    flowName.value = '新文件自动摘要'
+    triggerMode.value = 'file_uploaded'
+    nodes.value = [
+      makeNode('input-1', 'input', '新文件事件', '监听知识库中新上传的文件', 80, 170, { source: 'knowledge-base', event: 'file.created', required: true }, 'input'),
+      makeNode('tool-search', 'tool', '文件检索', '搜索相关文件内容', 360, 110, { tool: 'file_search', timeout: 30, retry: 1 }),
+      makeNode('tool-qa', 'tool', '知识问答', '基于检索结果回答', 650, 110, { tool: 'knowledge_qa', timeout: 60, retry: 2 }),
+      makeNode('output-report', 'output', '报告生成', '生成摘要报告并保存', 940, 170, { format: 'docx', destination: 'team-space', notify: true }, 'output'),
+    ]
+    edges.value = [
+      { id: 'e1', source: 'input-1', target: 'tool-search', animated: true, label: '文件内容', type: 'smoothstep' },
+      { id: 'e2', source: 'tool-search', target: 'tool-qa', animated: true, label: '检索结果', type: 'smoothstep' },
+      { id: 'e3', source: 'tool-qa', target: 'output-report', animated: true, label: '问答结果', type: 'smoothstep' },
+    ]
+  } else if (key === 'team-weekly') {
+    flowName.value = '团队周报生成'
+    triggerMode.value = 'schedule'
+    nodes.value = [
+      makeNode('input-1', 'input', '定时触发器', '每周五自动触发', 80, 170, { cron: '0 18 * * 5', source: 'workspace' }, 'input'),
+      makeNode('tool-search', 'tool', '文件检索', '搜索团队相关文件', 360, 110, { tool: 'file_search', timeout: 30, retry: 1 }),
+      makeNode('tool-activity', 'tool', '团队动态', '收集团队成员活动', 650, 110, { tool: 'team_activity', timeout: 45, retry: 2 }),
+      makeNode('output-report', 'output', '报告生成', '生成团队周报', 940, 170, { format: 'docx', destination: 'team-channel', notify: true }, 'output'),
+    ]
+    edges.value = [
+      { id: 'e1', source: 'input-1', target: 'tool-search', animated: true, label: '定时触发', type: 'smoothstep' },
+      { id: 'e2', source: 'tool-search', target: 'tool-activity', animated: true, label: '检索结果', type: 'smoothstep' },
+      { id: 'e3', source: 'tool-activity', target: 'output-report', animated: true, label: '动态汇总', type: 'smoothstep' },
+    ]
+  } else if (key === 'file-compare') {
+    flowName.value = '文件内容比对'
+    triggerMode.value = 'manual'
+    nodes.value = [
+      makeNode('input-1', 'input', '选择文件', '选择待比对文件', 80, 170, { source: 'manual', required: true }, 'input'),
+      makeNode('tool-compare', 'tool', '文件内容比对', '比对两个文件差异', 360, 110, { tool: 'file_compare', timeout: 60, retry: 2 }),
+      makeNode('output-diff', 'output', '差异报告', '生成比对差异报告', 650, 170, { format: 'docx', destination: 'review-folder', notify: false }, 'output'),
+    ]
+    edges.value = [
+      { id: 'e1', source: 'input-1', target: 'tool-compare', animated: true, label: '文件组', type: 'smoothstep' },
+      { id: 'e2', source: 'tool-compare', target: 'output-diff', animated: true, label: '比对结果', type: 'smoothstep' },
+    ]
+  } else if (key === 'batch-qa') {
+    flowName.value = '批量问答'
+    triggerMode.value = 'manual'
+    nodes.value = [
+      makeNode('input-1', 'input', '问题输入', '输入批量问题列表', 80, 170, { source: 'manual', required: true }, 'input'),
+      makeNode('tool-search', 'tool', '文件检索', '检索知识库相关文件', 360, 110, { tool: 'file_search', timeout: 30, retry: 1 }),
+      makeNode('output-qa', 'output', '问答输出', '生成批量问答结果', 650, 170, { format: '', destination: 'team-space', notify: false }, 'output'),
+    ]
+    edges.value = [
+      { id: 'e1', source: 'input-1', target: 'tool-search', animated: true, label: '问题列表', type: 'smoothstep' },
+      { id: 'e2', source: 'tool-search', target: 'output-qa', animated: true, label: '检索结果', type: 'smoothstep' },
+    ]
+  }
+
+  selectedNodeId.value = nodes.value[0]?.id ?? null
+  nextTick(() => flow.fitView({ padding: 0.25 }))
+}
+
+function stepColor(type: string) {
+  switch (type) {
+    case 'thought': return '#7c3aed'
+    case 'action': return '#246bfe'
+    case 'observation': return '#ea580c'
+    case 'answer': return '#16a34a'
+    default: return '#64748b'
+  }
+}
+
+function stepTypeLabel(type: string) {
+  switch (type) {
+    case 'thought': return '思考'
+    case 'action': return '动作'
+    case 'observation': return '观察'
+    case 'answer': return '回答'
+    default: return type
+  }
+}
+
 function hasCycle() {
   const graph = new Map<string, string[]>()
   nodes.value.forEach((node) => graph.set(node.id, []))
@@ -400,40 +513,41 @@ function wait(ms: number) {
 </script>
 
 <template>
-  <component
-    :is="workspaceLayout"
-    :api-state-label="apiStateLabel"
-    :api-state-type="apiStateType"
-    :nav-items="navItems"
-    :unread-notifications="summary.unread_notifications"
-    page-title="工具流编排"
-  >
+  <component :is="workspaceLayout" :api-state-label="apiStateLabel" :api-state-type="apiStateType" :nav-items="navItems"
+    :unread-notifications="summary.unread_notifications" page-title="工具流编排">
     <section class="workflow-builder">
       <div class="builder-heading">
-        <div>
-          <RouterLink class="btn-secondary no-underline" to="/">
-            <NIcon aria-hidden="true" class="mr-1.5"><ArrowLeft /></NIcon>
-            返回工作台
-          </RouterLink>
-          <p class="eyebrow">可视化工具流编排</p>
-          <h2>工具流流程设计器</h2>
-          <span>基于 Vue Flow 的拖拽式流程编辑器，支持节点、连线、模板、校验和调试。</span>
-        </div>
         <NSpace align="center">
           <NSelect v-model:value="triggerMode" :options="triggerOptions" class="trigger-select" />
           <NButton circle secondary @click="showVersionDrawer = true">
-            <template #icon><NIcon><History /></NIcon></template>
+            <template #icon>
+              <NIcon>
+                <History />
+              </NIcon>
+            </template>
           </NButton>
           <NButton secondary type="info" @click="showJson = true">
-            <template #icon><NIcon><Download /></NIcon></template>
+            <template #icon>
+              <NIcon>
+                <Download />
+              </NIcon>
+            </template>
             定义
           </NButton>
           <NButton secondary type="primary" @click="saveFlow">
-            <template #icon><NIcon><Save /></NIcon></template>
+            <template #icon>
+              <NIcon>
+                <Save />
+              </NIcon>
+            </template>
             保存
           </NButton>
           <NButton type="primary" :loading="running" @click="runFlow">
-            <template #icon><NIcon><Play /></NIcon></template>
+            <template #icon>
+              <NIcon>
+                <Play />
+              </NIcon>
+            </template>
             执行
           </NButton>
         </NSpace>
@@ -447,7 +561,8 @@ function wait(ms: number) {
 
           <NCard size="small" title="节点库" :bordered="false" class="builder-card">
             <div class="node-palette">
-              <button v-for="item in nodePresets" :key="item.kind" class="palette-item" draggable="true" @dragstart="onDragStart($event, item)" @click="addPresetNode(item)">
+              <button v-for="item in nodePresets" :key="item.kind" class="palette-item" draggable="true"
+                @dragstart="onDragStart($event, item)" @click="addPresetNode(item)">
                 <span class="palette-icon" :style="{ color: item.color, backgroundColor: `${item.color}14` }">
                   <NIcon :component="item.icon" />
                 </span>
@@ -458,7 +573,8 @@ function wait(ms: number) {
           </NCard>
 
           <NCard size="small" title="校验状态" :bordered="false" class="builder-card">
-            <NAlert :type="hasBlockingIssue ? 'error' : validationIssues.length ? 'warning' : 'success'" :show-icon="false">
+            <NAlert :type="hasBlockingIssue ? 'error' : validationIssues.length ? 'warning' : 'success'"
+              :show-icon="false">
               {{ validationSummary }}
             </NAlert>
             <div v-if="validationIssues.length" class="issue-list">
@@ -473,19 +589,31 @@ function wait(ms: number) {
         <main class="builder-main">
           <div class="builder-toolbar">
             <NInput v-model:value="flowName" size="large" class="title-input" />
+            <NDropdown trigger="click" :options="flowTemplateOptions" @select="loadFlowTemplate">
+              <NButton secondary>
+                <template #icon>
+                  <NIcon>
+                    <Workflow />
+                  </NIcon>
+                </template>
+                模板
+              </NButton>
+            </NDropdown>
             <NTag type="info" round>{{ currentVersion }}</NTag>
             <NTag :type="hasBlockingIssue ? 'error' : 'success'" round>{{ hasBlockingIssue ? '待修复' : '可执行' }}</NTag>
           </div>
 
           <div class="canvas-area" :style="canvasAreaStyle" @drop="onDrop" @dragover.prevent>
-            <VueFlow v-model:nodes="nodes" v-model:edges="edges" :default-viewport="{ zoom: 0.92, x: 40, y: 28 }" :fit-view-on-init="true" class="workflow-canvas" @node-click="onNodeClick">
+            <VueFlow v-model:nodes="nodes" v-model:edges="edges" :default-viewport="{ zoom: 0.92, x: 40, y: 28 }"
+              :fit-view-on-init="true" class="workflow-canvas" @node-click="onNodeClick">
               <Background pattern-color="#d6e0ee" :gap="18" />
               <MiniMap pannable zoomable />
               <Controls />
               <template #node-default="nodeProps">
                 <div class="custom-node" :class="`status-${nodeProps.data.status}`">
                   <div class="node-head">
-                    <span class="node-icon" :style="{ color: nodeColor(nodeProps.data.kind), backgroundColor: `${nodeColor(nodeProps.data.kind)}16` }">
+                    <span class="node-icon"
+                      :style="{ color: nodeColor(nodeProps.data.kind), backgroundColor: `${nodeColor(nodeProps.data.kind)}16` }">
                       <NIcon :component="nodeIcon(nodeProps.data.kind)" />
                     </span>
                     <span>{{ nodeProps.data.label }}</span>
@@ -496,14 +624,18 @@ function wait(ms: number) {
               </template>
               <template #node-input="nodeProps">
                 <div class="custom-node input-node" :class="`status-${nodeProps.data.status}`">
-                  <div class="node-head"><FileInput :size="18" />{{ nodeProps.data.label }}</div>
+                  <div class="node-head">
+                    <FileInput :size="18" />{{ nodeProps.data.label }}
+                  </div>
                   <p>{{ nodeProps.data.description }}</p>
                   <NTag size="small" type="info" :bordered="false">输入</NTag>
                 </div>
               </template>
               <template #node-output="nodeProps">
                 <div class="custom-node output-node" :class="`status-${nodeProps.data.status}`">
-                  <div class="node-head"><UploadCloud :size="18" />{{ nodeProps.data.label }}</div>
+                  <div class="node-head">
+                    <UploadCloud :size="18" />{{ nodeProps.data.label }}
+                  </div>
                   <p>{{ nodeProps.data.description }}</p>
                   <NTag size="small" type="success" :bordered="false">输出</NTag>
                 </div>
@@ -528,7 +660,12 @@ function wait(ms: number) {
                 <NStatistic label="执行进度" :value="`${executionProgress}%`" />
                 <NProgress type="line" :percentage="executionProgress" :show-indicator="false" />
                 <NSpace class="run-actions">
-                  <NButton size="small" secondary @click="singleStep"><template #icon><NIcon><Bug /></NIcon></template>单步调试</NButton>
+                  <NButton size="small" secondary @click="singleStep"><template #icon>
+                      <NIcon>
+                        <Bug />
+                      </NIcon>
+                    </template>单步调试
+                  </NButton>
                   <NButton size="small" quaternary @click="resetRunState">重置</NButton>
                 </NSpace>
               </NCard>
@@ -536,18 +673,29 @@ function wait(ms: number) {
               <NCard size="small" title="节点参数" :bordered="false" class="builder-card grow-card">
                 <template v-if="selectedData">
                   <NThing>
-                    <template #avatar><span class="detail-icon" :style="{ color: nodeColor(selectedData.kind), backgroundColor: `${nodeColor(selectedData.kind)}16` }"><NIcon :component="nodeIcon(selectedData.kind)" /></span></template>
+                    <template #avatar><span class="detail-icon"
+                        :style="{ color: nodeColor(selectedData.kind), backgroundColor: `${nodeColor(selectedData.kind)}16` }">
+                        <NIcon :component="nodeIcon(selectedData.kind)" />
+                      </span></template>
                     <template #header>{{ selectedData.label }}</template>
                     <template #description>{{ selectedData.description }}</template>
                   </NThing>
                   <NDivider />
                   <NForm label-placement="top" size="small">
-                    <NFormItem label="节点名称"><NInput v-model:value="selectedData.label" /></NFormItem>
-                    <NFormItem label="说明"><NInput v-model:value="selectedData.description" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }" /></NFormItem>
+                    <NFormItem label="节点名称">
+                      <NInput v-model:value="selectedData.label" />
+                    </NFormItem>
+                    <NFormItem label="说明">
+                      <NInput v-model:value="selectedData.description" type="textarea"
+                        :autosize="{ minRows: 2, maxRows: 4 }" />
+                    </NFormItem>
                     <NFormItem v-for="(value, key) in selectedParams" :key="key" :label="String(key)">
-                      <NSwitch v-if="typeof value === 'boolean'" :value="value" @update:value="updateParam(String(key), $event)" />
-                      <NInputNumber v-else-if="typeof value === 'number'" :value="value" @update:value="updateParam(String(key), $event ?? 0)" />
-                      <NDynamicInput v-else-if="Array.isArray(value)" :value="value" @update:value="updateParam(String(key), $event.map(String))" />
+                      <NSwitch v-if="typeof value === 'boolean'" :value="value"
+                        @update:value="updateParam(String(key), $event)" />
+                      <NInputNumber v-else-if="typeof value === 'number'" :value="value"
+                        @update:value="updateParam(String(key), $event ?? 0)" />
+                      <NDynamicInput v-else-if="Array.isArray(value)" :value="value"
+                        @update:value="updateParam(String(key), $event.map(String))" />
                       <NInput v-else :value="String(value)" @update:value="updateParam(String(key), $event)" />
                     </NFormItem>
                   </NForm>
@@ -555,9 +703,36 @@ function wait(ms: number) {
                 <NEmpty v-else description="选择一个节点查看参数" />
               </NCard>
 
-              <NCard size="small" title="实时执行" :bordered="false" class="builder-card">
-                <NSteps vertical size="small" :current="activeRunStep" :status="running ? 'process' : executionProgress === 100 ? 'finish' : 'wait'">
-                  <NStep v-for="node in [...nodes].sort((a, b) => a.position.x - b.position.x)" :key="node.id" :title="node.data.label" :description="node.data.status" />
+              <NCard size="small" title="执行步骤" :bordered="false" class="builder-card">
+                <template v-if="narrative.agentSteps.length">
+                  <div class="agent-steps-timeline">
+                    <div v-for="(step, idx) in narrative.agentSteps" :key="idx" class="agent-step-item">
+                      <div class="step-marker" :style="{
+                        borderColor: stepColor(step.type),
+                        backgroundColor: `${stepColor(step.type)}18`,
+                      }">
+                        <span class="step-dot" :style="{ backgroundColor: stepColor(step.type) }" />
+                      </div>
+                      <div class="step-detail">
+                        <div class="step-header">
+                          <span class="step-badge"
+                            :style="{ backgroundColor: stepColor(step.type), color: '#fff' }">
+                            {{ stepTypeLabel(step.type) }}
+                          </span>
+                          <span class="step-title">{{ step.title }}</span>
+                          <NTag v-if="step.type === 'action' && step.tool_name" size="tiny" :bordered="false" type="info">
+                            工具: {{ step.tool_name }}
+                          </NTag>
+                        </div>
+                        <p class="step-content">{{ step.content }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+                <NSteps v-else vertical size="small" :current="activeRunStep"
+                  :status="running ? 'process' : executionProgress === 100 ? 'finish' : 'wait'">
+                  <NStep v-for="node in [...nodes].sort((a, b) => a.position.x - b.position.x)" :key="node.id"
+                    :title="node.data.label" :description="node.data.status" />
                 </NSteps>
               </NCard>
             </div>
@@ -566,7 +741,9 @@ function wait(ms: number) {
       </div>
     </section>
 
-    <NModal v-model:show="showJson" preset="card" title="流程定义 JSON" class="json-modal"><pre>{{ jsonDefinition }}</pre></NModal>
+    <NModal v-model:show="showJson" preset="card" title="流程定义 JSON" class="json-modal">
+      <pre>{{ jsonDefinition }}</pre>
+    </NModal>
 
     <NDrawer v-model:show="showVersionDrawer" :width="360">
       <NDrawerContent title="版本记录">
@@ -579,56 +756,453 @@ function wait(ms: number) {
 </template>
 
 <style scoped>
-.workflow-builder { display: grid; gap: 4px; }
-.builder-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
-.builder-heading .eyebrow { margin: 14px 0 4px; color: #64748b; font-size: 13px; }
-.builder-heading h2 { margin: 0; color: #172033; font-size: 30px; font-weight: 800; line-height: 1.2; }
-.builder-heading span { display: block; margin-top: 6px; color: #64748b; font-size: 14px; }
-.builder-shell { display: grid; grid-template-columns: 292px minmax(0, 1fr); gap: 14px; align-items: stretch; min-height: 0; }
-.builder-sidebar { display: grid; align-content: start; gap: 12px; min-width: 0; }
-.builder-main { min-width: 0; overflow: hidden; border: 1px solid #d8e0ea; border-radius: 8px; background: #fff; box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08); }
-.builder-toolbar { display: flex; gap: 10px; align-items: center; padding: 12px; border-bottom: 1px solid #e8eef6; background: rgba(255, 255, 255, 0.95); }
-.builder-card { overflow: hidden; border: 1px solid #e8eef6; border-radius: 8px; box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045); }
-.title-input { width: 340px; }
-.trigger-select { width: 168px; }
-.node-palette { display: grid; gap: 10px; }
-.palette-item { display: grid; grid-template-columns: 38px 1fr 18px; gap: 10px; align-items: center; width: 100%; padding: 10px; color: #334155; text-align: left; cursor: grab; background: linear-gradient(180deg, #ffffff, #f8fafc); border: 1px solid #e8eef6; border-radius: 8px; transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
-.palette-item:hover { border-color: #93c5fd; box-shadow: 0 8px 18px rgba(37, 99, 235, 0.1); transform: translateY(-1px); }
-.palette-icon, .detail-icon, .node-icon { display: grid; place-items: center; border-radius: 8px; }
-.palette-icon { width: 36px; height: 36px; font-size: 20px; }
-.palette-item strong, .palette-item small { display: block; }
-.palette-item strong { color: #1e293b; font-size: 14px; font-weight: 750; }
-.palette-item small { margin-top: 2px; color: #64748b; line-height: 1.35; }
-.issue-list { display: grid; gap: 8px; margin-top: 12px; }
-.issue-row { display: flex; gap: 8px; align-items: flex-start; color: #475569; font-size: 12px; }
-.canvas-area { width: 100%; min-width: 0; min-height: 420px; padding: 12px 12px 0; }
-.workflow-canvas { overflow: hidden; width: 100%; height: 100%; background: linear-gradient(rgba(36, 107, 254, 0.025), rgba(36, 107, 254, 0.025)), #fbfdff; border: 1px solid #d8e0ea; border-radius: 8px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85); }
-.debug-entry { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; background: rgba(255, 255, 255, 0.94); border-top: 1px solid #e8eef6; }
-.debug-entry strong { display: block; color: #172033; font-size: 15px; font-weight: 800; }
-.debug-entry span { display: block; margin-top: 2px; color: #64748b; font-size: 12px; }
-.debug-panel { position: relative; overflow: auto; min-height: 240px; max-height: 460px; background: #fff; border-top: 1px solid #d8e0ea; box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.055); }
-.resize-handle { position: sticky; top: 0; z-index: 4; height: 10px; cursor: row-resize; background: #fff; }
-.resize-handle::after { position: absolute; top: 4px; left: 50%; width: 56px; height: 2px; content: ''; background: #cbd5e1; border-radius: 999px; transform: translateX(-50%); }
-.resize-handle:hover::after { background: #246bfe; }
-.debug-panel-body { display: grid; grid-template-columns: 280px minmax(320px, 1fr) 320px; gap: 12px; padding: 0 12px 12px; }
-.grow-card { min-height: 300px; }
-.run-actions { margin-top: 12px; }
-.detail-icon { width: 40px; height: 40px; font-size: 22px; }
-.custom-node { width: 230px; padding: 13px; color: #172033; background: rgba(255, 255, 255, 0.96); border: 1px solid #cbd5e1; border-left: 5px solid #246bfe; border-radius: 8px; box-shadow: 0 16px 34px rgba(30, 41, 59, 0.14); backdrop-filter: blur(8px); }
-.input-node { border-left-color: #0f766e; }
-.output-node { border-left-color: #16a34a; }
-.status-running { box-shadow: 0 0 0 4px rgba(36, 107, 254, 0.16), 0 16px 34px rgba(30, 41, 59, 0.14); }
-.status-success { border-color: #86efac; background: #f0fdf4; }
-.status-error { border-color: #fecaca; background: #fef2f2; }
-.node-head { display: flex; gap: 9px; align-items: center; color: #172033; font-weight: 800; }
-.node-icon { width: 30px; height: 30px; font-size: 16px; }
-.custom-node p { min-height: 40px; margin: 9px 0 10px; color: #64748b; font-size: 12px; line-height: 1.55; }
-.json-modal { width: min(900px, 92vw); }
-.json-modal pre { overflow: auto; max-height: 62vh; padding: 14px; color: #dbeafe; background: #0f172a; border-radius: 8px; }
-:deep(.vue-flow__node.selected .custom-node) { border-color: #246bfe; box-shadow: 0 0 0 4px rgba(36, 107, 254, 0.16), 0 18px 36px rgba(15, 23, 42, 0.16); }
-:deep(.vue-flow__edge-path) { stroke: #64748b; stroke-width: 2; }
-:deep(.vue-flow__edge.animated path) { stroke: #246bfe; }
-:deep(.vue-flow__controls) { overflow: hidden; border: 1px solid #d8e0ea; border-radius: 8px; box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08); }
-:deep(.vue-flow__minimap) { overflow: hidden; border: 1px solid #e8eef6; border-radius: 8px; box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08); }
-@media (max-width: 1100px) { .builder-heading { align-items: flex-start; flex-direction: column; } .builder-shell { grid-template-columns: 1fr; } .canvas-area { height: 620px !important; } .debug-entry { align-items: flex-start; flex-direction: column; } .debug-panel { height: auto !important; max-height: none; } .debug-panel-body { grid-template-columns: 1fr; } .resize-handle { display: none; } }
+.workflow-builder {
+  display: grid;
+  gap: 4px;
+}
+
+.builder-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.builder-heading .eyebrow {
+  margin: 14px 0 4px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.builder-heading h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.builder-heading span {
+  display: block;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.builder-shell {
+  display: grid;
+  grid-template-columns: 292px minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.builder-sidebar {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.builder-main {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+}
+
+.builder-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #e8eef6;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.builder-card {
+  overflow: hidden;
+  border: 1px solid #e8eef6;
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
+}
+
+.title-input {
+  width: 340px;
+}
+
+.trigger-select {
+  width: 168px;
+}
+
+.node-palette {
+  display: grid;
+  gap: 10px;
+}
+
+.palette-item {
+  display: grid;
+  grid-template-columns: 38px 1fr 18px;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 10px;
+  color: #334155;
+  text-align: left;
+  cursor: grab;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid #e8eef6;
+  border-radius: 8px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.palette-item:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.1);
+  transform: translateY(-1px);
+}
+
+.palette-icon,
+.detail-icon,
+.node-icon {
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+}
+
+.palette-icon {
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+}
+
+.palette-item strong,
+.palette-item small {
+  display: block;
+}
+
+.palette-item strong {
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.palette-item small {
+  margin-top: 2px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.issue-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.issue-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: #475569;
+  font-size: 12px;
+}
+
+.canvas-area {
+  width: 100%;
+  min-width: 0;
+  min-height: 420px;
+  padding: 12px 12px 0;
+}
+
+.workflow-canvas {
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(rgba(36, 107, 254, 0.025), rgba(36, 107, 254, 0.025)), #fbfdff;
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.debug-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.94);
+  border-top: 1px solid #e8eef6;
+}
+
+.debug-entry strong {
+  display: block;
+  color: #172033;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.debug-entry span {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.debug-panel {
+  position: relative;
+  overflow: auto;
+  min-height: 240px;
+  max-height: 460px;
+  background: #fff;
+  border-top: 1px solid #d8e0ea;
+  box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.055);
+}
+
+.resize-handle {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  height: 10px;
+  cursor: row-resize;
+  background: #fff;
+}
+
+.resize-handle::after {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 56px;
+  height: 2px;
+  content: '';
+  background: #cbd5e1;
+  border-radius: 999px;
+  transform: translateX(-50%);
+}
+
+.resize-handle:hover::after {
+  background: #246bfe;
+}
+
+.debug-panel-body {
+  display: grid;
+  grid-template-columns: 280px minmax(320px, 1fr) 320px;
+  gap: 12px;
+  padding: 0 12px 12px;
+}
+
+.grow-card {
+  min-height: 300px;
+}
+
+.run-actions {
+  margin-top: 12px;
+}
+
+.detail-icon {
+  width: 40px;
+  height: 40px;
+  font-size: 22px;
+}
+
+.custom-node {
+  width: 230px;
+  padding: 13px;
+  color: #172033;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #cbd5e1;
+  border-left: 5px solid #246bfe;
+  border-radius: 8px;
+  box-shadow: 0 16px 34px rgba(30, 41, 59, 0.14);
+  backdrop-filter: blur(8px);
+}
+
+.input-node {
+  border-left-color: #0f766e;
+}
+
+.output-node {
+  border-left-color: #16a34a;
+}
+
+.status-running {
+  box-shadow: 0 0 0 4px rgba(36, 107, 254, 0.16), 0 16px 34px rgba(30, 41, 59, 0.14);
+}
+
+.status-success {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.status-error {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.node-head {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  color: #172033;
+  font-weight: 800;
+}
+
+.node-icon {
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+}
+
+.custom-node p {
+  min-height: 40px;
+  margin: 9px 0 10px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.json-modal {
+  width: min(900px, 92vw);
+}
+
+.json-modal pre {
+  overflow: auto;
+  max-height: 62vh;
+  padding: 14px;
+  color: #dbeafe;
+  background: #0f172a;
+  border-radius: 8px;
+}
+
+:deep(.vue-flow__node.selected .custom-node) {
+  border-color: #246bfe;
+  box-shadow: 0 0 0 4px rgba(36, 107, 254, 0.16), 0 18px 36px rgba(15, 23, 42, 0.16);
+}
+
+:deep(.vue-flow__edge-path) {
+  stroke: #64748b;
+  stroke-width: 2;
+}
+
+:deep(.vue-flow__edge.animated path) {
+  stroke: #246bfe;
+}
+
+:deep(.vue-flow__controls) {
+  overflow: hidden;
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+:deep(.vue-flow__minimap) {
+  overflow: hidden;
+  border: 1px solid #e8eef6;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.agent-steps-timeline {
+  display: grid;
+  gap: 0;
+}
+
+.agent-step-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.agent-step-item:not(:last-child) {
+  border-left: 2px solid #e8eef6;
+  margin-left: 7px;
+  padding-left: 23px;
+}
+
+.step-marker {
+  position: relative;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  margin-left: -8px;
+  border: 2px solid;
+  border-radius: 50%;
+}
+
+.step-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.step-detail {
+  flex: 1;
+  min-width: 0;
+}
+
+.step-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.step-badge {
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.step-title {
+  color: #172033;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.step-content {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1100px) {
+  .builder-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .builder-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas-area {
+    height: 620px !important;
+  }
+
+  .debug-entry {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .debug-panel {
+    height: auto !important;
+    max-height: none;
+  }
+
+  .debug-panel-body {
+    grid-template-columns: 1fr;
+  }
+
+  .resize-handle {
+    display: none;
+  }
+}
 </style>

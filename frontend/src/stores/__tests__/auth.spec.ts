@@ -3,28 +3,28 @@ import { createPinia, setActivePinia } from 'pinia'
 
 import { createAuthorizationHeader, loadStoredWorkspaceSession } from '@/auth'
 import {
-  loginApiV1AuthLoginPost,
-  meApiV1UsersMeGet,
-  refreshApiV1AuthRefreshPost,
-  registerApiV1AuthRegisterPost,
-  updateMeApiV1UsersMePatch,
+  loginApiV2AuthLoginPost,
+  meApiV2UsersMeGet,
+  refreshApiV2AuthRefreshPost,
+  registerApiV2AuthRegisterPost,
+  updateMeApiV2UsersMePatch,
 } from '@/client/generated'
 import type { ErrorResponse } from '@/client/generated'
 import { useAuthStore } from '../auth'
 
 vi.mock('@/client/generated', () => ({
-  loginApiV1AuthLoginPost: vi.fn(),
-  meApiV1UsersMeGet: vi.fn(),
-  refreshApiV1AuthRefreshPost: vi.fn(),
-  registerApiV1AuthRegisterPost: vi.fn(),
-  updateMeApiV1UsersMePatch: vi.fn(),
+  loginApiV2AuthLoginPost: vi.fn(),
+  meApiV2UsersMeGet: vi.fn(),
+  refreshApiV2AuthRefreshPost: vi.fn(),
+  registerApiV2AuthRegisterPost: vi.fn(),
+  updateMeApiV2UsersMePatch: vi.fn(),
 }))
 
-const loginApi = vi.mocked(loginApiV1AuthLoginPost)
-const meApi = vi.mocked(meApiV1UsersMeGet)
-const refreshApi = vi.mocked(refreshApiV1AuthRefreshPost)
-const registerApi = vi.mocked(registerApiV1AuthRegisterPost)
-const updateMeApi = vi.mocked(updateMeApiV1UsersMePatch)
+const loginApi = vi.mocked(loginApiV2AuthLoginPost)
+const meApi = vi.mocked(meApiV2UsersMeGet)
+const refreshApi = vi.mocked(refreshApiV2AuthRefreshPost)
+const registerApi = vi.mocked(registerApiV2AuthRegisterPost)
+const updateMeApi = vi.mocked(updateMeApiV2UsersMePatch)
 
 describe('auth store', () => {
   beforeEach(() => {

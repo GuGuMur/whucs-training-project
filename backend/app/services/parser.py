@@ -53,14 +53,12 @@ def chunk_text(text: str, chunk_size: int = 512, overlap: int = 128) -> list[str
 
 
 _FORMAT_ALIASES = {
-    "pdf": "pdf",
-    "docx": "docx",
-    "pptx": "pptx",
-    "txt": "text",
-    "text": "text",
-    "md": "markdown",
-    "markdown": "markdown",
+    "pdf": "pdf", "docx": "docx", "pptx": "pptx",
+    "txt": "text", "text": "text",
+    "md": "markdown", "markdown": "markdown",
     "csv": "csv",
+    "jpg": "image", "jpeg": "image", "png": "image",
+    "gif": "image", "bmp": "image", "webp": "image", "tiff": "image",
 }
 
 
@@ -72,31 +70,39 @@ def _format_for(filename: str, declared_type: str | None = None) -> str:
     return resolved
 
 
-def _ocr_fallback(content: bytes) -> str:
-    """Try OCR on scanned PDF pages. Returns extracted text or raises ParseError."""
+def _ocr_fallback(content: bytes, *, is_image: bool = False) -> str:
+    """Try OCR on images or scanned PDFs."""
     try:
-        from paddleocr import PaddleOCR  # noqa: F811 - lazy import
-
+        from paddleocr import PaddleOCR
         ocr = PaddleOCR(lang="ch", use_angle_cls=False, show_log=False)
-        import fitz
-
-        doc = fitz.open(stream=content, filetype="pdf")
-        texts: list[str] = []
-        for page in doc:
-            pix = page.get_pixmap(dpi=200)
-            result = ocr.ocr(pix.tobytes("png"), cls=False)
+        if is_image:
+            result = ocr.ocr(content, cls=False)
             if result and result[0]:
-                texts.extend(line[1][0] for line in result[0])
-        doc.close()
-        if not texts:
-            raise ParseError("OCR 未识别出文字")
-        return "\n".join(texts)
-    except ImportError:
-        raise ParseError("OCR 服务不可用（PaddleOCR 未安装），请安装 paddlepaddle 后重试")
-    except ParseError:
-        raise
-    except Exception as exc:
-        raise ParseError(f"OCR 识别失败: {exc}") from exc
+                texts = [line[1][0] for line in result[0]]
+                return "\n".join(texts) if texts else ""
+        else:
+            import fitz
+            doc = fitz.open(stream=content, filetype="pdf")
+            texts = []
+            for page in doc:
+                pix = page.get_pixmap(dpi=200)
+                result = ocr.ocr(pix.tobytes("png"), cls=False)
+                if result and result[0]:
+                    texts.extend(line[1][0] for line in result[0])
+            doc.close()
+            if texts: return "\n".join(texts)
+    except ImportError: pass
+
+    try:
+        import pytesseract
+        from PIL import Image
+        import io
+        img = Image.open(io.BytesIO(content))
+        text = pytesseract.image_to_string(img, lang="chi_sim+eng")
+        if text.strip(): return text.strip()
+    except Exception: pass
+
+    raise ParseError("OCR 未识别出文字（需要安装 paddleocr 或 tesseract）")
 
 
 def _block_to_segments(text: str, *, base_page: int = 1) -> list[ParsedSegment]:

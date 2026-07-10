@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T02:50:42.131Z
-> Files: 127 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T13:21:21.185Z
+> Files: 180 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../.claude/plans/
 
@@ -25,6 +25,10 @@
 
 - `openwolf.md` (~313 tok)
 
+## .github/workflows/
+
+- `ci.yml` — CI: CI (~297 tok)
+
 ## .wolf/
 
 - `anatomy.md` — Auto-maintained project file index and token estimates (~1200 tok)
@@ -38,7 +42,7 @@
 - `.gitignore` — Python/uv generated ignore rules for bytecode, virtualenvs, build outputs, caches, and local env files (~700 tok)
 - `app/__init__.py` — Backend package marker (~10 tok)
 - `app/api/__init__.py` — API package marker (~10 tok)
-- `app/api/routes.py` — FastAPI `/api/v1` routes for auth login/register/refresh, current-user profile update, folders, files, annotations, notifications, RAG, tools, agents, workflows, teams, permission rules, audit, and snapshot (~2900 tok)
+- `app/api/routes.py` — Legacy monolithic FastAPI `/api/v1` routes (deprecated in favor of v1/ split) (~2900 tok)
 - `app/domain/__init__.py` — Domain schema package marker (~10 tok)
 - `app/domain/schemas.py` — Pydantic request/response schemas for the MVP API contracts, including auth login/register/refresh/profile, folder/file payloads, annotations, notifications, teams, workflows, knowledge bases, and permission rules (~3400 tok)
 - `app/main.py` — FastAPI application factory, CORS, health route, and structured workspace error handler (~350 tok)
@@ -53,17 +57,72 @@
 - `tests/test_parser.py` — Parser unit tests: 21 tests covering 6 formats (PDF/DOCX/PPTX/TXT/MD/CSV), format detection, error handling, and segment metadata (~400 tok)
 - `tests/test_workspace_api.py` — Backend API contract tests for auth, refresh-token/profile boundaries, folder CRUD/tree validations, file lifecycle/versioning, files, annotations, notifications, RAG, agent tools, workflow MVP, team RBAC, and ACL permission rules (~4200 tok)
 
+## backend/alembic/
+
+- `env.py` — this is the Alembic Config object, which provides (~680 tok)
+
+## backend/app/
+
+- `main.py` — API: 1 endpoints (~1173 tok)
+- `openapi_export.py` — export_openapi, main (~229 tok)
+
 ## backend/app/api/
 
-- `routes.py` — current_user, register, login, refresh (~6640 tok)
+- `routes.py` — Legacy monolithic routes file (deprecated in favor of v1/ split) (~6965 tok)
+
+## backend/app/api/v1/
+
+- `__init__.py` — Aggregator APIRouter(prefix="/api/v1") including all domain routers (~200 tok)
+- `admin.py` — Permission rules CRUD, notifications, audit logs, workspace snapshot, WebSocket (~800 tok)
+- `auth.py` — current_user dependency, register/login/refresh, users/me profile endpoints (~300 tok)
+- `files.py` — File CRUD, upload/multipart upload, annotations, share links, download, versions, recycle bin (~2200 tok)
+- `folders.py` — Folder tree, create/update/delete folder endpoints (~200 tok)
+- `knowledge.py` — Knowledge base CRUD, document management, QA query/stream, tools, agent tasks (~600 tok)
+- `teams.py` — Team CRUD, messages, invites, members, join/leave endpoints (~800 tok)
+- `workflow.py` — Workflow CRUD, validate, publish, execute endpoints (~400 tok)
+
+## backend/app/api/v2/
+
+- `__init__.py` (~230 tok)
+- `_deps.py` — WorkspaceServiceDB factory (get_svc) and current_user JWT dependency (~450 tok)
+- `admin.py` — API: 6 endpoints (~730 tok)
+- `auth.py` — API: 5 endpoints (~684 tok)
+- `files.py` — API: 19 endpoints (~2341 tok)
+- `folders.py` — API: 4 endpoints (~463 tok)
+- `general.py` — API: 2 endpoints, workspace snapshot and health (~250 tok)
+- `knowledge.py` — API: 8 endpoints (~941 tok)
+- `teams.py` — API: 12 endpoints (~1334 tok)
+- `workflow.py` — API: 6 endpoints (~721 tok)
+
+## backend/app/core/
+
+- `config.py` — Declares Settings (~264 tok)
+
+## backend/app/domain/
+
+- `__init__.py` — Domain schemas for API contracts. (~690 tok)
+- `auth.py` — Pydantic: UserCreate (~300 tok)
+- `common.py` — Pydantic: ErrorResponse (~700 tok)
+- `file.py` — Pydantic: FileItem (~1003 tok)
+- `folder.py` — Pydantic: FolderItem (~206 tok)
+- `knowledge.py` — Pydantic: Citation (~503 tok)
+- `schemas.py` — Backward-compatible re-exports from domain-specific schema modules. (~746 tok)
+- `team.py` — Pydantic: TeamMessageCreate (~666 tok)
+- `workflow.py` — Pydantic: ToolDefinition (~1073 tok)
+
+## backend/app/models/
+
+- `file.py` — Declares File (~650 tok)
+- `folder.py` — Declares Folder (~365 tok)
 
 ## backend/app/services/
 
 - `embedding.py` — Semantic embedding service wrapping sentence-transformers. (~576 tok)
-- `llm.py` — LLM service wrapping OpenAI-compatible APIs with graceful fallback. (~1125 tok)
-- `parser.py` — Multi-format document text extraction for the knowledge-base pipeline. (~2266 tok)
+- `llm.py` — LLM service — OpenAI-compatible multi-provider with graceful fallback. (~1261 tok)
+- `parser.py` — Multi-format document text extraction for the knowledge-base pipeline. (~2386 tok)
 - `websocket_manager.py` — WebSocket connection manager for real-time push. (~424 tok)
-- `workspace.py` — WorkspaceError: register_user, login_user, refresh_session, require_user + 2 more (~35125 tok)
+- `workspace_db.py` — WorkspaceService backed by SQLAlchemy — full DB migration. (~7167 tok)
+- `workspace.py` — WorkspaceError: register_user, register_user_db, login_user (~37009 tok)
 
 ## backend/tests/
 
@@ -71,6 +130,10 @@
 - `test_llm.py` — Tests for the LLM service with graceful fallback. (~435 tok)
 - `test_parser.py` — Tests for the multi-format document parser. (~2125 tok)
 - `test_workspace_api.py` — auth_session, auth_headers, upload_test_file, create_test_folder (~22900 tok)
+
+## docs/superpowers/specs/
+
+- `2026-07-10-file-manager-refactor-design.md` — File Manager Refactor — Design Spec (~938 tok)
 
 ## frontend deleted starter files/
 
@@ -100,8 +163,10 @@
 - `src/components/workspace/__tests__/NotificationInboxPanel.spec.ts` — Notification inbox panel blackbox test for unread/read rendering and mark-read emits (~350 tok)
 - `src/components/workspace/__tests__/PermissionRulesPanel.spec.ts` — Permission rules panel blackbox test for inherited deny/file override rendering and create/delete emits (~500 tok)
 - `src/components/workspace/AgentWorkflowPanel.vue` — Naive UI workflow/tool panel with registered tools and agent timeline (~450 tok)
+- `src/components/workspace/CategorySidebar.vue` — Baidu Wangpan-style category sidebar with type filters (全部文件/图片/文档/视频/其他/共享/回收站) and NTree folder tree, replacing FolderTreePanel (~900 tok)
 - `src/components/workspace/FileAnnotationPanel.vue` — Naive UI + UnoCSS file annotation presenter for creating annotations, replying, deleting, and showing nested replies (~1200 tok)
 - `src/components/workspace/FileLifecyclePanel.vue` — Naive UI + UnoCSS file lifecycle panel for rename, move, tags, copy creation, version listing, and rollback emits (~1300 tok)
+- `src/components/workspace/FileUploadModal.vue` — NModal-based file upload dialog with drag-drop NUpload, NTreeSelect folder picker, and NDynamicTags tag input (~800 tok)
 - `src/components/workspace/FileUploadPanel.vue` — Naive UI upload panel for file, dynamic target folder options, and tag input, emitting typed upload payloads (~450 tok)
 - `src/components/workspace/FileWorkbench.vue` — Naive UI file workbench composing folder tree, search filters, upload panel, lifecycle panel, permission rules panel, row actions, parse status chips, and grouped mobile file rows (~2500 tok)
 - `src/components/workspace/FolderTreePanel.vue` — Naive UI + UnoCSS folder tree/breadcrumb panel for create, rename, same-scope move, delete, and active folder selection (~1600 tok)
@@ -123,6 +188,8 @@
 - `src/stores/__tests__/auth.spec.ts` — Store tests for generated-client login, registration, `/users/me` restoration/profile update, refresh-session rotation, and persisted auth headers (~1050 tok)
 - `src/stores/__tests__/workspace.spec.ts` — Store tests for generated-client-backed folder CRUD/tree actions, file list/upload/download/delete/update/copy/version actions, annotations, notifications, knowledge/workflow/team actions, permission rules, and local snapshot updates (~2300 tok)
 - `src/stores/auth.ts` — Pinia setup store for generated-client login/register/session restore/refresh/profile update, current user state, and local session persistence (~1050 tok)
+- `src/stores/knowledge.ts` — Pinia setup store for knowledge base CRUD, document management, RAG question/answer, indexed files, and narrative state (~500 tok)
+- `src/stores/permissions.ts` — Pinia setup store for workspace permission rules CRUD and ACL management (~200 tok)
 - `src/stores/workspace.ts` — Pinia setup store for workspace snapshot, narrative, folder tree CRUD/selection/options, file filters/list/upload/download/delete/update/copy/version state, annotation/notification state/actions, knowledge/workflow/team state, permission rule state/actions, and demo/live/fallback modes using auth session tokens (~3400 tok)
 - `src/views/__tests__/LoginView.spec.ts` — Login view blackbox render test with Naive UI provider, router, and Pinia test setup (~350 tok)
 - `src/views/__tests__/ProfileView.spec.ts` — Profile view test for protected profile rendering and update form submission through the auth store (~500 tok)
@@ -137,7 +204,7 @@
 
 ## frontend/src/auth/
 
-- `workspaceAccess.ts` — Exports WorkspaceAuthSession, workspaceSessionStorageKey, createAuthorizationHeader, resolveWorkspac (~402 tok)
+- `workspaceAccess.ts` — Exports WorkspaceAuthSession, workspaceSessionStorageKey, createAuthorizationHeader, resolveWorkspaceToken, resolveOptionalAccessToken, requireAccessToken, localStorage helpers (~550 tok)
 
 ## frontend/src/client/
 
@@ -145,12 +212,30 @@
 
 ## frontend/src/client/generated/
 
-- `client.gen.ts` — The `createClientConfig()` function will be called on client initialization (~350 tok)
+- `client.gen.ts` — The `createClientConfig()` function will be called on client initialization (~352 tok)
+
+## frontend/src/components/files/
+
+- `CategorySidebar.vue` — Vue: setup (~1161 tok)
+- `FileDropdown.vue` — Vue: setup (~1256 tok)
+- `FileWorkbench.vue` — Vue: setup (~4265 tok)
+
+## frontend/src/components/team/
+
+- `TeamAuditPanel.vue` — Vue: setup (~2812 tok)
+
+## frontend/src/components/workflow/
+
+- `AgentWorkflowPanel.vue` — Vue: setup (~3533 tok)
 
 ## frontend/src/components/workspace/
 
 - `AgentWorkflowPanel.vue` — Vue: 选择文件, setup (~3776 tok)
-- `FileWorkbench.vue` — Vue: setup (~5180 tok)
+- `CategorySidebar.vue` — Vue: setup (~976 tok)
+- `FileDrawer.vue` — Vue: setup (~2517 tok)
+- `FileDropdown.vue` — Vue: setup (~1147 tok)
+- `FileUploadModal.vue` — Vue: setup (~1137 tok)
+- `FileWorkbench.vue` — Vue: setup (~4202 tok)
 - `TeamAuditPanel.vue` — Vue: setup (~2814 tok)
 
 ## frontend/src/components/workspace/__tests__/
@@ -160,6 +245,7 @@
 
 ## frontend/src/composables/
 
+- `useMarkdown.ts` — Exports renderMarkdown (~249 tok)
 - `useWorkspaceNavigation.ts` — Exports WorkspaceNavItem, useWorkspaceNavigation (~465 tok)
 
 ## frontend/src/layouts/
@@ -174,7 +260,10 @@
 ## frontend/src/stores/
 
 - `auth.ts` — Exports LoginCredentials, RegisterCredentials, useAuthStore (~1652 tok)
-- `workspace.ts` — Exports WorkspaceApiState, useWorkspaceStore (~17713 tok)
+- `knowledge.ts` — Exports useKnowledgeStore (~2431 tok)
+- `permissions.ts` — Exports usePermissionsStore (~1040 tok)
+- `workflowStore.ts` — Pinia setup store for workflow lifecycle with local state (activeWorkflowId, validation, execution, operationLoading, workflows list), computed activeWorkflow, and actions (list/create/update/validate/publish/execute) calling workspace client API with requireAccessToken (~3400 tok)
+- `workspace.ts` — Exports WorkspaceApiState, useWorkspaceStore (~18171 tok)
 
 ## frontend/src/stores/__tests__/
 
@@ -182,13 +271,13 @@
 
 ## frontend/src/views/
 
-- `FileManagerView.vue` — Vue: setup (~1296 tok)
+- `FileManagerView.vue` — Vue: setup (~1112 tok)
 - `LoginView.vue` — Vue: setup (~1080 tok)
 - `PermissionAuditView.vue` — Vue: setup (~901 tok)
 - `ProfileView.vue` — Vue: setup (~1263 tok)
-- `RagQaView.vue` — Vue: 新知识库, setup (~1325 tok)
-- `TeamChatView.vue` — Vue: all, setup (~6671 tok)
-- `WorkflowBuilderView.vue` — Vue: setup (~8084 tok)
+- `RagQaView.vue` — Vue: setup (~2026 tok)
+- `TeamChatView.vue` — Vue: all, setup (~6106 tok)
+- `WorkflowBuilderView.vue` — Vue: setup (~10454 tok)
 
 ## frontend/src/views/__tests__/
 

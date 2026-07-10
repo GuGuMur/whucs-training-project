@@ -1814,6 +1814,504 @@
       "related_bugs": [],
       "occurrences": 2,
       "last_seen": "2026-07-10T02:46:20.097Z"
+    },
+    {
+      "id": "bug-110",
+      "timestamp": "2026-07-10T05:02:32.629Z",
+      "error_message": "Null/undefined access in ",
+      "file": "frontend/src/components/workspace/FileDrawer.vue",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T05:02:32.629Z"
+    },
+    {
+      "id": "bug-111",
+      "timestamp": "2026-07-10T05:05:15.464Z",
+      "error_message": "Wrong reference: div should be FileWorkbench",
+      "file": "frontend/src/views/FileManagerView.vue",
+      "root_cause": "Used \"div\" instead of \"FileWorkbench\"",
+      "fix": "Changed div → FileWorkbench",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T05:05:15.465Z"
+    },
+    {
+      "id": "bug-112",
+      "timestamp": "2026-07-10T05:17:51.406Z",
+      "error_message": "Significant refactor of ",
+      "file": "backend/app/main.py",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 16→28 lines (8 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T05:17:51.406Z"
+    },
+    {
+      "id": "bug-113",
+      "timestamp": "2026-07-10T05:38:38.212Z",
+      "error_message": "Incorrect value in code",
+      "file": "frontend/src/views/RagQaView.vue",
+      "root_cause": "Had \"m-0 whitespace-pre-wrap text-15px leading-[1.7]\"",
+      "fix": "Changed to \"markdown-body text-15px leading-[1.7]\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T05:38:38.212Z"
+    },
+    {
+      "id": "bug-114",
+      "timestamp": "2026-07-10T05:39:21.382Z",
+      "error_message": "Null/undefined access in ",
+      "file": "frontend/src/views/TeamChatView.vue",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T05:39:21.382Z"
+    },
+    {
+      "id": "bug-115",
+      "timestamp": "2026-07-10T05:39:43.839Z",
+      "error_message": "Wrong reference: true should be false",
+      "file": "frontend/src/views/TeamChatView.vue",
+      "root_cause": "Used \"true\" instead of \"false\"",
+      "fix": "Changed true → false",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T05:39:56.775Z"
+    },
+    {
+      "id": "bug-116",
+      "timestamp": "2026-07-10T05:43:47.071Z",
+      "error_message": "CSS fix: background, transition",
+      "file": "frontend/src/views/RagQaView.vue",
+      "root_cause": "background: rgba(36,107,254,0.08) → rgba(36,107,254,0.12) !important; transition: background 0.15s → background 0.3s, box-shadow 0.3s",
+      "fix": "Changed background: rgba(36,107,254,0.08) → rgba(36,107,254,0.12) !important; transition: background 0.15s → background 0.3s, box-shadow 0.3s",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T05:43:47.071Z"
+    },
+    {
+      "id": "bug-117",
+      "timestamp": "2026-07-10T06:03:02.185Z",
+      "error_message": "Wrong return value",
+      "file": "backend/app/services/workspace.py",
+      "root_cause": "Was returning: self._team_detail(team, actor)",
+      "fix": "Now returns: TeamDetail(",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T06:03:02.185Z"
+    },
+    {
+      "id": "bug-118",
+      "timestamp": "2026-07-10T06:14:38.195Z",
+      "error_message": "Missing import: @/client/workspace",
+      "file": "frontend/src/stores/workspace.ts",
+      "root_cause": "Module(s) not imported: @/client/workspace",
+      "fix": "Added import(s) for @/client/workspace",
+      "tags": [
+        "auto-detected",
+        "missing-import",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T06:14:38.195Z"
+    },
+    {
+      "id": "bug-119",
+      "timestamp": "2026-07-10T06:25:05.774Z",
+      "error_message": "Incorrect value in code",
+      "file": "frontend/src/views/TeamChatView.vue",
+      "root_cause": "Had '@/stores/workspace'",
+      "fix": "Changed to '@/stores/teamStore'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T06:25:05.774Z"
+    },
+    {
+      "id": "bug-120",
+      "timestamp": "2026-07-10T06:27:18.609Z",
+      "error_message": "Null/undefined access in ",
+      "file": "frontend/src/auth/workspaceAccess.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T06:27:18.609Z"
+    },
+    {
+      "id": "bug-121",
+      "timestamp": "2026-07-10T07:05:31.938Z",
+      "error_message": "Missing await",
+      "file": "backend/app/main.py",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T07:05:31.938Z"
+    },
+    {
+      "id": "bug-122",
+      "timestamp": "2026-07-10T07:26:55.179Z",
+      "error_message": "Missing await",
+      "file": "backend/app/services/workspace.py",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call | Also: async def require_user(self, authorization: str | None) -> U; # DB path",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T07:27:06.578Z"
+    },
+    {
+      "id": "bug-123",
+      "timestamp": "2026-07-10T07:30:26.052Z",
+      "error_message": "Significant refactor of ",
+      "file": "backend/app/services/workspace.py",
+      "root_cause": "10 lines replaced/restructured",
+      "fix": "Rewrote 21→9 lines (10 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T07:30:26.052Z"
+    },
+    {
+      "id": "bug-124",
+      "timestamp": "2026-07-10T07:35:36.261Z",
+      "error_message": "Wrong return value",
+      "file": "backend/app/api/routes.py",
+      "root_cause": "Was returning: WorkspaceService(db_session=db)",
+      "fix": "Now returns: WorkspaceServiceDB(db)",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T07:35:36.261Z"
+    },
+    {
+      "id": "bug-125",
+      "timestamp": "2026-07-10T08:20:28.224Z",
+      "error_message": "Wrong reference: app should be create_v2_app",
+      "file": "backend/app/openapi_export.py",
+      "root_cause": "Used \"app\" instead of \"create_v2_app\"",
+      "fix": "Changed app → create_v2_app",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T08:20:28.224Z"
+    },
+    {
+      "id": "bug-126",
+      "timestamp": "2026-07-10T08:37:58.774Z",
+      "error_message": "Significant refactor of ",
+      "file": "backend/app/services/parser.py",
+      "root_cause": "13 lines replaced/restructured",
+      "fix": "Rewrote 25→33 lines (13 removed) | Also: \"pdf\": \"pdf\",; \"docx\": \"docx\",",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T08:38:43.399Z"
+    },
+    {
+      "id": "bug-127",
+      "timestamp": "2026-07-10T08:41:55.454Z",
+      "error_message": "CSS fix: label",
+      "file": "frontend/src/views/WorkflowBuilderView.vue",
+      "root_cause": "label: '文件内容比对', value: 'compare' → '批量问答', key: 'batch-qa'",
+      "fix": "Changed label: '文件内容比对', value: 'compare' → '批量问答', key: 'batch-qa'",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T08:41:55.454Z"
+    },
+    {
+      "id": "bug-128",
+      "timestamp": "2026-07-10T08:42:26.630Z",
+      "error_message": "Significant refactor of ",
+      "file": "frontend/src/views/WorkflowBuilderView.vue",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 7→32 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T08:42:26.630Z"
+    },
+    {
+      "id": "bug-129",
+      "timestamp": "2026-07-10T08:54:51.723Z",
+      "error_message": "Missing error handling in function",
+      "file": "frontend/src/views/WorkflowBuilderView.vue",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T08:54:51.723Z"
+    },
+    {
+      "id": "bug-130",
+      "timestamp": "2026-07-10T10:12:41.293Z",
+      "error_message": "Incorrect value in code",
+      "file": "backend/app/models/folder.py",
+      "root_cause": "Had \"personal\"",
+      "fix": "Changed to \"users.id\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T10:12:41.293Z"
+    },
+    {
+      "id": "bug-131",
+      "timestamp": "2026-07-10T10:40:19.354Z",
+      "error_message": "Significant refactor of ",
+      "file": "backend/app/services/workspace_db.py",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 6→8 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T10:40:19.354Z"
+    },
+    {
+      "id": "bug-132",
+      "timestamp": "2026-07-10T10:55:39.207Z",
+      "error_message": "Missing error handling in function",
+      "file": "frontend/src/views/TeamChatView.vue",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T10:55:39.207Z"
+    },
+    {
+      "id": "bug-133",
+      "timestamp": "2026-07-10T11:27:45.111Z",
+      "error_message": "Incorrect value in code",
+      "file": "frontend/src/components/team/TeamAuditPanel.vue",
+      "root_cause": "Had \"???????\"",
+      "fix": "Changed to \"团队管理\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 7,
+      "last_seen": "2026-07-10T11:29:51.637Z"
+    },
+    {
+      "id": "bug-134",
+      "timestamp": "2026-07-10T11:28:18.238Z",
+      "error_message": "CSS fix: v-model",
+      "file": "frontend/src/components/team/TeamAuditPanel.vue",
+      "root_cause": "v-model: value=\"createName\" → value=\"createDescription\"",
+      "fix": "Changed v-model: value=\"createName\" → value=\"createDescription\"",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T11:28:18.238Z"
+    },
+    {
+      "id": "bug-135",
+      "timestamp": "2026-07-10T18:50:00+08:00",
+      "error_message": "All Chinese characters in TeamAuditPanel.vue rendered as ? marks (mojibake/encoding corruption)",
+      "file": "frontend/src/components/team/TeamAuditPanel.vue",
+      "root_cause": "The file was created with a wrong character encoding, so multi-byte UTF-8 Chinese characters were corrupted to ? replacement characters throughout the template and script sections.",
+      "fix": "Replaced all ~20 corrupted Chinese text strings with correct UTF-8 Chinese characters. Verified with pnpm vue-tsc --noEmit (clean).",
+      "tags": [
+        "encoding",
+        "mojibake",
+        "vue",
+        "chinese",
+        "utf-8"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T18:50:00+08:00"
+    },
+    {
+      "id": "bug-136",
+      "timestamp": "2026-07-10T11:35:41.775Z",
+      "error_message": "Significant refactor of ",
+      "file": "frontend/src/components/workflow/AgentWorkflowPanel.vue",
+      "root_cause": "33 lines replaced/restructured",
+      "fix": "Rewrote 35→3 lines (33 removed) | Also: return [; { id: 'edge-trigger-search', source: 'trigger', ta",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T11:35:45.207Z"
+    },
+    {
+      "id": "bug-137",
+      "timestamp": "2026-07-10T11:54:01.327Z",
+      "error_message": "CSS fix: ChevronDown, update",
+      "file": "frontend/src/components/files/CategorySidebar.vue",
+      "root_cause": "ChevronDown: ChevronRight)) → ChevronRight))\"; update: selected-keys=\"(keys: string[]) => keys[0] && emit('select-folder', keys[0])\" → selected-keys=\"(keys: string[]) => keys[0] && emit('select-folder', keys[0])\" />",
+      "fix": "Changed ChevronDown: ChevronRight)) → ChevronRight))\"; update: selected-keys=\"(keys: string[]) => keys[0] && emit('select-folder', keys[0])\" → selected-keys=\"(keys: string[]) => keys[0] && emit('select-folder', keys[0])\" />",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T11:54:01.327Z"
+    },
+    {
+      "id": "bug-138",
+      "timestamp": "2026-07-10T12:16:08.850Z",
+      "error_message": "CSS fix: onReparse, method",
+      "file": "frontend/src/components/files/FileWorkbench.vue",
+      "root_cause": "onReparse: async (f: WorkspaceFile) => { try { await fetch(`/api/v2/files/${f.id → async (f: WorkspaceFile) => {; method: \"POST\", headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem(\"whu-workspace-session\")||\"{ → 'POST', headers:{ Authorization:`Bearer ${token",
+      "fix": "Changed onReparse: async (f: WorkspaceFile) => { try { await fetch(`/api/v2/files/${f.id → async (f: WorkspaceFile) => {; method: \"POST\", headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem(\"whu-workspace-session\")||\"{ → 'POST', headers:{ Authorization:`Bearer ${token",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 5,
+      "last_seen": "2026-07-10T12:30:10.993Z"
+    },
+    {
+      "id": "bug-139",
+      "timestamp": "2026-07-10T12:20:38.478Z",
+      "error_message": "Significant refactor of ",
+      "file": "frontend/src/components/files/FileWorkbench.vue",
+      "root_cause": "6 lines replaced/restructured",
+      "fix": "Rewrote 9→5 lines (6 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T12:20:38.478Z"
+    },
+    {
+      "id": "bug-140",
+      "timestamp": "2026-07-10T12:28:27.105Z",
+      "error_message": "Incorrect value in code",
+      "file": "frontend/src/components/files/FileWorkbench.vue",
+      "root_cause": "Had \"w-90px shrink-0\"",
+      "fix": "Changed to \"w-80px shrink-0\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T12:28:27.105Z"
     }
   ]
 }

@@ -44,3 +44,16 @@ export function clearStoredWorkspaceSession() {
   if (!canUseLocalStorage()) return
   window.localStorage.removeItem(workspaceSessionStorageKey)
 }
+
+export function resolveOptionalAccessToken(token?: string): string | undefined {
+  if (token) return token
+  return loadStoredWorkspaceSession()?.accessToken
+}
+
+export function requireAccessToken(token?: string): string {
+  const accessToken = resolveOptionalAccessToken(token)
+  if (!accessToken) {
+    throw new Error('请先登录后再执行操作')
+  }
+  return accessToken
+}
