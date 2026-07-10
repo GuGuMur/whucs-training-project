@@ -106,7 +106,7 @@
 - Modify: `backend/tests/test_workspace_api.py`
 - Modify: `backend/tests/test_openapi_export.py`
 
-- [ ] **Step 1: Add failing tests for personal/team scoped KB CRUD**
+- [x] **Step 1: Add failing tests for personal/team scoped KB CRUD**
 
 Add tests that create a personal knowledge base, create a team knowledge base, update category/tags, archive it, delete it, and verify an outsider cannot read or mutate it.
 
@@ -116,7 +116,7 @@ Expected assertions:
 - `DELETE /api/v2/knowledge-bases/{kb_id}` returns 204 and removes it from later lists.
 - Outsider requests return 403 with a structured code such as `KB_SCOPE_DENIED`.
 
-- [ ] **Step 2: Add OpenAPI path assertions**
+- [x] **Step 2: Add OpenAPI path assertions**
 
 Assert the exported schema contains:
 
@@ -129,7 +129,7 @@ Assert the exported schema contains:
 /api/v2/knowledge-bases/{kb_id}/reindex
 ```
 
-- [ ] **Step 3: Run red tests**
+- [x] **Step 3: Run red tests**
 
 Run:
 
@@ -151,7 +151,7 @@ Expected: API behavior tests fail before implementation with missing fields/rout
 - Modify: `backend/app/models/__init__.py`
 - Create: `backend/alembic/versions/20260711_rag_agent_refactor.py`
 
-- [ ] **Step 1: Extend knowledge Pydantic schemas**
+- [x] **Step 1: Extend knowledge Pydantic schemas**
 
 Add these concepts to `backend/app/domain/knowledge.py`:
 
@@ -173,7 +173,7 @@ freshness_policy: KnowledgeFreshnessPolicy = "manual"
 last_indexed_at: datetime | None = None
 ```
 
-- [ ] **Step 2: Add batch file schemas**
+- [x] **Step 2: Add batch file schemas**
 
 Add:
 
@@ -187,7 +187,7 @@ class KnowledgeFileBatchResponse(BaseModel):
     skipped: list[dict[str, str]] = Field(default_factory=list)
 ```
 
-- [ ] **Step 3: Add conversation schemas**
+- [x] **Step 3: Add conversation schemas**
 
 Add:
 
@@ -208,7 +208,7 @@ class KnowledgeMessagePublic(BaseModel):
     created_at: datetime
 ```
 
-- [ ] **Step 4: Extend SQLAlchemy models**
+- [x] **Step 4: Extend SQLAlchemy models**
 
 In `backend/app/models/knowledge.py`, add columns to `KnowledgeBase`:
 
@@ -230,11 +230,11 @@ error_message: Mapped[str] = mapped_column(Text, default="")
 
 Add `KnowledgeConversation`, `KnowledgeMessage`, and `KnowledgeCitationSnapshot` tables with `kb_id`, `conversation_id`, `message_id`, role/content/citation JSON fields, and timestamps.
 
-- [ ] **Step 5: Add migration**
+- [x] **Step 5: Add migration**
 
 Create `backend/alembic/versions/20260711_rag_agent_refactor.py` with upgrade/downgrade operations for the added columns and tables. Keep existing nullable/default behavior so current local databases migrate without data loss.
 
-- [ ] **Step 6: Run contract tests**
+- [x] **Step 6: Run contract tests**
 
 Run:
 
@@ -253,7 +253,7 @@ Expected: tests still fail only at missing service behavior, not at schema impor
 - Modify: `backend/app/api/v2/knowledge.py`
 - Modify: `backend/app/services/workspace_db.py`
 
-- [ ] **Step 1: Add route handlers**
+- [x] **Step 1: Add route handlers**
 
 Add handlers for:
 
@@ -267,7 +267,7 @@ GET /knowledge-bases/{kb_id}/conversations
 GET /conversations/{conversation_id}
 ```
 
-- [ ] **Step 2: Add service permission helpers**
+- [x] **Step 2: Add service permission helpers**
 
 In `WorkspaceServiceDB`, add a helper equivalent to:
 
@@ -285,7 +285,7 @@ async def _ensure_kb_access(self, kb_id: str, user: UserPublic, action: str) -> 
 
 Use the existing project error type and current permission helpers instead of introducing a parallel exception format.
 
-- [ ] **Step 3: Implement batch add**
+- [x] **Step 3: Implement batch add**
 
 For each file id:
 - Verify file read access.
@@ -293,7 +293,7 @@ For each file id:
 - Parse/index file through the same durable file-content path used by reparse and download.
 - Return `added` documents and `skipped` entries with codes such as `FILE_NOT_FOUND`, `FILE_NOT_READABLE`, `FILE_ALREADY_IN_KB`, `FILE_PARSE_FAILED`.
 
-- [ ] **Step 4: Implement batch remove**
+- [x] **Step 4: Implement batch remove**
 
 For each file id or document id:
 - Delete the `KnowledgeDocument` and its chunks.
@@ -301,7 +301,7 @@ For each file id or document id:
 - Clear the FAISS cache for that KB.
 - Return `removed` and `skipped`.
 
-- [ ] **Step 5: Run backend tests**
+- [x] **Step 5: Run backend tests**
 
 Run:
 
@@ -321,7 +321,7 @@ Expected: scoped KB and batch file tests pass.
 - Modify: `backend/app/services/workspace_db.py`
 - Modify: `backend/tests/test_workspace_api.py`
 
-- [ ] **Step 1: Add failing tests for multi-turn RAG**
+- [x] **Step 1: Add failing tests for multi-turn RAG**
 
 Add a test that:
 - Creates a KB.
@@ -331,7 +331,7 @@ Add a test that:
 - Verifies the second answer uses prior context.
 - Verifies `GET /api/v2/conversations/{conversation_id}` returns user question, assistant answer, and citation snapshots.
 
-- [ ] **Step 2: Extract retrieval pipeline**
+- [x] **Step 2: Extract retrieval pipeline**
 
 Move retrieval generation into `RagPipeline` with methods:
 
@@ -343,11 +343,11 @@ class RagPipeline:
 
 Keep FAISS search and `generate_rag_answer()` behavior compatible with the current implementation.
 
-- [ ] **Step 3: Persist citation snapshots**
+- [x] **Step 3: Persist citation snapshots**
 
 When an assistant message is stored, persist citation data as JSON or rows linked to the assistant message id. The UI must be able to show old citations even if the underlying file is later removed from the KB.
 
-- [ ] **Step 4: Add no-result and incomplete-index handling**
+- [x] **Step 4: Add no-result and incomplete-index handling**
 
 Return clear responses:
 - `KB_NO_MATCH`: no relevant snippets found.
@@ -356,7 +356,7 @@ Return clear responses:
 
 For these cases, still store the user question and assistant response in the conversation.
 
-- [ ] **Step 5: Run backend RAG tests**
+- [x] **Step 5: Run backend RAG tests**
 
 Run:
 
@@ -381,7 +381,7 @@ Expected: RAG, embedding, and LLM fallback tests pass.
 - Modify: `backend/app/api/v2/workflow.py`
 - Modify: `backend/tests/test_workspace_api.py`
 
-- [ ] **Step 1: Add failing tests for tool catalog**
+- [x] **Step 1: Add failing tests for tool catalog**
 
 Assert `GET /api/v2/tools` returns at least:
 - `calculator`
@@ -391,7 +391,7 @@ Assert `GET /api/v2/tools` returns at least:
 
 Each tool must include `name`, `description`, `input_schema`, and `output_schema`.
 
-- [ ] **Step 2: Define explicit agent phases**
+- [x] **Step 2: Define explicit agent phases**
 
 Update `AgentStep` to include:
 
@@ -406,7 +406,7 @@ error_message: str | None = None
 
 Keep a compatibility mapper for old frontend `type` if current generated clients still consume `thought/action/observation/answer`.
 
-- [ ] **Step 3: Implement `ToolRegistry`**
+- [x] **Step 3: Implement `ToolRegistry`**
 
 Register tools with deterministic implementations:
 - `calculator`: evaluate arithmetic expressions through Python `ast`, allowing numeric constants and arithmetic operators only.
@@ -414,11 +414,11 @@ Register tools with deterministic implementations:
 - `file_content_search`: search readable file content and/or KB chunks by `query`, `file_ids`, `kb_id`.
 - `python_data`: accept CSV-like file id and return simple stats such as row count, column names, numeric min/max/avg.
 
-- [ ] **Step 4: Implement missing-parameter detection**
+- [x] **Step 4: Implement missing-parameter detection**
 
 For each selected tool, validate required input keys against its schema. If missing, return task status `needs_clarification` with a Chinese question such as `请补充要查询的课程名称。`
 
-- [ ] **Step 5: Implement executor loop**
+- [x] **Step 5: Implement executor loop**
 
 `AgentExecutor.run()` should:
 - Create an `understand` step from the natural language task.
@@ -428,7 +428,7 @@ For each selected tool, validate required input keys against its schema. If miss
 - Retry one failed tool call with adjusted parameters when possible.
 - Return a final answer with structured `result_view` metadata for text/table/chart display.
 
-- [ ] **Step 6: Add task detail and continuation routes**
+- [x] **Step 6: Add task detail and continuation routes**
 
 Add:
 
@@ -439,7 +439,7 @@ POST /api/v2/agents/tasks/{task_id}/continue
 
 The continuation route accepts user-supplied missing fields and resumes the task.
 
-- [ ] **Step 7: Run backend agent tests**
+- [x] **Step 7: Run backend agent tests**
 
 Run:
 
@@ -459,7 +459,7 @@ Expected: catalog, calculator, course lookup, file content search, missing-param
 - Generated: `frontend/src/client/openapi/workspace.openapi.json`
 - Generated: `frontend/src/client/generated/*`
 
-- [ ] **Step 1: Regenerate client**
+- [x] **Step 1: Regenerate client**
 
 Run:
 
@@ -470,7 +470,7 @@ pnpm generate:client
 
 Expected: generated SDK/types include new KB, conversation, batch file, tool, and agent task endpoints.
 
-- [ ] **Step 2: Add typed adapter functions**
+- [x] **Step 2: Add typed adapter functions**
 
 In `frontend/src/client/workspace.ts`, add functions:
 
@@ -489,11 +489,11 @@ continueAgentTask(token, taskId, payload)
 
 Map frontend camelCase payloads to generated snake_case request bodies.
 
-- [ ] **Step 3: Add adapter tests through stores**
+- [x] **Step 3: Add adapter tests through stores**
 
 Prefer testing adapter integration through Pinia stores instead of brittle SDK call details unless an adapter has non-trivial mapping.
 
-- [ ] **Step 4: Run frontend type check**
+- [x] **Step 4: Run frontend type check**
 
 Run:
 
@@ -520,7 +520,7 @@ Expected: generated type changes compile.
 - Create: `frontend/src/components/rag/__tests__/KnowledgeFilePicker.spec.ts`
 - Create: `frontend/src/components/rag/__tests__/KnowledgeConversationPanel.spec.ts`
 
-- [ ] **Step 1: Write store tests**
+- [x] **Step 1: Write store tests**
 
 Cover:
 - Load KB list.
@@ -532,7 +532,7 @@ Cover:
 - Ask a question and store `conversationId`.
 - Load conversation messages with citations.
 
-- [ ] **Step 2: Refactor `knowledge.ts` store**
+- [x] **Step 2: Refactor `knowledge.ts` store**
 
 State should include:
 
@@ -550,27 +550,27 @@ errorMessage
 
 Actions should call the new client adapters and normalize error messages into clear Chinese UI copy.
 
-- [ ] **Step 3: Build `KnowledgeBaseSidebar.vue`**
+- [x] **Step 3: Build `KnowledgeBaseSidebar.vue`**
 
 Use Naive UI list/select/filter controls. It should show scope, category, tags, document count, and index state summary. It emits select/create/edit/delete events and does not call the store directly.
 
-- [ ] **Step 4: Build `KnowledgeBaseManager.vue`**
+- [x] **Step 4: Build `KnowledgeBaseManager.vue`**
 
 Use `NForm`, `NInput`, `NSelect`, `NDynamicTags`, and `NRadioGroup` for scope, category, tags, freshness policy, and archive/delete actions.
 
-- [ ] **Step 5: Build `KnowledgeFilePicker.vue`**
+- [x] **Step 5: Build `KnowledgeFilePicker.vue`**
 
 Use `NDataTable` on desktop and grouped rows on mobile. Support checkbox selection, batch add, batch remove, and visible parse/index status chips.
 
-- [ ] **Step 6: Build `KnowledgeConversationPanel.vue`**
+- [x] **Step 6: Build `KnowledgeConversationPanel.vue`**
 
 Render message history, question composer, answer Markdown, and loading state. Keep citations in `KnowledgeCitationList.vue`.
 
-- [ ] **Step 7: Refactor `RagQaView.vue`**
+- [x] **Step 7: Refactor `RagQaView.vue`**
 
 Use `useKnowledgeStore()` and compose the new components. Keep route/layout shell logic in the view and move operational UI into components.
 
-- [ ] **Step 8: Run frontend RAG tests**
+- [x] **Step 8: Run frontend RAG tests**
 
 Run:
 
@@ -597,7 +597,7 @@ Expected: RAG store and component tests pass.
 - Create: `frontend/src/stores/__tests__/agent.spec.ts`
 - Create: `frontend/src/components/workflow/__tests__/AgentExecutionTimeline.spec.ts`
 
-- [ ] **Step 1: Write agent store tests**
+- [x] **Step 1: Write agent store tests**
 
 Cover:
 - Load tool catalog.
@@ -606,7 +606,7 @@ Cover:
 - Continue a task with missing parameters.
 - Store transparent execution steps and final answer.
 
-- [ ] **Step 2: Add `agent.ts` store**
+- [x] **Step 2: Add `agent.ts` store**
 
 State should include:
 
@@ -621,15 +621,15 @@ loading
 errorMessage
 ```
 
-- [ ] **Step 3: Build `AgentTaskComposer.vue`**
+- [x] **Step 3: Build `AgentTaskComposer.vue`**
 
 Provide a natural-language textarea, optional KB selector, optional context file selector, submit button, and clarification input when required.
 
-- [ ] **Step 4: Build `ToolCatalogPanel.vue`**
+- [x] **Step 4: Build `ToolCatalogPanel.vue`**
 
 Show registered tools grouped by category with name, description, required parameters, and enabled state.
 
-- [ ] **Step 5: Build `AgentExecutionTimeline.vue`**
+- [x] **Step 5: Build `AgentExecutionTimeline.vue`**
 
 Render phases:
 - 理解
@@ -640,18 +640,18 @@ Render phases:
 
 For tool call rows, show tool name, input parameters, status, and error message.
 
-- [ ] **Step 6: Build `ToolResultViewer.vue`**
+- [x] **Step 6: Build `ToolResultViewer.vue`**
 
 Support:
 - Text answer.
 - Table result from array/object data.
 - Simple chart-ready summary using Naive UI statistic blocks if the result contains numeric series.
 
-- [ ] **Step 7: Refactor `WorkflowBuilderView.vue`**
+- [x] **Step 7: Refactor `WorkflowBuilderView.vue`**
 
 Remove direct `fetch()` calls for debug start/step. Use generated-client store actions. Keep Vue Flow builder responsibilities separate from agent task execution panels.
 
-- [ ] **Step 8: Run frontend agent tests**
+- [x] **Step 8: Run frontend agent tests**
 
 Run:
 
@@ -676,15 +676,15 @@ Expected: agent store and timeline tests pass.
 - Modify: `progress.md`
 - Modify: `findings.md`
 
-- [ ] **Step 1: Clean old ownership**
+- [x] **Step 1: Clean old ownership**
 
 Remove duplicated RAG/agent state ownership from `workspace.ts` only after standalone `knowledge.ts` and `agent.ts` tests pass. Keep compatibility getters if existing views still consume them during transition.
 
-- [ ] **Step 2: Verify navigation**
+- [x] **Step 2: Verify navigation**
 
 Ensure `/rag` and `/workflow` still use the workspace layouts and route guards.
 
-- [ ] **Step 3: Run backend full verification**
+- [x] **Step 3: Run backend full verification**
 
 Run:
 
@@ -695,7 +695,7 @@ PYTHONPATH=. uv run python -m pytest -q
 
 Expected: all backend tests pass.
 
-- [ ] **Step 4: Run frontend full verification**
+- [x] **Step 4: Run frontend full verification**
 
 Run:
 
@@ -708,7 +708,7 @@ pnpm build
 
 Expected: all frontend tests, type-check, and production build pass.
 
-- [ ] **Step 5: Run hygiene checks**
+- [x] **Step 5: Run hygiene checks**
 
 Run:
 
@@ -719,7 +719,7 @@ git diff --check
 
 Expected: JSON validation and whitespace check pass.
 
-- [ ] **Step 6: Update planning files**
+- [x] **Step 6: Update planning files**
 
 Record completed phases, commands, and findings in:
 - `task_plan.md`

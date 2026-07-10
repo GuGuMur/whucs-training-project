@@ -2930,6 +2930,112 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T17:45:35.766Z"
+    },
+    {
+      "id": "bug-178",
+      "timestamp": "2026-07-11T02:23:59+08:00",
+      "error_message": "Full backend pytest returned 401 for v2 agent and knowledge-base tests",
+      "file": "backend/tests/test_workspace_api.py",
+      "root_cause": "V2-only tests reused the v1 auth helper, creating access tokens against the in-memory v1 auth service while v2 endpoints validate DB-backed users.",
+      "fix": "Added auth_session_v2/auth_headers_v2 helpers that register through /api/v2/auth/register with unique usernames, then switched v2 agent and knowledge-base tests to those helpers.",
+      "tags": [
+        "pytest",
+        "auth",
+        "v2",
+        "test-helper"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T02:23:59+08:00"
+    },
+    {
+      "id": "bug-179",
+      "timestamp": "2026-07-11T02:37:18+08:00",
+      "error_message": "V2 RAG conversation behavior test returned 404 for /api/v2/knowledge-bases/{kb_id}/conversations and OpenAPI export lacked conversation paths",
+      "file": "backend/app/api/v2/knowledge.py",
+      "root_cause": "The v2 RAG service only stored transient generic conversation rows during QA and exposed no knowledge-base conversation list/detail routes or citation snapshots.",
+      "fix": "Added knowledge conversation/message/citation snapshot schemas, models, repositories, v2 list/detail routes, answer_question persistence, OpenAPI assertions, and migration table definitions.",
+      "tags": [
+        "pytest",
+        "openapi",
+        "rag",
+        "conversation",
+        "v2"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T02:37:18+08:00"
+    },
+    {
+      "id": "bug-180",
+      "timestamp": "2026-07-11T02:37:18+08:00",
+      "error_message": "Multi-turn RAG test failed because an available LLM ignored the supplied conversation history when asked about the previous question",
+      "file": "backend/app/services/workspace_db.py",
+      "root_cause": "History was only provided inside the RAG prompt, so the model could still answer that no prior question was available; the fallback test also did not force fallback when LLM credentials existed.",
+      "fix": "Added deterministic previous-question handling from persisted user messages in answer_question and made the fallback unit test explicitly disable the LLM through monkeypatch.",
+      "tags": [
+        "rag",
+        "llm",
+        "conversation",
+        "pytest"
+      ],
+      "related_bugs": [
+        "bug-179"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T02:37:18+08:00"
+    },
+    {
+      "id": "bug-181",
+      "timestamp": "2026-07-11T02:59:47+08:00",
+      "error_message": "Task 5 agent/tool tests failed because /api/v2/tools returned legacy file_search/knowledge_qa tools and agent responses lacked result_view, phase fields, needs_clarification, and real file-content observations",
+      "file": "backend/app/services/workspace_db.py",
+      "root_cause": "The v2 agent implementation still depended on LLM-generated legacy thought/action/observation steps and old tool names instead of the planned deterministic understand-call-observe-answer executor.",
+      "fix": "Added ToolRegistry and AgentExecutor, exposed required tools, added structured AgentStep fields and result_view, implemented calculator/course/file/python_data tools, task detail, and continue routes.",
+      "tags": [
+        "agent",
+        "tools",
+        "pytest",
+        "v2"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T02:59:47+08:00"
+    },
+    {
+      "id": "bug-182",
+      "timestamp": "2026-07-11T02:59:47+08:00",
+      "error_message": "/usr/bin/bash: line 1: ToolRegistry: command not found",
+      "file": "docs/superpowers/plans/2026-07-11-rag-agent-flow-refactor.md",
+      "root_cause": "A shell rg query used double quotes around a pattern containing backticks, triggering command substitution.",
+      "fix": "Continued with direct apply_patch updates and retained the existing Do-Not-Repeat rule to quote Markdown backticks safely in shell commands.",
+      "tags": [
+        "shell",
+        "rg",
+        "markdown"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T02:59:47+08:00"
+    },
+    {
+      "id": "bug-183",
+      "timestamp": "2026-07-11T03:14:00+08:00",
+      "error_message": "Frontend type-check failed after AgentStep gained needs_clarification and optional status",
+      "file": "frontend/src/components/workflow/AgentWorkflowPanel.vue",
+      "root_cause": "The generated v2 AgentStep status enum changed, but the frontend timeline status map still only handled pending/running/success/failed and the adapter narrowed status to required.",
+      "fix": "Kept AgentStep aligned with generated optional status, added needs_clarification timeline mapping, and defaulted missing status to pending in the component.",
+      "tags": [
+        "frontend",
+        "agent",
+        "type-check",
+        "enum"
+      ],
+      "related_bugs": [
+        "bug-181"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T03:14:00+08:00"
     }
   ]
 }

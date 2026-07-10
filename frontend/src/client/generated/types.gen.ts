@@ -13,15 +13,35 @@ export type AgentStep = {
      */
     content: string;
     /**
+     * Error Message
+     */
+    error_message?: string | null;
+    /**
+     * Input Json
+     */
+    input_json?: {
+        [key: string]: unknown;
+    };
+    /**
      * Metadata
      */
     metadata?: {
         [key: string]: unknown;
     };
     /**
+     * Output Json
+     */
+    output_json?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Phase
+     */
+    phase?: 'understand' | 'plan' | 'call' | 'observe' | 'answer';
+    /**
      * Status
      */
-    status?: 'pending' | 'running' | 'success' | 'failed';
+    status?: 'pending' | 'running' | 'success' | 'failed' | 'needs_clarification';
     /**
      * Title
      */
@@ -34,6 +54,18 @@ export type AgentStep = {
      * Type
      */
     type: 'thought' | 'action' | 'observation' | 'answer';
+};
+
+/**
+ * AgentTaskContinueRequest
+ */
+export type AgentTaskContinueRequest = {
+    /**
+     * Inputs
+     */
+    inputs?: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -67,9 +99,15 @@ export type AgentTaskResponse = {
      */
     id: string;
     /**
+     * Result View
+     */
+    result_view?: {
+        [key: string]: unknown;
+    };
+    /**
      * Status
      */
-    status: 'queued' | 'running' | 'completed' | 'failed';
+    status: 'queued' | 'running' | 'completed' | 'failed' | 'needs_clarification';
     /**
      * Steps
      */
@@ -207,6 +245,50 @@ export type Citation = {
      * Title
      */
     title: string;
+};
+
+/**
+ * CompressionRequest
+ */
+export type CompressionRequest = {
+    /**
+     * Algorithm
+     */
+    algorithm?: 'zip' | 'tar.gz';
+    /**
+     * File Ids
+     */
+    file_ids: Array<string>;
+};
+
+/**
+ * CompressionResult
+ */
+export type CompressionResult = {
+    /**
+     * Algorithm
+     */
+    algorithm: string;
+    /**
+     * Compressed Size
+     */
+    compressed_size: number;
+    /**
+     * File Id
+     */
+    file_id: string;
+    /**
+     * File Name
+     */
+    file_name: string;
+    /**
+     * Original Size
+     */
+    original_size: number;
+    /**
+     * Ratio
+     */
+    ratio: number;
 };
 
 /**
@@ -651,13 +733,33 @@ export type HttpValidationError = {
  */
 export type KnowledgeBaseCreate = {
     /**
+     * Category
+     */
+    category?: string | null;
+    /**
      * Description
      */
     description?: string | null;
     /**
+     * Freshness Policy
+     */
+    freshness_policy?: 'manual' | 'on_file_update';
+    /**
      * Name
      */
     name: string;
+    /**
+     * Scope Id
+     */
+    scope_id?: string | null;
+    /**
+     * Scope Type
+     */
+    scope_type?: 'personal' | 'team';
+    /**
+     * Tags
+     */
+    tags?: Array<string>;
 };
 
 /**
@@ -675,6 +777,10 @@ export type KnowledgeBaseListResponse = {
  */
 export type KnowledgeBasePublic = {
     /**
+     * Category
+     */
+    category?: string | null;
+    /**
      * Chunk Count
      */
     chunk_count: number;
@@ -687,17 +793,37 @@ export type KnowledgeBasePublic = {
      */
     document_count: number;
     /**
+     * Freshness Policy
+     */
+    freshness_policy?: 'manual' | 'on_file_update';
+    /**
      * Id
      */
     id: string;
+    /**
+     * Last Indexed At
+     */
+    last_indexed_at?: string | null;
     /**
      * Name
      */
     name: string;
     /**
+     * Scope Id
+     */
+    scope_id?: string | null;
+    /**
+     * Scope Type
+     */
+    scope_type?: 'personal' | 'team';
+    /**
      * Status
      */
-    status: 'active' | 'archived';
+    status: 'active' | 'archived' | 'deleted';
+    /**
+     * Tags
+     */
+    tags?: Array<string>;
     /**
      * Updated At
      */
@@ -709,9 +835,17 @@ export type KnowledgeBasePublic = {
  */
 export type KnowledgeBaseUpdate = {
     /**
+     * Category
+     */
+    category?: string | null;
+    /**
      * Description
      */
     description?: string | null;
+    /**
+     * Freshness Policy
+     */
+    freshness_policy?: 'manual' | 'on_file_update' | null;
     /**
      * Name
      */
@@ -719,7 +853,58 @@ export type KnowledgeBaseUpdate = {
     /**
      * Status
      */
-    status?: 'active' | 'archived' | null;
+    status?: 'active' | 'archived' | 'deleted' | null;
+    /**
+     * Tags
+     */
+    tags?: Array<string> | null;
+};
+
+/**
+ * KnowledgeConversationDetailResponse
+ */
+export type KnowledgeConversationDetailResponse = {
+    conversation: KnowledgeConversationPublic;
+    /**
+     * Messages
+     */
+    messages: Array<KnowledgeMessagePublic>;
+};
+
+/**
+ * KnowledgeConversationListResponse
+ */
+export type KnowledgeConversationListResponse = {
+    /**
+     * Items
+     */
+    items: Array<KnowledgeConversationPublic>;
+};
+
+/**
+ * KnowledgeConversationPublic
+ */
+export type KnowledgeConversationPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Kb Id
+     */
+    kb_id: string;
+    /**
+     * Message Count
+     */
+    message_count: number;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
 };
 
 /**
@@ -751,6 +936,10 @@ export type KnowledgeDocumentPublic = {
      */
     chunk_count: number;
     /**
+     * Error Message
+     */
+    error_message?: string | null;
+    /**
      * File Id
      */
     file_id: string;
@@ -774,6 +963,66 @@ export type KnowledgeDocumentPublic = {
      * Updated At
      */
     updated_at: string;
+};
+
+/**
+ * KnowledgeFileBatchRequest
+ */
+export type KnowledgeFileBatchRequest = {
+    /**
+     * File Ids
+     */
+    file_ids: Array<string>;
+};
+
+/**
+ * KnowledgeFileBatchResponse
+ */
+export type KnowledgeFileBatchResponse = {
+    /**
+     * Added
+     */
+    added?: Array<KnowledgeDocumentPublic>;
+    /**
+     * Removed
+     */
+    removed?: Array<string>;
+    /**
+     * Skipped
+     */
+    skipped?: Array<{
+        [key: string]: string;
+    }>;
+};
+
+/**
+ * KnowledgeMessagePublic
+ */
+export type KnowledgeMessagePublic = {
+    /**
+     * Citations
+     */
+    citations?: Array<Citation>;
+    /**
+     * Content
+     */
+    content: string;
+    /**
+     * Conversation Id
+     */
+    conversation_id: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Role
+     */
+    role: 'user' | 'assistant';
 };
 
 /**
@@ -1067,6 +1316,10 @@ export type QaRequest = {
      */
     question: string;
     /**
+     * Report Mode
+     */
+    report_mode?: boolean;
+    /**
      * Stream
      */
     stream?: boolean;
@@ -1092,6 +1345,10 @@ export type QaResponse = {
      * Conversation Id
      */
     conversation_id: string;
+    /**
+     * Error Code
+     */
+    error_code?: 'KB_EMPTY' | 'KB_FILE_NOT_INDEXED' | 'KB_NO_MATCH' | null;
     /**
      * Message Id
      */
@@ -1683,7 +1940,7 @@ export type WorkflowDefinition = {
     /**
      * Status
      */
-    status: 'draft' | 'published';
+    status: 'draft' | 'published' | 'template';
     /**
      * Trigger
      */
@@ -1968,6 +2225,78 @@ export type CreateAgentTaskApiV2AgentsTasksPostResponses = {
 
 export type CreateAgentTaskApiV2AgentsTasksPostResponse = CreateAgentTaskApiV2AgentsTasksPostResponses[keyof CreateAgentTaskApiV2AgentsTasksPostResponses];
 
+export type GetAgentTaskApiV2AgentsTasksTaskIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Task Id
+         */
+        task_id: string;
+    };
+    query?: never;
+    url: '/api/v2/agents/tasks/{task_id}';
+};
+
+export type GetAgentTaskApiV2AgentsTasksTaskIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAgentTaskApiV2AgentsTasksTaskIdGetError = GetAgentTaskApiV2AgentsTasksTaskIdGetErrors[keyof GetAgentTaskApiV2AgentsTasksTaskIdGetErrors];
+
+export type GetAgentTaskApiV2AgentsTasksTaskIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: AgentTaskResponse;
+};
+
+export type GetAgentTaskApiV2AgentsTasksTaskIdGetResponse = GetAgentTaskApiV2AgentsTasksTaskIdGetResponses[keyof GetAgentTaskApiV2AgentsTasksTaskIdGetResponses];
+
+export type ContinueAgentTaskApiV2AgentsTasksTaskIdContinuePostData = {
+    body: AgentTaskContinueRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Task Id
+         */
+        task_id: string;
+    };
+    query?: never;
+    url: '/api/v2/agents/tasks/{task_id}/continue';
+};
+
+export type ContinueAgentTaskApiV2AgentsTasksTaskIdContinuePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ContinueAgentTaskApiV2AgentsTasksTaskIdContinuePostError = ContinueAgentTaskApiV2AgentsTasksTaskIdContinuePostErrors[keyof ContinueAgentTaskApiV2AgentsTasksTaskIdContinuePostErrors];
+
+export type ContinueAgentTaskApiV2AgentsTasksTaskIdContinuePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: AgentTaskResponse;
+};
+
+export type ContinueAgentTaskApiV2AgentsTasksTaskIdContinuePostResponse = ContinueAgentTaskApiV2AgentsTasksTaskIdContinuePostResponses[keyof ContinueAgentTaskApiV2AgentsTasksTaskIdContinuePostResponses];
+
 export type ReplyFileAnnotationApiV2AnnotationsAnnotationIdRepliesPostData = {
     body: FileAnnotationReplyCreate;
     headers?: {
@@ -2110,6 +2439,78 @@ export type RegisterApiV2AuthRegisterPostResponses = {
 
 export type RegisterApiV2AuthRegisterPostResponse = RegisterApiV2AuthRegisterPostResponses[keyof RegisterApiV2AuthRegisterPostResponses];
 
+export type DeleteKnowledgeConversationApiV2ConversationsConversationIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Conversation Id
+         */
+        conversation_id: string;
+    };
+    query?: never;
+    url: '/api/v2/conversations/{conversation_id}';
+};
+
+export type DeleteKnowledgeConversationApiV2ConversationsConversationIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteKnowledgeConversationApiV2ConversationsConversationIdDeleteError = DeleteKnowledgeConversationApiV2ConversationsConversationIdDeleteErrors[keyof DeleteKnowledgeConversationApiV2ConversationsConversationIdDeleteErrors];
+
+export type DeleteKnowledgeConversationApiV2ConversationsConversationIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteKnowledgeConversationApiV2ConversationsConversationIdDeleteResponse = DeleteKnowledgeConversationApiV2ConversationsConversationIdDeleteResponses[keyof DeleteKnowledgeConversationApiV2ConversationsConversationIdDeleteResponses];
+
+export type KnowledgeConversationDetailApiV2ConversationsConversationIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Conversation Id
+         */
+        conversation_id: string;
+    };
+    query?: never;
+    url: '/api/v2/conversations/{conversation_id}';
+};
+
+export type KnowledgeConversationDetailApiV2ConversationsConversationIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type KnowledgeConversationDetailApiV2ConversationsConversationIdGetError = KnowledgeConversationDetailApiV2ConversationsConversationIdGetErrors[keyof KnowledgeConversationDetailApiV2ConversationsConversationIdGetErrors];
+
+export type KnowledgeConversationDetailApiV2ConversationsConversationIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: KnowledgeConversationDetailResponse;
+};
+
+export type KnowledgeConversationDetailApiV2ConversationsConversationIdGetResponse = KnowledgeConversationDetailApiV2ConversationsConversationIdGetResponses[keyof KnowledgeConversationDetailApiV2ConversationsConversationIdGetResponses];
+
 export type ListFilesApiV2FilesGetData = {
     body?: never;
     headers?: {
@@ -2161,6 +2562,37 @@ export type ListFilesApiV2FilesGetResponses = {
 };
 
 export type ListFilesApiV2FilesGetResponse = ListFilesApiV2FilesGetResponses[keyof ListFilesApiV2FilesGetResponses];
+
+export type CompressFilesApiV2FilesCompressPostData = {
+    body: CompressionRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/files/compress';
+};
+
+export type CompressFilesApiV2FilesCompressPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CompressFilesApiV2FilesCompressPostError = CompressFilesApiV2FilesCompressPostErrors[keyof CompressFilesApiV2FilesCompressPostErrors];
+
+export type CompressFilesApiV2FilesCompressPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: CompressionResult;
+};
+
+export type CompressFilesApiV2FilesCompressPostResponse = CompressFilesApiV2FilesCompressPostResponses[keyof CompressFilesApiV2FilesCompressPostResponses];
 
 export type InitMultipartUploadApiV2FilesMultipartUploadsPostData = {
     body: MultipartUploadInitRequest;
@@ -2659,6 +3091,44 @@ export type CopyFileApiV2FilesFileIdCopyPostResponses = {
 
 export type CopyFileApiV2FilesFileIdCopyPostResponse = CopyFileApiV2FilesFileIdCopyPostResponses[keyof CopyFileApiV2FilesFileIdCopyPostResponses];
 
+export type DecompressFileApiV2FilesFileIdDecompressPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v2/files/{file_id}/decompress';
+};
+
+export type DecompressFileApiV2FilesFileIdDecompressPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DecompressFileApiV2FilesFileIdDecompressPostError = DecompressFileApiV2FilesFileIdDecompressPostErrors[keyof DecompressFileApiV2FilesFileIdDecompressPostErrors];
+
+export type DecompressFileApiV2FilesFileIdDecompressPostResponses = {
+    /**
+     * Response Decompress File Api V2 Files  File Id  Decompress Post
+     *
+     * Successful Response
+     */
+    201: Array<CompressionResult>;
+};
+
+export type DecompressFileApiV2FilesFileIdDecompressPostResponse = DecompressFileApiV2FilesFileIdDecompressPostResponses[keyof DecompressFileApiV2FilesFileIdDecompressPostResponses];
+
 export type DownloadFileApiV2FilesFileIdDownloadGetData = {
     body?: never;
     headers?: {
@@ -3093,6 +3563,42 @@ export type CreateKnowledgeBaseApiV2KnowledgeBasesPostResponses = {
 
 export type CreateKnowledgeBaseApiV2KnowledgeBasesPostResponse = CreateKnowledgeBaseApiV2KnowledgeBasesPostResponses[keyof CreateKnowledgeBaseApiV2KnowledgeBasesPostResponses];
 
+export type DeleteKnowledgeBaseApiV2KnowledgeBasesKbIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Kb Id
+         */
+        kb_id: string;
+    };
+    query?: never;
+    url: '/api/v2/knowledge-bases/{kb_id}';
+};
+
+export type DeleteKnowledgeBaseApiV2KnowledgeBasesKbIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteKnowledgeBaseApiV2KnowledgeBasesKbIdDeleteError = DeleteKnowledgeBaseApiV2KnowledgeBasesKbIdDeleteErrors[keyof DeleteKnowledgeBaseApiV2KnowledgeBasesKbIdDeleteErrors];
+
+export type DeleteKnowledgeBaseApiV2KnowledgeBasesKbIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteKnowledgeBaseApiV2KnowledgeBasesKbIdDeleteResponse = DeleteKnowledgeBaseApiV2KnowledgeBasesKbIdDeleteResponses[keyof DeleteKnowledgeBaseApiV2KnowledgeBasesKbIdDeleteResponses];
+
 export type UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchData = {
     body: KnowledgeBaseUpdate;
     headers?: {
@@ -3128,6 +3634,42 @@ export type UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchResponses = {
 };
 
 export type UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchResponse = UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchResponses[keyof UpdateKnowledgeBaseApiV2KnowledgeBasesKbIdPatchResponses];
+
+export type KnowledgeConversationsApiV2KnowledgeBasesKbIdConversationsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Kb Id
+         */
+        kb_id: string;
+    };
+    query?: never;
+    url: '/api/v2/knowledge-bases/{kb_id}/conversations';
+};
+
+export type KnowledgeConversationsApiV2KnowledgeBasesKbIdConversationsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type KnowledgeConversationsApiV2KnowledgeBasesKbIdConversationsGetError = KnowledgeConversationsApiV2KnowledgeBasesKbIdConversationsGetErrors[keyof KnowledgeConversationsApiV2KnowledgeBasesKbIdConversationsGetErrors];
+
+export type KnowledgeConversationsApiV2KnowledgeBasesKbIdConversationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: KnowledgeConversationListResponse;
+};
+
+export type KnowledgeConversationsApiV2KnowledgeBasesKbIdConversationsGetResponse = KnowledgeConversationsApiV2KnowledgeBasesKbIdConversationsGetResponses[keyof KnowledgeConversationsApiV2KnowledgeBasesKbIdConversationsGetResponses];
 
 export type KnowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGetData = {
     body?: never;
@@ -3200,6 +3742,194 @@ export type AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostResponses = 
 };
 
 export type AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostResponse = AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostResponses[keyof AddKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPostResponses];
+
+export type RemoveKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsDocIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Kb Id
+         */
+        kb_id: string;
+        /**
+         * Doc Id
+         */
+        doc_id: string;
+    };
+    query?: never;
+    url: '/api/v2/knowledge-bases/{kb_id}/documents/{doc_id}';
+};
+
+export type RemoveKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsDocIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemoveKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsDocIdDeleteError = RemoveKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsDocIdDeleteErrors[keyof RemoveKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsDocIdDeleteErrors];
+
+export type RemoveKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsDocIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RemoveKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsDocIdDeleteResponse = RemoveKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsDocIdDeleteResponses[keyof RemoveKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsDocIdDeleteResponses];
+
+export type KnowledgeFilesApiV2KnowledgeBasesKbIdFilesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Kb Id
+         */
+        kb_id: string;
+    };
+    query?: never;
+    url: '/api/v2/knowledge-bases/{kb_id}/files';
+};
+
+export type KnowledgeFilesApiV2KnowledgeBasesKbIdFilesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type KnowledgeFilesApiV2KnowledgeBasesKbIdFilesGetError = KnowledgeFilesApiV2KnowledgeBasesKbIdFilesGetErrors[keyof KnowledgeFilesApiV2KnowledgeBasesKbIdFilesGetErrors];
+
+export type KnowledgeFilesApiV2KnowledgeBasesKbIdFilesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: KnowledgeDocumentListResponse;
+};
+
+export type KnowledgeFilesApiV2KnowledgeBasesKbIdFilesGetResponse = KnowledgeFilesApiV2KnowledgeBasesKbIdFilesGetResponses[keyof KnowledgeFilesApiV2KnowledgeBasesKbIdFilesGetResponses];
+
+export type BatchAddKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchAddPostData = {
+    body: KnowledgeFileBatchRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Kb Id
+         */
+        kb_id: string;
+    };
+    query?: never;
+    url: '/api/v2/knowledge-bases/{kb_id}/files:batch-add';
+};
+
+export type BatchAddKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchAddPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BatchAddKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchAddPostError = BatchAddKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchAddPostErrors[keyof BatchAddKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchAddPostErrors];
+
+export type BatchAddKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchAddPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: KnowledgeFileBatchResponse;
+};
+
+export type BatchAddKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchAddPostResponse = BatchAddKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchAddPostResponses[keyof BatchAddKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchAddPostResponses];
+
+export type BatchRemoveKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchRemovePostData = {
+    body: KnowledgeFileBatchRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Kb Id
+         */
+        kb_id: string;
+    };
+    query?: never;
+    url: '/api/v2/knowledge-bases/{kb_id}/files:batch-remove';
+};
+
+export type BatchRemoveKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchRemovePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BatchRemoveKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchRemovePostError = BatchRemoveKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchRemovePostErrors[keyof BatchRemoveKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchRemovePostErrors];
+
+export type BatchRemoveKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchRemovePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: KnowledgeFileBatchResponse;
+};
+
+export type BatchRemoveKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchRemovePostResponse = BatchRemoveKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchRemovePostResponses[keyof BatchRemoveKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchRemovePostResponses];
+
+export type ReindexKnowledgeBaseApiV2KnowledgeBasesKbIdReindexPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Kb Id
+         */
+        kb_id: string;
+    };
+    query?: never;
+    url: '/api/v2/knowledge-bases/{kb_id}/reindex';
+};
+
+export type ReindexKnowledgeBaseApiV2KnowledgeBasesKbIdReindexPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReindexKnowledgeBaseApiV2KnowledgeBasesKbIdReindexPostError = ReindexKnowledgeBaseApiV2KnowledgeBasesKbIdReindexPostErrors[keyof ReindexKnowledgeBaseApiV2KnowledgeBasesKbIdReindexPostErrors];
+
+export type ReindexKnowledgeBaseApiV2KnowledgeBasesKbIdReindexPostResponses = {
+    /**
+     * Response Reindex Knowledge Base Api V2 Knowledge Bases  Kb Id  Reindex Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ReindexKnowledgeBaseApiV2KnowledgeBasesKbIdReindexPostResponse = ReindexKnowledgeBaseApiV2KnowledgeBasesKbIdReindexPostResponses[keyof ReindexKnowledgeBaseApiV2KnowledgeBasesKbIdReindexPostResponses];
 
 export type NotificationsApiV2NotificationsGetData = {
     body?: never;

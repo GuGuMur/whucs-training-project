@@ -61,7 +61,7 @@ def generate_rag_answer(question: str, context_snippets: list[str], kb_name: str
 
     llm = _get_llm()
     if llm is None:
-        return _template_answer(question, context_snippets, kb_name)
+        return _template_answer(question, context_snippets, kb_name, history_context=history_context)
 
     context = "\n\n---\n\n".join(
         f"[来源 {i + 1}] {s}" for i, s in enumerate(context_snippets)
@@ -91,7 +91,7 @@ def generate_rag_answer(question: str, context_snippets: list[str], kb_name: str
         return response.content.strip() if hasattr(response, "content") else str(response).strip()
     except Exception:
         logger.warning("LLM RAG call failed, falling back", exc_info=True)
-        return _template_answer(question, context_snippets, kb_name)
+        return _template_answer(question, context_snippets, kb_name, history_context=history_context)
 
 
 def generate_rag_answer_stream(question: str, context_snippets: list[str], kb_name: str):
@@ -146,7 +146,11 @@ def generate_file_summary(filename: str, content_preview: str) -> str:
         return f"文件「{filename}」摘要生成失败，请稍后重试。"
 
 
-def _template_answer(_question: str, snippets: list[str], kb_name: str) -> str:
+def _template_answer(_question: str, snippets: list[str], kb_name: str, history_context: str = "") -> str:
     if not snippets:
         return f"知识库「{kb_name}」未检索到相关内容。"
-    return "\n\n".join(f"[来源 {i + 1}] {s}" for i, s in enumerate(snippets[:5]))
+    answer_parts = []
+    if history_context:
+        answer_parts.append(f"【对话上下文】\n{history_context}")
+    answer_parts.append("\n\n".join(f"[来源 {i + 1}] {s}" for i, s in enumerate(snippets[:5])))
+    return "\n\n".join(answer_parts)

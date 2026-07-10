@@ -16,6 +16,7 @@ import {
   deleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDelete,
   deleteFileApiV2FilesFileIdDelete,
   deleteFolderApiV2FoldersFolderIdDelete,
+  deleteKnowledgeBaseApiV2KnowledgeBasesKbIdDelete,
   deletePermissionRuleApiV2PermissionsRulesRuleIdDelete,
   downloadFileApiV2FilesFileIdDownloadGet,
   executeWorkflowApiV2WorkflowsWorkflowIdExecutionsPost,
@@ -54,9 +55,21 @@ import {
   listWorkflowsApiV2WorkflowsGet,
   workspaceSnapshotApiV2WorkspaceSnapshotGet,
 } from '@/client/generated'
-import { reparseFileApiV2FilesFileIdReparsePost } from '@/client/generated/sdk.gen'
+import {
+  batchAddKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchAddPost,
+  batchRemoveKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchRemovePost,
+  continueAgentTaskApiV2AgentsTasksTaskIdContinuePost,
+  deleteKnowledgeConversationApiV2ConversationsConversationIdDelete,
+  getAgentTaskApiV2AgentsTasksTaskIdGet,
+  knowledgeConversationDetailApiV2ConversationsConversationIdGet,
+  knowledgeConversationsApiV2KnowledgeBasesKbIdConversationsGet,
+  reindexKnowledgeBaseApiV2KnowledgeBasesKbIdReindexPost,
+  reparseFileApiV2FilesFileIdReparsePost,
+  toolsApiV2ToolsGet,
+} from '@/client/generated/sdk.gen'
 import type {
   AgentStep as GeneratedAgentStep,
+  AgentTaskContinueRequest,
   AgentTaskResponse,
   AuditLogEntry,
   Citation,
@@ -77,11 +90,17 @@ import type {
   FolderItem,
   FolderTreeResponse,
   FolderUpdate,
+  KnowledgeBaseCreate,
   KnowledgeBaseListResponse,
   KnowledgeBasePublic,
   KnowledgeBaseUpdate,
+  KnowledgeConversationDetailResponse,
+  KnowledgeConversationListResponse,
+  KnowledgeConversationPublic,
   KnowledgeDocumentListResponse,
   KnowledgeDocumentPublic,
+  KnowledgeFileBatchResponse,
+  KnowledgeMessagePublic,
   MultipartChunkResponse,
   MultipartUploadSession,
   NotificationItem,
@@ -103,6 +122,7 @@ import type {
   TeamMessageListResponse,
   TeamSummary,
   ToolDefinition,
+  ToolListResponse,
   WorkflowCreate,
   WorkflowDefinition,
   WorkflowEdgeDefinition,
@@ -114,7 +134,9 @@ import type {
   WorkspaceSnapshot,
 } from '@/client/generated'
 
-export type AgentStep = GeneratedAgentStep & { status: NonNullable<GeneratedAgentStep['status']> }
+export type AgentStep = GeneratedAgentStep
+export type WorkspaceAgentTask = AgentTaskResponse
+export type WorkspaceAgentTaskStatus = AgentTaskResponse['status']
 export type WorkspaceFile = FileItem
 export type WorkspaceFileAnnotation = FileAnnotationItem
 export type WorkspaceFileAnnotationReply = FileAnnotationReplyItem
@@ -136,6 +158,11 @@ export type WorkspaceKnowledgeBase = KnowledgeBasePublic
 export type WorkspaceKnowledgeDocument = KnowledgeDocumentPublic
 export type WorkspaceKnowledgeBaseListResponse = KnowledgeBaseListResponse
 export type WorkspaceKnowledgeDocumentListResponse = KnowledgeDocumentListResponse
+export type WorkspaceKnowledgeFileBatchResponse = KnowledgeFileBatchResponse
+export type WorkspaceKnowledgeConversation = KnowledgeConversationPublic
+export type WorkspaceKnowledgeConversationListResponse = KnowledgeConversationListResponse
+export type WorkspaceKnowledgeConversationDetailResponse = KnowledgeConversationDetailResponse
+export type WorkspaceKnowledgeMessage = KnowledgeMessagePublic
 export type WorkspacePermissionRule = PermissionRulePublic
 export type WorkspacePermissionRuleListResponse = PermissionRuleListResponse
 export type WorkspaceQuestionResponse = QaResponse
@@ -213,13 +240,25 @@ export interface WorkspaceFolderOption {
   value: string
 }
 export interface WorkspaceKnowledgeBaseCreateInput {
+  category?: string | null
   description?: string | null
+  freshnessPolicy?: NonNullable<KnowledgeBaseCreate['freshness_policy']>
   name: string
+  scopeId?: string | null
+  scopeType?: NonNullable<KnowledgeBaseCreate['scope_type']>
+  tags?: string[]
 }
 export interface WorkspaceKnowledgeBaseUpdateInput {
+  category?: string | null
   description?: string | null
+  freshnessPolicy?: KnowledgeBaseUpdate['freshness_policy']
   name?: string | null
-  status?: NonNullable<KnowledgeBaseUpdate['status']>
+  status?: KnowledgeBaseUpdate['status']
+  tags?: string[] | null
+}
+export interface WorkspaceKnowledgeReindexResponse {
+  kb_id: string
+  status: string
 }
 export interface WorkspaceQuestionInput {
   conversationId?: string | null
@@ -273,6 +312,9 @@ export interface WorkspaceAgentTaskInput {
   kbId?: string | null
   task: string
 }
+export interface WorkspaceAgentTaskContinueInput {
+  inputs?: AgentTaskContinueRequest['inputs']
+}
 export type {
   AuditLogEntry,
   Citation,
@@ -280,6 +322,7 @@ export type {
   FileListResponse,
   TeamSummary,
   ToolDefinition,
+  ToolListResponse,
   WorkflowDefinition,
   WorkspaceSnapshot,
 }
@@ -443,6 +486,53 @@ export async function createAgentTask(
   return response.data
 }
 
+export async function getAgentTask(token: string, taskId: string): Promise<AgentTaskResponse> {
+  const response = await getAgentTaskApiV2AgentsTasksTaskIdGet({
+    headers: createAuthorizationHeader(token),
+    path: { task_id: taskId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function continueAgentTask(
+  token: string,
+  taskId: string,
+  payload: WorkspaceAgentTaskContinueInput,
+): Promise<AgentTaskResponse> {
+  const response = await continueAgentTaskApiV2AgentsTasksTaskIdContinuePost({
+    body: {
+      inputs: payload.inputs ?? {},
+    },
+    headers: createAuthorizationHeader(token),
+    path: { task_id: taskId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function listWorkspaceTools(token: string): Promise<ToolListResponse> {
+  const response = await toolsApiV2ToolsGet({
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export const listTools = listWorkspaceTools
+
 export async function listKnowledgeBases(token: string): Promise<WorkspaceKnowledgeBaseListResponse> {
   const response = await listKnowledgeBasesApiV2KnowledgeBasesGet({
     headers: createAuthorizationHeader(token),
@@ -461,8 +551,13 @@ export async function createKnowledgeBase(
 ): Promise<WorkspaceKnowledgeBase> {
   const response = await createKnowledgeBaseApiV2KnowledgeBasesPost({
     body: {
+      category: payload.category ?? null,
       description: payload.description ?? null,
+      freshness_policy: payload.freshnessPolicy ?? 'manual',
       name: payload.name,
+      scope_id: payload.scopeId ?? null,
+      scope_type: payload.scopeType ?? 'personal',
+      tags: payload.tags ?? [],
     },
     headers: createAuthorizationHeader(token),
   })
@@ -483,11 +578,20 @@ export async function updateKnowledgeBase(
   if ('description' in payload) {
     body.description = payload.description ?? null
   }
+  if ('category' in payload) {
+    body.category = payload.category ?? null
+  }
+  if ('freshnessPolicy' in payload) {
+    body.freshness_policy = payload.freshnessPolicy ?? null
+  }
   if ('name' in payload) {
     body.name = payload.name ?? null
   }
   if ('status' in payload) {
     body.status = payload.status ?? null
+  }
+  if ('tags' in payload) {
+    body.tags = payload.tags ?? null
   }
 
   const response = await updateKnowledgeBaseApiV2KnowledgeBasesKbIdPatch({
@@ -501,6 +605,17 @@ export async function updateKnowledgeBase(
   }
 
   return response.data
+}
+
+export async function deleteKnowledgeBase(token: string, kbId: string): Promise<void> {
+  const response = await deleteKnowledgeBaseApiV2KnowledgeBasesKbIdDelete({
+    headers: createAuthorizationHeader(token),
+    path: { kb_id: kbId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
 }
 
 export async function listKnowledgeDocuments(
@@ -535,6 +650,105 @@ export async function addKnowledgeDocument(
   }
 
   return response.data
+}
+
+export async function batchAddKnowledgeFiles(
+  token: string,
+  kbId: string,
+  fileIds: string[],
+): Promise<WorkspaceKnowledgeFileBatchResponse> {
+  const response = await batchAddKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchAddPost({
+    body: { file_ids: fileIds },
+    headers: createAuthorizationHeader(token),
+    path: { kb_id: kbId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function batchRemoveKnowledgeFiles(
+  token: string,
+  kbId: string,
+  fileIds: string[],
+): Promise<WorkspaceKnowledgeFileBatchResponse> {
+  const response = await batchRemoveKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchRemovePost({
+    body: { file_ids: fileIds },
+    headers: createAuthorizationHeader(token),
+    path: { kb_id: kbId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function reindexKnowledgeBase(
+  token: string,
+  kbId: string,
+): Promise<WorkspaceKnowledgeReindexResponse> {
+  const response = await reindexKnowledgeBaseApiV2KnowledgeBasesKbIdReindexPost({
+    headers: createAuthorizationHeader(token),
+    path: { kb_id: kbId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  const data = response.data as Partial<WorkspaceKnowledgeReindexResponse>
+  return {
+    kb_id: typeof data.kb_id === 'string' ? data.kb_id : kbId,
+    status: typeof data.status === 'string' ? data.status : 'queued',
+  }
+}
+
+export async function listKnowledgeConversations(
+  token: string,
+  kbId: string,
+): Promise<WorkspaceKnowledgeConversationListResponse> {
+  const response = await knowledgeConversationsApiV2KnowledgeBasesKbIdConversationsGet({
+    headers: createAuthorizationHeader(token),
+    path: { kb_id: kbId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function getKnowledgeConversation(
+  token: string,
+  conversationId: string,
+): Promise<WorkspaceKnowledgeConversationDetailResponse> {
+  const response = await knowledgeConversationDetailApiV2ConversationsConversationIdGet({
+    headers: createAuthorizationHeader(token),
+    path: { conversation_id: conversationId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function deleteKnowledgeConversation(token: string, conversationId: string): Promise<void> {
+  const response = await deleteKnowledgeConversationApiV2ConversationsConversationIdDelete({
+    headers: createAuthorizationHeader(token),
+    path: { conversation_id: conversationId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
 }
 
 export async function askWorkspaceQuestion(

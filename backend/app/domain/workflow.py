@@ -26,21 +26,30 @@ class AgentTaskRequest(BaseModel):
     context_file_ids: list[str] = Field(default_factory=list)
 
 
+class AgentTaskContinueRequest(BaseModel):
+    inputs: dict[str, Any] = Field(default_factory=dict)
+
+
 class AgentStep(BaseModel):
     type: Literal["thought", "action", "observation", "answer"]
+    phase: Literal["understand", "plan", "call", "observe", "answer"] = "answer"
     title: str
     content: str
     tool_name: str | None = None
-    status: Literal["pending", "running", "success", "failed"] = "success"
+    input_json: dict[str, Any] = Field(default_factory=dict)
+    output_json: dict[str, Any] = Field(default_factory=dict)
+    status: Literal["pending", "running", "success", "failed", "needs_clarification"] = "success"
+    error_message: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class AgentTaskResponse(BaseModel):
     id: str
     task: str
-    status: Literal["queued", "running", "completed", "failed"]
+    status: Literal["queued", "running", "completed", "failed", "needs_clarification"]
     steps: list[AgentStep]
     final_answer: str
+    result_view: dict[str, Any] = Field(default_factory=dict)
 
 
 WorkflowNodeType = Literal["trigger", "tool",

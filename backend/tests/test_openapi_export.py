@@ -21,6 +21,18 @@ def test_export_openapi_writes_v2_contract(tmp_path) -> None:
     assert "/api/v2/folders/tree" in paths
     assert "/api/v2/teams" in paths
     assert "/api/v2/knowledge-bases" in paths
+    assert "/api/v2/knowledge-bases/{kb_id}" in paths
+    assert "/api/v2/knowledge-bases/{kb_id}/files" in paths
+    assert "/api/v2/knowledge-bases/{kb_id}/files:batch-add" in paths
+    assert "/api/v2/knowledge-bases/{kb_id}/files:batch-remove" in paths
+    assert "/api/v2/knowledge-bases/{kb_id}/reindex" in paths
+    assert "/api/v2/knowledge-bases/{kb_id}/conversations" in paths
+    assert "/api/v2/conversations/{conversation_id}" in paths
+    assert "delete" in paths["/api/v2/conversations/{conversation_id}"]
+    assert "/api/v2/tools" in paths
+    assert "/api/v2/agents/tasks" in paths
+    assert "/api/v2/agents/tasks/{task_id}" in paths
+    assert "/api/v2/agents/tasks/{task_id}/continue" in paths
     assert "/api/v2/workflows" in paths
     assert "/api/v2/notifications" in paths
     assert "/api/v2/permissions/rules" in paths

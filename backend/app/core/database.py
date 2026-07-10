@@ -25,3 +25,31 @@ async def get_db() -> AsyncSession:
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_ensure_sqlite_schema)
+
+
+def _ensure_sqlite_schema(conn) -> None:
+    if not str(engine.url).startswith("sqlite"):
+        return
+
+    kb_columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(knowledge_bases)").fetchall()}
+    kb_additions = {
+        "scope_type": "ALTER TABLE knowledge_bases ADD COLUMN scope_type VARCHAR(16) DEFAULT 'personal' NOT NULL",
+        "scope_id": "ALTER TABLE knowledge_bases ADD COLUMN scope_id VARCHAR(64)",
+        "category": "ALTER TABLE knowledge_bases ADD COLUMN category VARCHAR(80) DEFAULT '' NOT NULL",
+        "tags": "ALTER TABLE knowledge_bases ADD COLUMN tags TEXT DEFAULT '[]' NOT NULL",
+        "freshness_policy": "ALTER TABLE knowledge_bases ADD COLUMN freshness_policy VARCHAR(32) DEFAULT 'manual' NOT NULL",
+        "last_indexed_at": "ALTER TABLE knowledge_bases ADD COLUMN last_indexed_at DATETIME",
+    }
+    for column, statement in kb_additions.items():
+        if column not in kb_columns:
+            conn.exec_driver_sql(statement)
+
+    doc_columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(knowledge_documents)").fetchall()}
+    doc_additions = {
+        "version_sha": "ALTER TABLE knowledge_documents ADD COLUMN version_sha VARCHAR(64) DEFAULT '' NOT NULL",
+        "error_message": "ALTER TABLE knowledge_documents ADD COLUMN error_message TEXT DEFAULT '' NOT NULL",
+    }
+    for column, statement in doc_additions.items():
+        if column not in doc_columns:
+            conn.exec_driver_sql(statement)

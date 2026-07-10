@@ -79,6 +79,13 @@
 | Notification inbox behavior was missing during TDD | Added backend notification schemas/routes/service state, OpenAPI assertions, generated-client adapters, Pinia inbox actions, `NotificationInboxPanel.vue`, and TeamAuditPanel/WorkspaceView event wiring. |
 
 ## Latest Verification
+- RAG/Agent refactor backend full suite after `RagPipeline` extraction and QA error-code handling: `PYTHONPATH=. uv run python -m pytest -q` from `backend/` -> 92 passed, 3 warnings.
+- RAG/Agent refactor frontend unit tests: `pnpm vitest run` from `frontend/` -> 14 files passed, 67 tests passed.
+- RAG/Agent refactor frontend type check: `pnpm type-check` -> passed.
+- RAG/Agent refactor frontend build: `pnpm build` -> passed.
+- RAG/Agent refactor hygiene: `python3 -m json.tool .wolf/buglog.json >/dev/null` and `git diff --check` -> passed.
+- RAG focused checks: `PYTHONPATH=. uv run python -m pytest tests/test_workspace_api.py -q -k "rag or qa or conversation"` -> 7 passed; `PYTHONPATH=. uv run python -m pytest tests/test_embedding.py tests/test_llm.py -q` -> 16 passed.
+- WorkflowBuilderView direct debug fetch audit: `rg "fetch\\(" frontend/src/views/WorkflowBuilderView.vue` -> no matches.
 - Backend focused notification/OpenAPI tests: `PYTHONPATH=. uv run python -m pytest tests/test_workspace_api.py::test_notifications_list_and_mark_read_for_invites_mentions_and_annotation_replies tests/test_workspace_api.py::test_team_file_annotations_support_replies_permissions_and_notifications tests/test_openapi_export.py -q` -> 3 passed, 1 Starlette/httpx deprecation warning.
 - OpenAPI client generation: `pnpm generate:client` -> passed; generated schema/types include notification list/read contracts.
 - Frontend focused notification tests: `pnpm vitest run src/stores/__tests__/workspace.spec.ts src/components/workspace/__tests__/NotificationInboxPanel.spec.ts src/components/workspace/__tests__/TeamAuditPanel.spec.ts -t notification` -> 3 files passed, 3 tests passed.

@@ -34,6 +34,27 @@ def auth_headers(username: str | None = None) -> dict[str, str]:
     assert isinstance(token, str)
     return {"Authorization": f"Bearer {token}"}
 
+
+def auth_session_v2(username: str | None = None) -> dict[str, object]:
+    username = f"{username or 'v2user'}-{next(user_counter)}-{secrets.token_hex(4)}"
+    register_response = client.post(
+        "/api/v2/auth/register",
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "password": "Str0ngPass!",
+        },
+    )
+    assert register_response.status_code == 201
+    return register_response.json()
+
+
+def auth_headers_v2(username: str | None = None) -> dict[str, str]:
+    token = auth_session_v2(username)["access_token"]
+    assert isinstance(token, str)
+    return {"Authorization": f"Bearer {token}"}
+
+
 def upload_test_file(
     headers: dict[str, str] | None = None,
     filename: str = "显微镜实验报告.pdf",
@@ -2302,14 +2323,14 @@ def test_kb_qa_citations_come_from_parsed_segments() -> None:
 
 def test_agent_empty_task_rejected() -> None:
     """Empty or missing task field should return validation error."""
-    headers = auth_headers()
+    headers = auth_headers_v2()
     response = client.post("/api/v2/agents/tasks", headers=headers, json={"task": ""})
     assert response.status_code == 422  # Pydantic min_length validation
 
 
 def test_agent_nonexistent_kb_id_returns_error() -> None:
     """Agent task with a nonexistent KB ID should return a proper error."""
-    headers = auth_headers()
+    headers = auth_headers_v2()
     response = client.post(
         "/api/v2/agents/tasks",
         headers=headers,
@@ -2324,7 +2345,7 @@ def test_agent_nonexistent_kb_id_returns_error() -> None:
 
 def test_agent_single_tool_file_search() -> None:
     """Agent task asking to find files should produce file_search steps."""
-    headers = auth_headers()
+    headers = auth_headers_v2()
 
     response = client.post(
         "/api/v2/agents/tasks",
@@ -2341,7 +2362,7 @@ def test_agent_single_tool_file_search() -> None:
 
 def test_agent_multi_tool_qa_and_report() -> None:
     """Agent task combining KB search and report generation."""
-    headers = auth_headers()
+    headers = auth_headers_v2()
     kb_resp = client.post(
         "/api/v2/knowledge-bases",
         headers=headers,
@@ -2369,7 +2390,7 @@ def test_agent_multi_tool_qa_and_report() -> None:
 
 def test_agent_direct_answer_no_tools_needed() -> None:
     """Simple task that the LLM can answer without any tool calls."""
-    headers = auth_headers()
+    headers = auth_headers_v2()
     response = client.post(
         "/api/v2/agents/tasks",
         headers=headers,
@@ -2385,7 +2406,7 @@ def test_agent_direct_answer_no_tools_needed() -> None:
 
 def test_agent_multi_turn_with_conversation_context() -> None:
     """Two sequential agent tasks that share conversation context."""
-    headers = auth_headers()
+    headers = auth_headers_v2()
     # First turn
     resp1 = client.post(
         "/api/v2/agents/tasks",
@@ -2408,3 +2429,441 @@ def test_agent_multi_turn_with_conversation_context() -> None:
         assert task1["id"] != task2["id"]
         assert len(task1["steps"]) >= 1
         assert len(task2["steps"]) >= 1
+
+
+def test_v2_tool_catalog_contains_required_transparent_tools() -> None:
+    headers = auth_headers_v2("tool-catalog-owner")
+
+    response = client.get("/api/v2/tools", headers=headers)
+
+    assert response.status_code == 200
+    tools = response.json()["items"]
+    names = {tool["name"] for tool in tools}
+    assert {"calculator", "course_lookup", "file_content_search", "python_data"}.issubset(names)
+    for tool in tools:
+        assert tool["name"]
+        assert tool["description"]
+        assert tool["input_schema"]["type"] == "object"
+        assert tool["output_schema"]["type"] == "object"
+
+
+def test_v2_agent_calculator_task_uses_understand_call_observe_answer_flow() -> None:
+    headers = auth_headers_v2("agent-calculator-owner")
+
+    response = client.post(
+        "/api/v2/agents/tasks",
+        headers=headers,
+        json={"task": "计算 (2 + 3) * 4"},
+    )
+
+    assert response.status_code == 201
+    task = response.json()
+    assert task["status"] == "completed"
+    assert "20" in task["final_answer"]
+    assert task["result_view"]["type"] == "text"
+    phases = [step["phase"] for step in task["steps"]]
+    assert phases == ["understand", "plan", "call", "observe", "answer"]
+    call_step = next(step for step in task["steps"] if step["phase"] == "call")
+    observe_step = next(step for step in task["steps"] if step["phase"] == "observe")
+    assert call_step["tool_name"] == "calculator"
+    assert call_step["input_json"]["expression"] == "(2 + 3) * 4"
+    assert observe_step["output_json"]["result"] == 20
+
+    detail_response = client.get(f"/api/v2/agents/tasks/{task['id']}", headers=headers)
+    assert detail_response.status_code == 200
+    assert detail_response.json()["id"] == task["id"]
+
+
+def test_v2_agent_missing_course_query_can_continue() -> None:
+    headers = auth_headers_v2("agent-course-owner")
+
+    response = client.post(
+        "/api/v2/agents/tasks",
+        headers=headers,
+        json={"task": "查询课程信息"},
+    )
+
+    assert response.status_code == 201
+    task = response.json()
+    assert task["status"] == "needs_clarification"
+    assert "请补充要查询的课程名称" in task["final_answer"]
+    assert task["steps"][-1]["status"] == "needs_clarification"
+
+    continue_response = client.post(
+        f"/api/v2/agents/tasks/{task['id']}/continue",
+        headers=headers,
+        json={"inputs": {"query": "算法"}},
+    )
+    assert continue_response.status_code == 200
+    continued = continue_response.json()
+    assert continued["id"] == task["id"]
+    assert continued["status"] == "completed"
+    assert "算法" in continued["final_answer"]
+    assert any(step["tool_name"] == "course_lookup" for step in continued["steps"])
+
+
+def test_v2_agent_file_content_search_uses_context_file() -> None:
+    headers = auth_headers_v2("agent-file-search-owner")
+    upload_response = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        data={"folder_id": "personal-root", "tags": "agent"},
+        files={"file": ("agent-notes.txt", b"alpha project risk register", "text/plain")},
+    )
+    assert upload_response.status_code == 201
+    file_id = upload_response.json()["id"]
+
+    response = client.post(
+        "/api/v2/agents/tasks",
+        headers=headers,
+        json={"task": "在文件内容中查询 alpha", "context_file_ids": [file_id]},
+    )
+
+    assert response.status_code == 201
+    task = response.json()
+    assert task["status"] == "completed"
+    assert "agent-notes.txt" in task["final_answer"]
+    assert "alpha project risk register" in task["final_answer"]
+    observe_step = next(step for step in task["steps"] if step["phase"] == "observe")
+    assert observe_step["tool_name"] == "file_content_search"
+    assert observe_step["output_json"]["matches"][0]["file_id"] == file_id
+
+
+def test_v2_knowledge_base_scope_metadata_delete_and_access_control() -> None:
+    owner_headers = auth_headers_v2("kb-scope-owner")
+    outsider_headers = auth_headers_v2("kb-scope-outsider")
+
+    personal_response = client.post(
+        "/api/v2/knowledge-bases",
+        headers=owner_headers,
+        json={
+            "name": "个人算法知识库",
+            "description": "个人课程材料",
+            "scope_type": "personal",
+            "category": "算法",
+            "tags": ["课程", "期末"],
+            "freshness_policy": "on_file_update",
+        },
+    )
+    assert personal_response.status_code == 201
+    personal_kb = personal_response.json()
+    assert personal_kb["scope_type"] == "personal"
+    assert personal_kb["scope_id"] is None
+    assert personal_kb["category"] == "算法"
+    assert personal_kb["tags"] == ["课程", "期末"]
+    assert personal_kb["freshness_policy"] == "on_file_update"
+    assert personal_kb["last_indexed_at"] is None
+
+    team_response = client.post(
+        "/api/v2/teams",
+        headers=owner_headers,
+        json={"name": "RAG课程组", "description": "知识库协作空间"},
+    )
+    assert team_response.status_code == 201
+    team_id = team_response.json()["id"]
+
+    team_kb_response = client.post(
+        "/api/v2/knowledge-bases",
+        headers=owner_headers,
+        json={
+            "name": "团队实验知识库",
+            "description": "团队共享材料",
+            "scope_type": "team",
+            "scope_id": team_id,
+            "category": "实验",
+            "tags": ["共享", "报告"],
+        },
+    )
+    assert team_kb_response.status_code == 201
+    team_kb = team_kb_response.json()
+    assert team_kb["scope_type"] == "team"
+    assert team_kb["scope_id"] == team_id
+    assert team_kb["category"] == "实验"
+    assert team_kb["tags"] == ["共享", "报告"]
+
+    owner_list_response = client.get("/api/v2/knowledge-bases", headers=owner_headers)
+    assert owner_list_response.status_code == 200
+    owner_ids = {item["id"] for item in owner_list_response.json()["items"]}
+    assert personal_kb["id"] in owner_ids
+    assert team_kb["id"] in owner_ids
+
+    outsider_list_response = client.get("/api/v2/knowledge-bases", headers=outsider_headers)
+    assert outsider_list_response.status_code == 200
+    outsider_ids = {item["id"] for item in outsider_list_response.json()["items"]}
+    assert personal_kb["id"] not in outsider_ids
+    assert team_kb["id"] not in outsider_ids
+
+    forbidden_update_response = client.patch(
+        f"/api/v2/knowledge-bases/{personal_kb['id']}",
+        headers=outsider_headers,
+        json={"name": "越权修改"},
+    )
+    assert forbidden_update_response.status_code == 403
+    assert forbidden_update_response.json()["code"] == "KB_SCOPE_DENIED"
+
+    update_response = client.patch(
+        f"/api/v2/knowledge-bases/{personal_kb['id']}",
+        headers=owner_headers,
+        json={
+            "category": "数据结构",
+            "tags": ["课程", "复习"],
+            "status": "archived",
+        },
+    )
+    assert update_response.status_code == 200
+    updated = update_response.json()
+    assert updated["category"] == "数据结构"
+    assert updated["tags"] == ["课程", "复习"]
+    assert updated["status"] == "archived"
+
+    delete_response = client.delete(
+        f"/api/v2/knowledge-bases/{personal_kb['id']}",
+        headers=owner_headers,
+    )
+    assert delete_response.status_code == 204
+
+    after_delete_response = client.get("/api/v2/knowledge-bases", headers=owner_headers)
+    assert after_delete_response.status_code == 200
+    after_delete_ids = {item["id"] for item in after_delete_response.json()["items"]}
+    assert personal_kb["id"] not in after_delete_ids
+
+
+def test_v2_knowledge_base_batch_file_operations_update_membership() -> None:
+    headers = auth_headers_v2("kb-batch-owner")
+    kb_response = client.post(
+        "/api/v2/knowledge-bases",
+        headers=headers,
+        json={"name": "批量文件知识库", "description": "批量入库测试"},
+    )
+    assert kb_response.status_code == 201
+    kb_id = kb_response.json()["id"]
+
+    first_file = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        data={"folder_id": "personal-root", "tags": "batch"},
+        files={"file": ("batch-a.txt", b"alpha course content", "text/plain")},
+    )
+    second_file = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        data={"folder_id": "personal-root", "tags": "batch"},
+        files={"file": ("batch-b.txt", b"beta course content", "text/plain")},
+    )
+    assert first_file.status_code == 201
+    assert second_file.status_code == 201
+    first_id = first_file.json()["id"]
+    second_id = second_file.json()["id"]
+
+    add_response = client.post(
+        f"/api/v2/knowledge-bases/{kb_id}/files:batch-add",
+        headers=headers,
+        json={"file_ids": [first_id, second_id]},
+    )
+    assert add_response.status_code == 200
+    add_body = add_response.json()
+    assert [item["file_id"] for item in add_body["added"]] == [first_id, second_id]
+    assert add_body["skipped"] == []
+
+    duplicate_response = client.post(
+        f"/api/v2/knowledge-bases/{kb_id}/files:batch-add",
+        headers=headers,
+        json={"file_ids": [first_id]},
+    )
+    assert duplicate_response.status_code == 200
+    assert duplicate_response.json()["added"] == []
+    assert duplicate_response.json()["skipped"] == [{"file_id": first_id, "code": "FILE_ALREADY_IN_KB"}]
+
+    files_response = client.get(f"/api/v2/knowledge-bases/{kb_id}/files", headers=headers)
+    assert files_response.status_code == 200
+    assert {item["file_id"] for item in files_response.json()["items"]} == {first_id, second_id}
+
+    remove_response = client.post(
+        f"/api/v2/knowledge-bases/{kb_id}/files:batch-remove",
+        headers=headers,
+        json={"file_ids": [first_id]},
+    )
+    assert remove_response.status_code == 200
+    assert remove_response.json()["removed"] == [first_id]
+
+    after_remove_response = client.get(f"/api/v2/knowledge-bases/{kb_id}/files", headers=headers)
+    assert after_remove_response.status_code == 200
+    assert {item["file_id"] for item in after_remove_response.json()["items"]} == {second_id}
+
+
+def test_v2_team_knowledge_base_rejects_personal_files_and_accepts_team_files() -> None:
+    headers = auth_headers_v2("kb-team-scope-owner")
+    team_response = client.post(
+        "/api/v2/teams",
+        headers=headers,
+        json={"name": "团队知识库文件范围", "description": "验证文件空间匹配"},
+    )
+    assert team_response.status_code == 201
+    team = team_response.json()
+    team_id = team["id"]
+    team_folder_id = team["root_folder"]["id"]
+
+    kb_response = client.post(
+        "/api/v2/knowledge-bases",
+        headers=headers,
+        json={
+            "name": "团队专属知识库",
+            "description": "只能加入团队文件",
+            "scope_type": "team",
+            "scope_id": team_id,
+        },
+    )
+    assert kb_response.status_code == 201
+    kb_id = kb_response.json()["id"]
+
+    personal_file_response = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        data={"folder_id": "personal-root", "tags": "个人"},
+        files={"file": ("personal-scope.txt", b"personal material", "text/plain")},
+    )
+    team_file_response = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        data={"folder_id": team_folder_id, "tags": "团队"},
+        files={"file": ("team-scope.txt", b"team material", "text/plain")},
+    )
+    assert personal_file_response.status_code == 201
+    assert team_file_response.status_code == 201
+    personal_file_id = personal_file_response.json()["id"]
+    team_file_id = team_file_response.json()["id"]
+    assert team_file_response.json()["permission_scope"] == "团队"
+
+    add_response = client.post(
+        f"/api/v2/knowledge-bases/{kb_id}/files:batch-add",
+        headers=headers,
+        json={"file_ids": [personal_file_id, team_file_id]},
+    )
+
+    assert add_response.status_code == 200
+    body = add_response.json()
+    assert [item["file_id"] for item in body["added"]] == [team_file_id]
+    assert body["skipped"] == [{"file_id": personal_file_id, "code": "KB_FILE_SCOPE_MISMATCH"}]
+
+    files_response = client.get(f"/api/v2/knowledge-bases/{kb_id}/files", headers=headers)
+    assert files_response.status_code == 200
+    assert {item["file_id"] for item in files_response.json()["items"]} == {team_file_id}
+
+
+def test_v2_rag_multi_turn_conversation_persists_messages_and_citations() -> None:
+    headers = auth_headers_v2("rag-conversation-owner")
+    kb_response = client.post(
+        "/api/v2/knowledge-bases",
+        headers=headers,
+        json={"name": "多轮问答知识库", "description": "测试对话持久化"},
+    )
+    assert kb_response.status_code == 201
+    kb_id = kb_response.json()["id"]
+
+    first_file = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        data={"folder_id": "personal-root", "tags": "rag"},
+        files={"file": ("rag-alpha.txt", b"Alpha course uses binary search and loop invariants.", "text/plain")},
+    )
+    second_file = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        data={"folder_id": "personal-root", "tags": "rag"},
+        files={"file": ("rag-beta.txt", b"Beta course covers graph traversal and shortest path.", "text/plain")},
+    )
+    assert first_file.status_code == 201
+    assert second_file.status_code == 201
+
+    batch_response = client.post(
+        f"/api/v2/knowledge-bases/{kb_id}/files:batch-add",
+        headers=headers,
+        json={"file_ids": [first_file.json()["id"], second_file.json()["id"]]},
+    )
+    assert batch_response.status_code == 200
+    assert len(batch_response.json()["added"]) == 2
+
+    first_answer = client.post(
+        "/api/v2/qa/query",
+        headers=headers,
+        json={"kb_id": kb_id, "question": "Alpha course talks about what?", "top_k": 2},
+    )
+    assert first_answer.status_code == 200
+    first_body = first_answer.json()
+    assert first_body["conversation_id"]
+    assert first_body["message_id"]
+    assert first_body["citations"]
+
+    second_answer = client.post(
+        "/api/v2/qa/query",
+        headers=headers,
+        json={
+            "kb_id": kb_id,
+            "conversation_id": first_body["conversation_id"],
+            "question": "What did my previous question ask about?",
+            "top_k": 2,
+        },
+    )
+    assert second_answer.status_code == 200
+    second_body = second_answer.json()
+    assert second_body["conversation_id"] == first_body["conversation_id"]
+    assert second_body["message_id"] != first_body["message_id"]
+    assert "Alpha course talks about what?" in second_body["answer"]
+
+    list_response = client.get(f"/api/v2/knowledge-bases/{kb_id}/conversations", headers=headers)
+    assert list_response.status_code == 200
+    conversations = list_response.json()["items"]
+    assert [item["id"] for item in conversations] == [first_body["conversation_id"]]
+    assert conversations[0]["message_count"] == 4
+    assert conversations[0]["title"] == "Alpha course talks about what?"
+
+    detail_response = client.get(f"/api/v2/conversations/{first_body['conversation_id']}", headers=headers)
+    assert detail_response.status_code == 200
+    detail = detail_response.json()
+    assert detail["conversation"]["id"] == first_body["conversation_id"]
+    assert detail["conversation"]["kb_id"] == kb_id
+    assert [message["role"] for message in detail["messages"]] == ["user", "assistant", "user", "assistant"]
+    assert detail["messages"][0]["content"] == "Alpha course talks about what?"
+    assert detail["messages"][2]["content"] == "What did my previous question ask about?"
+    first_assistant = detail["messages"][1]
+    assert first_assistant["id"] == first_body["message_id"]
+    assert first_assistant["citations"]
+    assert first_assistant["citations"][0]["file_id"] in {first_file.json()["id"], second_file.json()["id"]}
+
+    delete_response = client.delete(f"/api/v2/conversations/{first_body['conversation_id']}", headers=headers)
+    assert delete_response.status_code == 204
+
+    after_delete_list = client.get(f"/api/v2/knowledge-bases/{kb_id}/conversations", headers=headers)
+    assert after_delete_list.status_code == 200
+    assert after_delete_list.json()["items"] == []
+
+    after_delete_detail = client.get(f"/api/v2/conversations/{first_body['conversation_id']}", headers=headers)
+    assert after_delete_detail.status_code == 404
+    assert after_delete_detail.json()["code"] == "CONVERSATION_NOT_FOUND"
+
+
+def test_v2_rag_empty_knowledge_base_returns_actionable_error_code() -> None:
+    headers = auth_headers_v2("rag-empty-owner")
+    kb_response = client.post(
+        "/api/v2/knowledge-bases",
+        headers=headers,
+        json={"name": "空知识库", "description": "没有文件"},
+    )
+    assert kb_response.status_code == 201
+    kb_id = kb_response.json()["id"]
+
+    qa_response = client.post(
+        "/api/v2/qa/query",
+        headers=headers,
+        json={"kb_id": kb_id, "question": "有什么内容？", "top_k": 2},
+    )
+
+    assert qa_response.status_code == 200
+    body = qa_response.json()
+    assert body["error_code"] == "KB_EMPTY"
+    assert body["citations"] == []
+    assert "空知识库" in body["answer"]
+    assert body["conversation_id"]
+    detail_response = client.get(f"/api/v2/conversations/{body['conversation_id']}", headers=headers)
+    assert detail_response.status_code == 200
+    assert [message["role"] for message in detail_response.json()["messages"]] == ["user", "assistant"]

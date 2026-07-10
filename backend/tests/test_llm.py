@@ -43,6 +43,19 @@ def test_generate_rag_answer_single_snippet():
     assert "取样" in answer
 
 
+def test_generate_rag_answer_template_fallback_includes_history_context(monkeypatch):
+    monkeypatch.setattr(llm, "_llm", None)
+    monkeypatch.setattr(llm, "_llm_checked", True)
+    answer = generate_rag_answer(
+        question="follow up",
+        context_snippets=["current snippet"],
+        kb_name="TestKB",
+        history_context="【用户】Alpha course talks about what?",
+    )
+    assert "Alpha course talks about what?" in answer
+    assert "current snippet" in answer
+
+
 def test_llm_reset_with_api_key(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key")
     llm._llm = None

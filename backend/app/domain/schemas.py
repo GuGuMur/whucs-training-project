@@ -69,10 +69,18 @@ from app.domain.knowledge import (
     KnowledgeBasePublic,
     KnowledgeBaseStatus,
     KnowledgeBaseUpdate,
+    KnowledgeConversationDetailResponse,
+    KnowledgeConversationListResponse,
+    KnowledgeConversationPublic,
     KnowledgeDocumentCreate,
     KnowledgeDocumentListResponse,
     KnowledgeDocumentPublic,
+    KnowledgeFileBatchRequest,
+    KnowledgeFileBatchResponse,
+    KnowledgeFreshnessPolicy,
     KnowledgeIndexStatus,
+    KnowledgeMessagePublic,
+    KnowledgeScopeType,
     QARequest,
     QAResponse,
 )
@@ -97,6 +105,7 @@ from app.domain.team import (
 )
 from app.domain.workflow import (
     AgentStep,
+    AgentTaskContinueRequest,
     AgentTaskRequest,
     AgentTaskResponse,
     ToolDefinition,

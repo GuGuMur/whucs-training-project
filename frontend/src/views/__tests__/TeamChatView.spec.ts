@@ -21,7 +21,7 @@ describe('TeamChatView', () => {
       workflows: [],
       teams: [{ id: 'team-biology', name: '生物组', role: 'member', member_count: 3, unread_count: 0 }],
       audit_logs: [],
-      summary: { file_count: 0, indexed_count: 0, knowledge_base_count: 0, running_workflows: 0, tools_enabled: 0, unread_notifications: 0, total_files: 0, total_folders: 0 },
+      summary: { file_count: 0, indexed_count: 0, knowledge_base_count: 0, running_workflows: 0, tools_enabled: 0, unread_notifications: 0 },
     }
     workspace.teamMessagesById = {
       'team-biology': [

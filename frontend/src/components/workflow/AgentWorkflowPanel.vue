@@ -176,11 +176,12 @@ function workflowNodePosition(node: WorkspaceWorkflowNode, index: number): XYPos
 
 function timelineType(status: AgentStep['status']) {
   return {
+    needs_clarification: 'warning',
     pending: 'default',
     running: 'info',
     success: 'success',
     failed: 'error',
-  }[status] as 'default' | 'info' | 'success' | 'error'
+  }[status ?? 'pending'] as 'default' | 'info' | 'success' | 'warning' | 'error'
 }
 </script>
 

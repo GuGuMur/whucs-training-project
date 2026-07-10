@@ -231,6 +231,19 @@ Phase 35 — OCR + Reranker (complete) — All planned phases finished 🎉
 - [x] Full verification: 71 backend tests pass.
 - **Status:** complete
 
+### Phase 28: RAG And Agent Flow Refactor
+- [x] Add scoped v2 knowledge-base metadata: personal/team scope, category, tags, freshness policy, archive/delete status, and last indexed timestamp.
+- [x] Add knowledge-base batch file membership: list files, batch add, batch remove, reindex, partial success reporting, and OpenAPI export coverage.
+- [x] Persist v2 RAG conversations: conversation summaries, message history, assistant `message_id`, citation snapshots, and deterministic prior-question context handling.
+- [x] Add deterministic tool registry and agent executor: `calculator`, `course_lookup`, `file_content_search`, `python_data`, explicit understand/plan/call/observe/answer phases, `needs_clarification`, result views, task detail, and continue routes.
+- [x] Regenerate the frontend OpenAPI client and add typed adapters for KB batch/reindex/conversation endpoints, tools, and agent detail/continue.
+- [x] Split RAG frontend state into `stores/knowledge.ts` and compose `/rag` from `KnowledgeBaseSidebar`, `KnowledgeBaseManager`, `KnowledgeFilePicker`, `KnowledgeConversationPanel`, and `KnowledgeCitationList`.
+- [x] Split agent frontend state into `stores/agent.ts` and compose `/workflow` agent execution panels from `AgentTaskComposer`, `ToolCatalogPanel`, `AgentExecutionTimeline`, and `ToolResultViewer`.
+- [x] Extract RAG retrieval/answer generation into `backend/app/services/rag_pipeline.py` while keeping existing service methods stable.
+- [x] Add explicit RAG no-result/index-state error codes: `KB_EMPTY`, `KB_FILE_NOT_INDEXED`, and `KB_NO_MATCH`.
+- [x] Full verification: backend `92 passed, 3 warnings`; frontend `67` unit tests passed; frontend type-check and production build passed; JSON and diff hygiene passed.
+- **Status:** complete; transitional workspace-store compatibility remains intentionally because legacy workspace panels still consume it.
+
 ## Key Questions
 1. Which report requirements define the initial MVP? Answer: section 7.1 of `report/requirements/requirements_specification.md`.
 2. Which architecture must the implementation follow? Answer: Vue 3 + Vite + TypeScript frontend and FastAPI backend under `/api/v1`, with module boundaries from `report/design/system_design_specification.md`.

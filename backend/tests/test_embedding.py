@@ -77,7 +77,8 @@ def test_semantic_rag_retrieval_finds_relevant_chunk() -> None:
     from app.services.embedding import _load_model
 
     model = _load_model()
-    assert model is not None, "sentence-transformers model not available"
+    if model is None:
+        pytest.skip("sentence-transformers model not available")
 
     dim = embedding_dim()
     docs = ["显微镜观察细胞结构", "生物学实验步骤记录", "化学反应方程式计算"]

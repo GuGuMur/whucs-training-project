@@ -35,6 +35,11 @@ import { useWorkspaceLayoutMode } from '@/composables/useWorkspaceLayoutMode'
 import { useWorkspaceNavigation } from '@/composables/useWorkspaceNavigation'
 import DesktopWorkspaceLayout from '@/layouts/DesktopWorkspaceLayout.vue'
 import MobileWorkspaceLayout from '@/layouts/MobileWorkspaceLayout.vue'
+import AgentExecutionTimeline from '@/components/workflow/AgentExecutionTimeline.vue'
+import AgentTaskComposer from '@/components/workflow/AgentTaskComposer.vue'
+import ToolCatalogPanel from '@/components/workflow/ToolCatalogPanel.vue'
+import ToolResultViewer from '@/components/workflow/ToolResultViewer.vue'
+import { useAgentStore } from '@/stores/agent'
 import { useWorkspaceStore } from '@/stores/workspace'
 
 type NodeStatus = 'idle' | 'running' | 'success' | 'error'
@@ -82,7 +87,17 @@ interface ValidationIssue {
 
 const message = useMessage()
 const workspace = useWorkspaceStore()
-const { apiState, summary, narrative } = storeToRefs(workspace)
+const agent = useAgentStore()
+const { apiState, files, knowledgeBases, summary } = storeToRefs(workspace)
+const {
+  activeTask,
+  clarificationQuestion,
+  executionSteps,
+  finalAnswer,
+  loading: agentLoading,
+  resultView,
+  tools: agentTools,
+} = storeToRefs(agent)
 const { isMobileLayout } = useWorkspaceLayoutMode()
 const { apiStateLabel, apiStateType, navItems } = useWorkspaceNavigation(apiState, 'workflow')
 const workspaceLayout = computed(() => (isMobileLayout.value ? MobileWorkspaceLayout : DesktopWorkspaceLayout))
@@ -204,6 +219,7 @@ const validationSummary = computed(() => (validationIssues.value.length === 0 ? 
 
 onMounted(() => {
   void workspace.loadWorkspace()
+  void agent.loadTools()
   nextTick(() => {
     flow.fitView({ padding: 0.25 })
     window.setTimeout(() => flow.fitView({ padding: 0.25 }), 120)
@@ -347,44 +363,51 @@ async function runFlow() {
   finally { running.value = false }
 }
 
-const debugSessionId = ref('')
-function authToken() { const s = JSON.parse(localStorage.getItem('whu-workspace-session')||'{}'); return s.accessToken || '' }
-const debugStepResult = ref<{done?: boolean; node_name?: string; status?: string; remaining?: number} | null>(null)
+const debugStepResult = ref<{ done?: boolean; node_name?: string; status?: string; remaining?: number } | null>(null)
 
 async function singleStep() {
-  const wfId = activeWorkflowId.value
-  if (!wfId) return
+  const nodeLabel = selectedData.value?.label ?? (flowName.value || '当前流程')
   try {
-    if (!debugSessionId.value) {
-      const resp = await fetch(`/api/v2/workflows/${wfId}/debug/start`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken()}` },
-        body: JSON.stringify({ fileId: '', targetKbId: null }),
-      })
-      const data = await resp.json()
-      debugSessionId.value = data.session_id
-      message.success('调试会话已启动')
-    }
-    const stepResp = await fetch(`/api/v2/workflows/${wfId}/debug/step`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken()}` },
-      body: JSON.stringify({ session_id: debugSessionId.value }),
+    const task = await agent.createTask({
+      contextFileIds: [],
+      kbId: null,
+      task: `调试流程节点：${nodeLabel}`,
     })
-    const stepData = await stepResp.json()
-    debugStepResult.value = stepData
-    executionProgress.value = Math.round(((stepData.step || 0) / 3) * 100)
-    if (stepData.done) {
-      debugSessionId.value = ''
-      message.success('调试完成')
+    debugStepResult.value = {
+      done: task.status === 'completed',
+      node_name: nodeLabel,
+      status: task.status,
+      remaining: task.status === 'needs_clarification' ? 1 : 0,
     }
-    selectedNodeId.value = `node-${stepData.step || 1}`
+    executionProgress.value = task.status === 'completed' ? 100 : 50
+    message.success(task.status === 'needs_clarification' ? '需要补充参数' : '智能体调试已执行')
   } catch { message.error('单步调试失败') }
 }
 
 function resetRunState() {
-  debugSessionId.value = ''
   debugStepResult.value = null
   nodes.value.forEach((node) => (node.data.status = 'idle'))
   executionProgress.value = 0
   activeRunStep.value = 0
+}
+
+async function submitAgentTask(payload: { task: string; kbId?: string | null; contextFileIds?: string[] }) {
+  try {
+    await agent.createTask(payload)
+    executionProgress.value = activeTask.value?.status === 'completed' ? 100 : 50
+  } catch {
+    message.error('智能体任务执行失败')
+  }
+}
+
+async function continueActiveAgentTask(payload: { inputs?: Record<string, unknown> }) {
+  if (!activeTask.value) return
+  try {
+    await agent.continueTask(activeTask.value.id, payload)
+    executionProgress.value = activeTask.value?.status === 'completed' ? 100 : 75
+  } catch {
+    message.error('智能体任务继续执行失败')
+  }
 }
 
 function toggleDebugPanel() {
@@ -482,14 +505,9 @@ function startDebugResize(event: MouseEvent) {
         <main class="builder-main">
           <div class="builder-toolbar">
             <NInput v-model:value="flowName" size="large" class="title-input" placeholder="输入流程名称" />
-            <NSelect
-              v-if="templateWorkflows.length"
-              :value="null"
-              :options="templateWorkflows.map(t => ({ label: t.name, value: t.id }))"
-              placeholder="从模板创建..."
-              class="template-select"
-              @update:value="loadTemplateToCanvas"
-            />
+            <NSelect v-if="templateWorkflows.length" :value="null"
+              :options="templateWorkflows.map(t => ({ label: t.name, value: t.id }))" placeholder="从模板创建..."
+              class="template-select" @update:value="loadTemplateToCanvas" />
             <NTag type="info" round>{{ currentVersion }}</NTag>
             <NTag :type="hasBlockingIssue ? 'error' : 'success'" round>{{ hasBlockingIssue ? '待修复' : '可执行' }}</NTag>
           </div>
@@ -594,37 +612,27 @@ function startDebugResize(event: MouseEvent) {
                 <NEmpty v-else description="选择一个节点查看参数" />
               </NCard>
 
-              <NCard size="small" title="执行步骤" :bordered="false" class="builder-card">
-                <template v-if="narrative.agentSteps.length">
-                  <div class="agent-steps-timeline">
-                    <div v-for="(step, idx) in narrative.agentSteps" :key="idx" class="agent-step-item">
-                      <div class="step-marker" :style="{
-                        borderColor: stepColor(step.type),
-                        backgroundColor: `${stepColor(step.type)}18`,
-                      }">
-                        <span class="step-dot" :style="{ backgroundColor: stepColor(step.type) }" />
-                      </div>
-                      <div class="step-detail">
-                        <div class="step-header">
-                          <span class="step-badge"
-                            :style="{ backgroundColor: stepColor(step.type), color: '#fff' }">
-                            {{ stepTypeLabel(step.type) }}
-                          </span>
-                          <span class="step-title">{{ step.title }}</span>
-                          <NTag v-if="step.type === 'action' && step.tool_name" size="tiny" :bordered="false" type="info">
-                            工具: {{ step.tool_name }}
-                          </NTag>
-                        </div>
-                        <p class="step-content">{{ step.content }}</p>
-                      </div>
-                    </div>
-                  </div>
-                </template>
+              <NCard size="small" :bordered="false" class="builder-card grow-card">
+                <AgentTaskComposer :clarification-question="clarificationQuestion" :files="files"
+                  :knowledge-bases="knowledgeBases" :loading="agentLoading" @continue="continueActiveAgentTask"
+                  @submit="submitAgentTask" />
+              </NCard>
+
+              <NCard size="small" :bordered="false" class="builder-card">
+                <ToolCatalogPanel :tools="agentTools" />
+              </NCard>
+
+              <NCard size="small" :bordered="false" class="builder-card">
+                <AgentExecutionTimeline v-if="executionSteps.length" :steps="executionSteps" />
                 <NSteps v-else vertical size="small" :current="activeRunStep"
                   :status="running ? 'process' : executionProgress === 100 ? 'finish' : 'wait'">
                   <NStep v-for="node in [...nodes].sort((a, b) => a.position.x - b.position.x)" :key="node.id"
                     :title="node.data.label" :description="node.data.status" />
                 </NSteps>
+              </NCard>
+
+              <NCard size="small" :bordered="false" class="builder-card">
+                <ToolResultViewer :final-answer="finalAnswer" :result-view="resultView" />
               </NCard>
             </div>
           </section>

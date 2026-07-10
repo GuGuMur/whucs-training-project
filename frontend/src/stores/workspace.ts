@@ -1933,6 +1933,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     selectKnowledgeBase,
     selectWorkflow,
     sharingFileId,
+    snapshot,
     summary,
     teams,
     createTeam,

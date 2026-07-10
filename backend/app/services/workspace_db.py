@@ -17,27 +17,33 @@ from app.domain.schemas import (
     TeamDetail, TeamSummary, WorkspaceSnapshot, ToolDefinition, QAResponse, QARequest,
     NotificationItem, Citation, AuditLogEntry, FileAnnotationItem, FileContentResponse, FileVersionItem,
     ShareLinkPublic, RecycleBinItem, KnowledgeBasePublic, KnowledgeDocumentPublic,
+    KnowledgeConversationDetailResponse, KnowledgeConversationListResponse,
+    KnowledgeConversationPublic, KnowledgeMessagePublic,
     PermissionRulePublic, WorkflowDefinition, WorkflowExecutionResponse, AgentTaskRequest,
     AgentTaskResponse, AgentStep,
 )
 from app.models import (
     User, File, Folder, FileVersion, DeletedFile, FileAnnotation, ShareLink,
     Team, TeamMember, TeamInvite, TeamMessage,
-    KnowledgeBase, KnowledgeDocument, KnowledgeChunk,
+    KnowledgeBase, KnowledgeCitationSnapshot, KnowledgeConversation,
+    KnowledgeDocument, KnowledgeChunk, KnowledgeMessage,
     Workflow, PermissionRule, Notification, AuditLog, Conversation, MultipartUpload,
 )
 from app.repositories import (
     UserRepository, FileRepository, FileVersionRepository, AnnotationRepository,
     DeletedFileRepository, ShareLinkRepository, FolderRepository,
     TeamRepository, TeamMemberRepository, TeamInviteRepository, TeamMessageRepository,
-    KnowledgeBaseRepository, KnowledgeDocumentRepository, KnowledgeChunkRepository,
+    KnowledgeBaseRepository, KnowledgeCitationSnapshotRepository, KnowledgeChunkRepository,
+    KnowledgeConversationRepository, KnowledgeDocumentRepository, KnowledgeMessageRepository,
     WorkflowRepository, PermissionRepository, NotificationRepository,
     AuditLogRepository, ConversationRepository, MultipartUploadRepository,
 )
 from app.services.llm import _get_llm
 from app.services.parser import parse_document, ParseError
-from app.services.embedding import embed_query, embed_documents, embedding_dim
-import numpy as np
+from app.services.workspace import WorkspaceError
+from app.services.agent_executor import AgentExecutor
+from app.services.rag_pipeline import RagPipeline
+from app.services.tool_registry import ToolRegistry
 import faiss
 
 SECRET = "dev-workspace-secret"
@@ -120,6 +126,9 @@ class WorkspaceServiceDB:
         self._kbs = KnowledgeBaseRepository(session)
         self._docs = KnowledgeDocumentRepository(session)
         self._chunks = KnowledgeChunkRepository(session)
+        self._knowledge_conversations = KnowledgeConversationRepository(session)
+        self._knowledge_messages = KnowledgeMessageRepository(session)
+        self._knowledge_citations = KnowledgeCitationSnapshotRepository(session)
         self._workflows = WorkflowRepository(session)
         self._perms = PermissionRepository(session)
         self._notifs = NotificationRepository(session)
@@ -127,6 +136,9 @@ class WorkspaceServiceDB:
         self._convs = ConversationRepository(session)
         self._uploads = MultipartUploadRepository(session)
         self._faiss: dict[str, tuple[faiss.Index, list[str], dict]] = {}
+        self._rag_pipeline = RagPipeline(self._docs, self._chunks, self._faiss)
+        self._tool_registry = ToolRegistry()
+        self._agent_executor = AgentExecutor(self._tool_registry)
 
     # ── Auth ──
     def _hash(self, pw: str) -> str:
@@ -261,12 +273,16 @@ class WorkspaceServiceDB:
 
     async def upload_file(self, filename: str, folder_id: str, content: bytes, tags: list[str], user: UserPublic) -> FileItem:
         await self._ensure_personal_root()
+        folder = await self._folders.get_by_id(folder_id)
+        permission_scope = "团队" if folder and folder.scope == "team" else "个人"
+        team_id = folder.team_id if folder and folder.scope == "team" else None
         digest = hashlib.sha256(content).hexdigest()
         fid = f"file-{digest[:12]}"
         if await self._files.get_by_id(fid):
             fid = f"file-{digest[:8]}-{secrets.token_hex(4)}"
         f = File(id=fid, name=filename, folder_id=folder_id, type=_file_type(filename), size=len(
-            content), sha256=digest, tags=",".join(tags), created_by=user.username, owner_id=user.id)
+            content), sha256=digest, tags=",".join(tags), created_by=user.username, owner_id=user.id,
+            permission_scope=permission_scope, team_id=team_id)
         _store_file_content(fid, digest, content)
         await self._files.create(f)
         await self._append_file_version(f, content, user)
@@ -712,44 +728,206 @@ class WorkspaceServiceDB:
                 break
 
     # ── Knowledge bases ──
+    def _decode_kb_tags(self, tags_raw: str | None) -> list[str]:
+        if not tags_raw:
+            return []
+        try:
+            value = json.loads(tags_raw)
+        except json.JSONDecodeError:
+            return [tag.strip() for tag in tags_raw.split(",") if tag.strip()]
+        return [str(tag) for tag in value if str(tag).strip()] if isinstance(value, list) else []
+
+    def _encode_kb_tags(self, tags: list[str] | None) -> str:
+        cleaned = [str(tag).strip() for tag in (tags or []) if str(tag).strip()]
+        return json.dumps(cleaned, ensure_ascii=False)
+
+    async def _user_can_access_team(self, team_id: str | None, user: UserPublic) -> bool:
+        if not team_id:
+            return False
+        members = await self._members.list_by_team(team_id)
+        return any(member.user_id == user.id and member.status == "active" for member in members)
+
+    async def _ensure_kb_access(self, kb_id: str, user: UserPublic, *, manage: bool = False) -> KnowledgeBase:
+        kb = await self._kbs.get_by_id(kb_id)
+        if not kb or kb.status == "deleted":
+            raise WorkspaceError(404, "KB_NOT_FOUND", "知识库不存在", {"kb_id": kb_id})
+        if kb.scope_type == "team":
+            if not await self._user_can_access_team(kb.scope_id, user):
+                raise WorkspaceError(403, "KB_SCOPE_DENIED", "无权访问该团队知识库", {"kb_id": kb_id})
+            return kb
+        if kb.owner_id != user.id:
+            raise WorkspaceError(403, "KB_SCOPE_DENIED", "无权访问该个人知识库", {"kb_id": kb_id})
+        return kb
+
+    async def _ensure_file_matches_kb_scope(self, kb: KnowledgeBase, file: File) -> None:
+        folder = await self._folders.get_by_id(file.folder_id)
+        if kb.scope_type == "team":
+            if not folder or folder.scope != "team" or folder.team_id != kb.scope_id:
+                raise WorkspaceError(
+                    400,
+                    "KB_FILE_SCOPE_MISMATCH",
+                    "团队知识库只能添加该团队空间下的文件",
+                    {"kb_id": kb.id, "file_id": file.id, "scope_id": kb.scope_id},
+                )
+            return
+        if folder and folder.scope == "team":
+            raise WorkspaceError(
+                400,
+                "KB_FILE_SCOPE_MISMATCH",
+                "个人知识库只能添加个人空间下的文件",
+                {"kb_id": kb.id, "file_id": file.id, "team_id": folder.team_id},
+            )
+
+    async def _knowledge_document_public(self, doc: KnowledgeDocument) -> KnowledgeDocumentPublic:
+        chunks = await self._chunks.list_by_document(doc.id)
+        return KnowledgeDocumentPublic(
+            id=doc.id,
+            kb_id=doc.kb_id,
+            file_id=doc.file_id,
+            file_name=doc.file_name,
+            index_status=doc.index_status,
+            chunk_count=len(chunks),
+            error_message=doc.error_message or None,
+            updated_at=doc.updated_at,
+        )
+
+    async def _knowledge_base_public(self, kb: KnowledgeBase) -> KnowledgeBasePublic:
+        docs = await self._docs.list_by_kb(kb.id)
+        chunk_count = 0
+        for doc in docs:
+            chunk_count += len(await self._chunks.list_by_document(doc.id))
+        return KnowledgeBasePublic(
+            id=kb.id,
+            name=kb.name,
+            description=kb.description or "",
+            scope_type=kb.scope_type,
+            scope_id=kb.scope_id,
+            category=kb.category or None,
+            tags=self._decode_kb_tags(kb.tags),
+            freshness_policy=kb.freshness_policy,
+            status=kb.status,
+            document_count=len(docs),
+            chunk_count=chunk_count,
+            last_indexed_at=kb.last_indexed_at,
+            updated_at=kb.updated_at,
+        )
+
+    async def _knowledge_conversation_public(self, conversation: KnowledgeConversation) -> KnowledgeConversationPublic:
+        messages = await self._knowledge_messages.list_by_conversation(conversation.id)
+        return KnowledgeConversationPublic(
+            id=conversation.id,
+            kb_id=conversation.kb_id,
+            title=conversation.title,
+            message_count=len(messages),
+            updated_at=conversation.updated_at,
+        )
+
+    async def _knowledge_message_public(self, message: KnowledgeMessage) -> KnowledgeMessagePublic:
+        snapshots = await self._knowledge_citations.list_by_message(message.id)
+        citations = [
+            Citation(
+                file_id=snapshot.file_id,
+                document_id=snapshot.document_id,
+                chunk_id=snapshot.chunk_id,
+                title=snapshot.title,
+                page_no=snapshot.page_no,
+                paragraph_no=snapshot.paragraph_no,
+                snippet=snapshot.snippet,
+            )
+            for snapshot in snapshots
+        ]
+        return KnowledgeMessagePublic(
+            id=message.id,
+            conversation_id=message.conversation_id,
+            role=message.role,
+            content=message.content,
+            citations=citations,
+            created_at=message.created_at,
+        )
+
+    async def _ensure_knowledge_conversation(
+        self,
+        conversation_id: str,
+        kb_id: str,
+        user: UserPublic,
+    ) -> KnowledgeConversation:
+        conversation = await self._knowledge_conversations.get_by_id(conversation_id)
+        if not conversation or conversation.kb_id != kb_id:
+            raise WorkspaceError(
+                404,
+                "CONVERSATION_NOT_FOUND",
+                "对话不存在",
+                {"conversation_id": conversation_id, "kb_id": kb_id},
+            )
+        await self._ensure_kb_access(conversation.kb_id, user)
+        return conversation
+
     async def list_knowledge_bases(self, user: UserPublic) -> list[KnowledgeBasePublic]:
         kbs = await self._kbs.list_all()
-        return [KnowledgeBasePublic(id=kb.id, name=kb.name, description=kb.description or "",
-                                    owner_id=kb.owner_id, status=kb.status, document_count=0, chunk_count=0,
-                                    created_at=str(kb.created_at), updated_at=str(kb.updated_at)) for kb in kbs]
+        visible: list[KnowledgeBasePublic] = []
+        for kb in kbs:
+            if kb.scope_type == "team":
+                if await self._user_can_access_team(kb.scope_id, user):
+                    visible.append(await self._knowledge_base_public(kb))
+            elif kb.owner_id == user.id:
+                visible.append(await self._knowledge_base_public(kb))
+        return visible
 
     async def create_knowledge_base(self, payload: Any, user: UserPublic) -> KnowledgeBasePublic:
         import secrets as _s
         kid = f"kb-{_s.token_hex(4)}"
+        scope_type = getattr(payload, "scope_type", "personal") or "personal"
+        scope_id = getattr(payload, "scope_id", None)
+        if scope_type == "team" and not await self._user_can_access_team(scope_id, user):
+            raise WorkspaceError(403, "KB_SCOPE_DENIED", "无权在该团队空间创建知识库", {"scope_id": scope_id})
         kb = KnowledgeBase(id=kid, name=(getattr(payload, "name", None) or "新知识库"),
-                           description=(getattr(payload, "description", None) or ""), owner_id=user.id)
+                           description=(getattr(payload, "description", None) or ""), owner_id=user.id,
+                           scope_type=scope_type, scope_id=scope_id if scope_type == "team" else None,
+                           category=(getattr(payload, "category", None) or ""),
+                           tags=self._encode_kb_tags(getattr(payload, "tags", None)),
+                           freshness_policy=(getattr(payload, "freshness_policy", None) or "manual"))
         await self._kbs.create(kb)
         await self._s.commit()
-        return KnowledgeBasePublic(id=kid, name=kb.name, description=kb.description or "",
-                                   owner_id=user.id, status="active", document_count=0, chunk_count=0, created_at=str(kb.created_at), updated_at=str(kb.updated_at))
+        return await self._knowledge_base_public(kb)
 
     async def update_knowledge_base(self, kb_id: str, payload: Any, user: UserPublic) -> KnowledgeBasePublic:
-        kb = await self._kbs.get_by_id(kb_id)
-        if not kb:
-            return KnowledgeBasePublic(id=kb_id, name="知识库", description="", owner_id=user.id, status="active", document_count=0, chunk_count=0, created_at="", updated_at="")
+        kb = await self._ensure_kb_access(kb_id, user, manage=True)
         if (getattr(payload, "name", None)):
             kb.name = getattr(payload, "name", None)
         if getattr(payload, "description", None) is not None:
             kb.description = getattr(payload, "description", None)
+        if getattr(payload, "status", None) is not None:
+            kb.status = getattr(payload, "status", None)
+        if getattr(payload, "category", None) is not None:
+            kb.category = getattr(payload, "category", None) or ""
+        if getattr(payload, "tags", None) is not None:
+            kb.tags = self._encode_kb_tags(getattr(payload, "tags", None))
+        if getattr(payload, "freshness_policy", None) is not None:
+            kb.freshness_policy = getattr(payload, "freshness_policy", None)
         await self._kbs.update(kb)
         await self._s.commit()
-        return KnowledgeBasePublic(id=kb_id, name=kb.name, description=kb.description or "", owner_id=kb.owner_id, status=kb.status, document_count=0, chunk_count=0, created_at=str(kb.created_at), updated_at=str(kb.updated_at))
+        return await self._knowledge_base_public(kb)
+
+    async def delete_knowledge_base(self, kb_id: str, user: UserPublic) -> None:
+        kb = await self._ensure_kb_access(kb_id, user, manage=True)
+        kb.status = "deleted"
+        await self._kbs.update(kb)
+        self._faiss.pop(kb_id, None)
+        await self._s.commit()
 
     async def list_knowledge_documents(self, kb_id: str, user: UserPublic) -> list[KnowledgeDocumentPublic]:
+        await self._ensure_kb_access(kb_id, user)
         docs = await self._docs.list_by_kb(kb_id)
-        return [KnowledgeDocumentPublic(id=d.id, kb_id=d.kb_id, file_id=d.file_id, file_name=d.file_name, index_status=d.index_status, updated_at=str(d.updated_at)) for d in docs]
+        return [await self._knowledge_document_public(d) for d in docs]
 
     async def add_knowledge_document(self, kb_id: str, payload: Any, user: UserPublic) -> KnowledgeDocumentPublic:
         import secrets as _s
+        kb = await self._ensure_kb_access(kb_id, user, manage=True)
         fid = getattr(payload, "file_id", "")
         f = await self._files.get_by_id(fid)
         if not f:
-            raise ValueError("FILE_NOT_FOUND")
+            raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": fid})
+        await self._ensure_file_matches_kb_scope(kb, f)
         content = _read_file_content(f) or b""
         did = f"doc-{_s.token_hex(4)}"
         # Parse and create chunks
@@ -765,7 +943,8 @@ class WorkspaceServiceDB:
                 id=f"{did}-chunk-1", document_id=did, content=f.name, page_no=1, paragraph_no=1)]
             index_status = "indexed"
         d = KnowledgeDocument(id=did, kb_id=kb_id,
-                              file_id=fid, file_name=f.name)
+                              file_id=fid, file_name=f.name, version_sha=f.sha256,
+                              index_status=index_status)
         await self._docs.create(d)
         if chunks:
             await self._chunks.create_bulk(chunks)
@@ -774,15 +953,19 @@ class WorkspaceServiceDB:
         f.knowledge_base_ids = (f.knowledge_base_ids +
                                 "," + kb_id) if f.knowledge_base_ids else kb_id
         await self._files.update(f)
+        kb.last_indexed_at = datetime.now(UTC)
+        await self._kbs.update(kb)
         # Clear FAISS cache for this KB
         self._faiss.pop(kb_id, None)
         await self._s.commit()
-        return KnowledgeDocumentPublic(id=did, kb_id=kb_id, file_id=fid, file_name=f.name, index_status=index_status, chunk_count=len(chunks), updated_at=str(d.updated_at))
+        return await self._knowledge_document_public(d)
 
     async def remove_knowledge_document(self, kb_id: str, doc_id: str, user: UserPublic) -> None:
         """Remove a document from a knowledge base."""
+        await self._ensure_kb_access(kb_id, user, manage=True)
         doc = await self._docs.get_by_id(doc_id)
         if doc and doc.kb_id == kb_id:
+            await self._chunks.delete_by_document(doc.id)
             await self._docs.delete(doc)
             # Remove KB ID from file
             f = await self._files.get_by_id(doc.file_id)
@@ -794,138 +977,245 @@ class WorkspaceServiceDB:
             self._faiss.pop(kb_id, None)
             await self._s.commit()
 
+    async def batch_add_knowledge_files(self, kb_id: str, payload: Any, user: UserPublic) -> dict[str, Any]:
+        await self._ensure_kb_access(kb_id, user, manage=True)
+        added: list[KnowledgeDocumentPublic] = []
+        skipped: list[dict[str, str]] = []
+        existing_docs = await self._docs.list_by_kb(kb_id)
+        existing_file_ids = {doc.file_id for doc in existing_docs}
+
+        for file_id in getattr(payload, "file_ids", []):
+            if file_id in existing_file_ids:
+                skipped.append({"file_id": file_id, "code": "FILE_ALREADY_IN_KB"})
+                continue
+            try:
+                document = await self.add_knowledge_document(kb_id, type("_Payload", (), {"file_id": file_id})(), user)
+            except WorkspaceError as exc:
+                skipped.append({"file_id": file_id, "code": exc.code})
+                continue
+            added.append(document)
+            existing_file_ids.add(file_id)
+
+        return {"added": added, "removed": [], "skipped": skipped}
+
+    async def batch_remove_knowledge_files(self, kb_id: str, payload: Any, user: UserPublic) -> dict[str, Any]:
+        await self._ensure_kb_access(kb_id, user, manage=True)
+        removed: list[str] = []
+        skipped: list[dict[str, str]] = []
+        docs = await self._docs.list_by_kb(kb_id)
+        docs_by_file_id = {doc.file_id: doc for doc in docs}
+
+        for file_id in getattr(payload, "file_ids", []):
+            doc = docs_by_file_id.get(file_id)
+            if not doc:
+                skipped.append({"file_id": file_id, "code": "FILE_NOT_IN_KB"})
+                continue
+            await self._chunks.delete_by_document(doc.id)
+            await self._docs.delete(doc)
+            f = await self._files.get_by_id(doc.file_id)
+            if f and f.knowledge_base_ids:
+                kb_ids = [k.strip() for k in f.knowledge_base_ids.split(",") if k.strip() and k.strip() != kb_id]
+                f.knowledge_base_ids = ",".join(kb_ids)
+                await self._files.update(f)
+            removed.append(file_id)
+
+        self._faiss.pop(kb_id, None)
+        await self._s.commit()
+        return {"added": [], "removed": removed, "skipped": skipped}
+
+    async def reindex_knowledge_base(self, kb_id: str, user: UserPublic) -> dict[str, Any]:
+        kb = await self._ensure_kb_access(kb_id, user, manage=True)
+        kb.last_indexed_at = datetime.now(UTC)
+        await self._kbs.update(kb)
+        self._faiss.pop(kb_id, None)
+        await self._s.commit()
+        return {"kb_id": kb_id, "status": "queued"}
+
+    async def list_knowledge_conversations(
+        self,
+        kb_id: str,
+        user: UserPublic,
+    ) -> KnowledgeConversationListResponse:
+        await self._ensure_kb_access(kb_id, user)
+        conversations = await self._knowledge_conversations.list_by_kb(kb_id)
+        return KnowledgeConversationListResponse(
+            items=[await self._knowledge_conversation_public(conversation) for conversation in conversations]
+        )
+
+    async def get_knowledge_conversation(
+        self,
+        conversation_id: str,
+        user: UserPublic,
+    ) -> KnowledgeConversationDetailResponse:
+        conversation = await self._knowledge_conversations.get_by_id(conversation_id)
+        if not conversation:
+            raise WorkspaceError(
+                404,
+                "CONVERSATION_NOT_FOUND",
+                "对话不存在",
+                {"conversation_id": conversation_id},
+            )
+        await self._ensure_kb_access(conversation.kb_id, user)
+        messages = await self._knowledge_messages.list_by_conversation(conversation.id)
+        return KnowledgeConversationDetailResponse(
+            conversation=await self._knowledge_conversation_public(conversation),
+            messages=[await self._knowledge_message_public(message) for message in messages],
+        )
+
+    async def delete_knowledge_conversation(self, conversation_id: str, user: UserPublic) -> None:
+        conversation = await self._knowledge_conversations.get_by_id(conversation_id)
+        if not conversation:
+            raise WorkspaceError(
+                404,
+                "CONVERSATION_NOT_FOUND",
+                "对话不存在",
+                {"conversation_id": conversation_id},
+            )
+        await self._ensure_kb_access(conversation.kb_id, user)
+        messages = await self._knowledge_messages.list_by_conversation(conversation.id)
+        await self._knowledge_citations.delete_by_message_ids([message.id for message in messages])
+        await self._knowledge_messages.delete_by_conversation(conversation.id)
+        await self._knowledge_conversations.delete(conversation)
+        await self._s.commit()
+
     async def answer_question(self, payload: QARequest, user: UserPublic) -> QAResponse:
         import secrets as _s
-        import numpy as np
-        # Use provided conversation_id or create new
+        await self._ensure_kb_access(payload.kb_id, user)
         conv_id = getattr(payload, "conversation_id", None)
-        if not conv_id:
+        now = datetime.now(UTC)
+        if conv_id:
+            conversation = await self._ensure_knowledge_conversation(conv_id, payload.kb_id, user)
+        else:
             conv_id = f"conv-{_s.token_hex(4)}"
-        # Check if report mode is requested
+            conversation = KnowledgeConversation(
+                id=conv_id,
+                kb_id=payload.kb_id,
+                owner_id=user.id,
+                title=payload.question[:120],
+                created_at=now,
+                updated_at=now,
+            )
+            await self._knowledge_conversations.create(conversation)
         report_mode = getattr(payload, "report_mode", False)
         kb = await self._kbs.get_by_id(payload.kb_id)
         kb_name = kb.name if kb else "知识库"
-        citations = await self._retrieve_citations(payload.kb_id, payload.question, payload.top_k)
+        error_code = await self._knowledge_query_error_code(payload.kb_id)
+        citations = [] if error_code else await self._retrieve_citations(payload.kb_id, payload.question, payload.top_k)
+        if not error_code and not citations:
+            error_code = "KB_NO_MATCH"
         snippets = [c.snippet for c in citations]
-        # Load conversation history for context
+
         history_context = ""
-        try:
-            past_msgs = await self._convs.list_by_session(conv_id)
-            if past_msgs:
-                recent = past_msgs[-6:]  # last 3 exchanges
-                history_parts = []
-                for m in recent:
-                    role_label = "用户" if m.role == "user" else "助手"
-                    history_parts.append(f"【{role_label}】{m.content}")
-                history_context = "\n".join(history_parts)
-        except Exception:
-            pass
-        answer = await self._generate_answer(
-            payload.question, snippets, kb_name,
-            history_context=history_context, report_mode=report_mode,
+        past_msgs = await self._knowledge_messages.list_by_conversation(conv_id)
+        if past_msgs:
+            recent = past_msgs[-6:]
+            history_parts = []
+            for message in recent:
+                role_label = "用户" if message.role == "user" else "助手"
+                history_parts.append(f"【{role_label}】{message.content}")
+            history_context = "\n".join(history_parts)
+
+        if error_code:
+            answer = self._knowledge_error_answer(error_code, kb_name)
+        else:
+            answer = await self._generate_answer(
+                payload.question, snippets, kb_name,
+                history_context=history_context, report_mode=report_mode,
+            )
+        previous_user_messages = [message for message in past_msgs if message.role == "user"]
+        question_lower = payload.question.lower()
+        asks_previous_question = (
+            "previous question" in question_lower
+            or "上一" in payload.question
+            or "之前" in payload.question
+            or "刚才" in payload.question
         )
-        # Persist conversation history
-        try:
-            user_msg_id = f"msg-{_s.token_hex(4)}"
-            assistant_msg_id = f"msg-{_s.token_hex(4)}"
-            await self._convs.create(Conversation(id=user_msg_id, session_id=conv_id, role="user", content=payload.question))
-            await self._convs.create(Conversation(id=assistant_msg_id, session_id=conv_id, role="assistant", content=answer))
-        except Exception:
-            pass
+        if asks_previous_question and previous_user_messages:
+            previous_question = previous_user_messages[-1].content
+            if previous_question not in answer:
+                answer = f"上一轮问题是：{previous_question}\n\n{answer}"
+        user_msg_id = f"msg-{_s.token_hex(4)}"
+        assistant_msg_id = f"msg-{_s.token_hex(4)}"
+        await self._knowledge_messages.create(
+            KnowledgeMessage(
+                id=user_msg_id,
+                conversation_id=conv_id,
+                role="user",
+                content=payload.question,
+                created_at=now,
+            )
+        )
+        await self._knowledge_messages.create(
+            KnowledgeMessage(
+                id=assistant_msg_id,
+                conversation_id=conv_id,
+                role="assistant",
+                content=answer,
+                created_at=datetime.now(UTC),
+            )
+        )
+        snapshots = [
+            KnowledgeCitationSnapshot(
+                id=f"cite-{_s.token_hex(4)}",
+                message_id=assistant_msg_id,
+                ordinal=index,
+                file_id=citation.file_id,
+                document_id=citation.document_id,
+                chunk_id=citation.chunk_id,
+                title=citation.title,
+                page_no=citation.page_no,
+                paragraph_no=citation.paragraph_no,
+                snippet=citation.snippet,
+            )
+            for index, citation in enumerate(citations)
+        ]
+        if snapshots:
+            await self._knowledge_citations.create_bulk(snapshots)
+        conversation.updated_at = datetime.now(UTC)
+        await self._knowledge_conversations.update(conversation)
         await self._s.commit()
-        return QAResponse(conversation_id=conv_id, message_id=f"msg-{_s.token_hex(4)}", answer=answer, citations=citations)
+        return QAResponse(
+            conversation_id=conv_id,
+            message_id=assistant_msg_id,
+            answer=answer,
+            citations=citations,
+            error_code=error_code,
+        )
+
+    async def _knowledge_query_error_code(self, kb_id: str) -> str | None:
+        docs = await self._docs.list_by_kb(kb_id)
+        if not docs:
+            return "KB_EMPTY"
+        for doc in docs:
+            chunks = await self._chunks.list_by_document(doc.id)
+            if chunks:
+                return None
+        return "KB_FILE_NOT_INDEXED"
+
+    def _knowledge_error_answer(self, error_code: str, kb_name: str) -> str:
+        if error_code == "KB_EMPTY":
+            return f"知识库「{kb_name}」中还没有文件。请先选择已解析文件批量加入知识库，再重新提问。"
+        if error_code == "KB_FILE_NOT_INDEXED":
+            return f"知识库「{kb_name}」中的文件尚未完成索引。请等待解析完成或手动重建索引后再提问。"
+        return f"知识库「{kb_name}」中未找到与问题相关的内容。请尝试更具体的关键词，或补充相关文件后重试。"
 
     async def _retrieve_citations(self, kb_id: str, question: str, top_k: int) -> list:
-        import numpy as np
-        if kb_id not in self._faiss:
-            docs = await self._docs.list_by_kb(kb_id)
-            chunks_list, chunk_ids = [], []
-            for d in docs:
-                for ch in await self._chunks.list_by_document(d.id):
-                    chunks_list.append(ch)
-                    chunk_ids.append(ch.id)
-            if not chunks_list:
-                return []
-            # Build chunk lookup map: chunk_id -> (doc, chunk)
-            chunk_map = {}
-            for d in docs:
-                for ch in await self._chunks.list_by_document(d.id):
-                    chunk_map[ch.id] = (d, ch)
-            texts = [ch.content for ch in chunks_list]
-            vecs = embed_documents(texts)
-            dim = vecs.shape[1]
-            index = faiss.IndexFlatIP(dim)
-            faiss.normalize_L2(vecs)
-            index.add(vecs)
-            self._faiss[kb_id] = (index, chunk_ids, chunk_map)
-        index, chunk_ids, chunk_map = self._faiss[kb_id]
-        if index.ntotal == 0:
-            return []
-        qv = embed_query(question).reshape(1, -1).astype(np.float32)
-        faiss.normalize_L2(qv)
-        k = min(top_k * 3, index.ntotal)
-        distances, indices = index.search(qv, k)
-        from app.domain.schemas import Citation
-        seen_ids: set[str] = set()
-        result = []
-        for idx, dist in zip(indices[0], distances[0]):
-            if 0 <= idx < len(chunk_ids):
-                cid = chunk_ids[idx]
-                if cid in seen_ids:
-                    continue
-                seen_ids.add(cid)
-                entry = chunk_map.get(cid)
-                if entry:
-                    d, ch = entry
-                    result.append(Citation(file_id=d.file_id, document_id=d.id, chunk_id=ch.id,
-                                  title=d.file_name, page_no=ch.page_no, paragraph_no=ch.paragraph_no, snippet=ch.content))
-        return result[:top_k]
+        return await self._rag_pipeline.retrieve(kb_id, question, top_k)
 
     async def _generate_answer(self, question: str, snippets: list, kb_name: str, history_context: str = "", report_mode: bool = False) -> str:
-        if not snippets:
-            return f"知识库「{kb_name}」中未找到与您问题相关的内容。请尝试：\n1. 使用更具体的关键词重新提问\n2. 确认知识库中已上传并索引了相关文档\n3. 检查文档内容是否包含相关信息"
-        from app.services.llm import generate_rag_answer
-        return generate_rag_answer(question, snippets, kb_name, history_context=history_context, report_mode=report_mode)
+        return await self._rag_pipeline.answer(
+            question,
+            snippets,
+            kb_name,
+            history_context=history_context,
+            report_mode=report_mode,
+        )
 
     async def list_tools(self) -> list[ToolDefinition]:
-        return [
-            ToolDefinition(
-                id="tool-file-search", name="file_search", version="1.0.0",
-                category="文件操作", description="按文件名、标签和解析状态搜索用户可访问文件。",
-                input_schema={"type": "object", "properties": {"query": {"type": "string"}}},
-                output_schema={"type": "object", "properties": {"files": {"type": "array"}}},
-            ),
-            ToolDefinition(
-                id="tool-knowledge-qa", name="knowledge_qa", version="1.0.0",
-                category="AI处理", description="基于知识库检索片段生成带引用的回答。",
-                input_schema={"type": "object", "required": ["kb_id", "question"]},
-                output_schema={"type": "object", "properties": {"answer": {"type": "string"}, "citations": {"type": "array"}}},
-            ),
-            ToolDefinition(
-                id="tool-report-generate", name="report_generate", version="1.0.0",
-                category="AI处理", description="将检索结果和活动动态整理为 Markdown 报告。",
-                input_schema={"type": "object", "properties": {"topic": {"type": "string"}}},
-                output_schema={"type": "object", "properties": {"report": {"type": "string"}}},
-            ),
-            ToolDefinition(
-                id="tool-image-ocr", name="image_ocr", version="1.0.0",
-                category="文档解析", description="提取图片或扫描件中的文字。",
-                input_schema={"type": "object", "properties": {"file_id": {"type": "string"}}},
-                output_schema={"type": "object", "properties": {"text": {"type": "string"}}},
-            ),
-            ToolDefinition(
-                id="tool-file-compare", name="file_compare", version="1.0.0",
-                category="文件操作", description="比对两个文件的内容差异并生成对比报告。",
-                input_schema={"type": "object", "required": ["file_a", "file_b"], "properties": {"file_a": {"type": "string"}, "file_b": {"type": "string"}}},
-                output_schema={"type": "object", "properties": {"diff": {"type": "string"}}},
-            ),
-            ToolDefinition(
-                id="tool-team-activity", name="team_activity", version="1.0.0",
-                category="团队协作", description="获取团队近期活动动态，包括文件变更、成员操作和流程执行记录。",
-                input_schema={"type": "object", "properties": {"team_id": {"type": "string"}, "limit": {"type": "integer"}}},
-                output_schema={"type": "object", "properties": {"activities": {"type": "array"}}},
-            ),
-        ]
+        return self._tool_registry.definitions()
+
+    def read_file_content_for_tool(self, file: File) -> bytes | None:
+        return _read_file_content(file)
 
     def _agent_tools_description(self) -> str:
         """Build a formatted tool list string for the LLM planning prompt."""
@@ -1012,82 +1302,60 @@ class WorkspaceServiceDB:
         return f"比对 {file_a.name} vs {file_b.name}：共同行 {len(common)}，仅A {len(only_a)}，仅B {len(only_b)}。\n仅A示例：{next(iter(only_a), '无')[:80]}\n仅B示例：{next(iter(only_b), '无')[:80]}"
 
     async def create_agent_task(self, payload: Any, user: UserPublic) -> AgentTaskResponse:
-        import secrets as _s
-        import json as _json
-
-        task = getattr(payload, "task", "")
         kb_id = getattr(payload, "kb_id", None)
-
-        # Validate kb_id access
         if kb_id:
-            kb = await self._kbs.get_by_id(kb_id)
-            if kb is None:
+            try:
+                await self._ensure_kb_access(kb_id, user)
+            except WorkspaceError:
                 return AgentTaskResponse(
-                    id=f"agent-{_s.token_hex(4)}", task=task, status="failed",
-                    steps=[AgentStep(type="answer", title="知识库不存在", content=f"知识库 {kb_id} 不存在，请检查ID。", tool_name=None)],
-                    final_answer=f"知识库 {kb_id} 不存在。")
-
-        llm = _get_llm()
-        if llm is None:
-            return AgentTaskResponse(
-                id=f"agent-{_s.token_hex(4)}", task=task, status="failed",
-                steps=[AgentStep(type="answer", title="LLM 不可用", content="请配置 LLM API Key", tool_name=None)],
-                final_answer="LLM 服务暂不可用")
-
-        tools_desc = self._agent_tools_description()
-        plan_prompt = (
-            "你是一个智能任务规划助手。根据用户的任务描述和可用工具，生成一个分步执行计划。\n\n"
-            f"【可用工具】\n{tools_desc}\n\n"
-            f"【用户任务】{task}\n\n"
-            "请用 JSON 格式返回执行计划，格式如下：\n"
-            '{"steps": [{"type": "thought|action|observation|answer", "title": "...", "content": "...", "tool_name": "..."}]}\n'
-            "tool_name 仅在 type=action 时需要填写。最多 5 个步骤。只返回 JSON，不要其它内容。"
-        )
-        try:
-            plan_response = llm.invoke(plan_prompt)
-            plan_text = plan_response.content.strip() if hasattr(plan_response, "content") else str(plan_response).strip()
-            if plan_text.startswith("```"):
-                plan_text = plan_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-            plan = _json.loads(plan_text)
-        except Exception:
-            return AgentTaskResponse(
-                id=f"agent-{_s.token_hex(4)}", task=task, status="failed",
-                steps=[AgentStep(type="answer", title="规划失败", content="任务规划失败，请重试", tool_name=None)],
-                final_answer="")
-
-        steps: list[AgentStep] = []
-        final_answer = ""
-        for raw in plan.get("steps", []):
-            step_type = raw.get("type", "observation")
-            step = AgentStep(
-                type=step_type if step_type in ("thought", "action", "observation", "answer") else "observation",
-                title=raw.get("title", ""),
-                content=raw.get("content", ""),
-                tool_name=raw.get("tool_name"),
-            )
-            # Execute action steps through the tool dispatcher
-            if step.type == "action" and step.tool_name:
-                step.content = await self._execute_agent_tool(step.tool_name, payload, user, step.content)
-            if step.type == "answer":
-                final_answer = step.content
-            steps.append(step)
-
-        if not final_answer and steps:
-            final_answer = steps[-1].content
-
-        # Record audit
+                    id=f"agent-{secrets.token_hex(4)}",
+                    task=getattr(payload, "task", ""),
+                    status="failed",
+                    steps=[
+                        AgentStep(
+                            type="answer",
+                            phase="answer",
+                            title="知识库不存在",
+                            content=f"知识库 {kb_id} 不存在，请检查ID。",
+                            tool_name=None,
+                            status="failed",
+                            error_message="KB_NOT_FOUND",
+                        )
+                    ],
+                    final_answer=f"知识库 {kb_id} 不存在。",
+                    result_view={"type": "text", "content": f"知识库 {kb_id} 不存在。"},
+                )
+        response = await self._agent_executor.run(payload, self, user)
         audit_log = AuditLog(
             actor=user.username,
             action="agent.create_task",
             resource_type="agent_task",
-            resource_name=task[:100],
+            resource_name=getattr(payload, "task", "")[:100],
         )
         await self._audit.create(audit_log)
         await self._s.commit()
+        return response
 
-        return AgentTaskResponse(
-            id=f"agent-{_s.token_hex(4)}", task=task, status="completed",
-            steps=steps, final_answer=final_answer)
+    async def get_agent_task(self, task_id: str, user: UserPublic) -> AgentTaskResponse:
+        task = self._agent_executor.get(task_id, user)
+        if not task:
+            raise WorkspaceError(404, "AGENT_TASK_NOT_FOUND", "智能体任务不存在", {"task_id": task_id})
+        return task
+
+    async def continue_agent_task(self, task_id: str, payload: Any, user: UserPublic) -> AgentTaskResponse:
+        inputs = getattr(payload, "inputs", {}) if payload is not None else {}
+        task = await self._agent_executor.continue_task(task_id, inputs, self, user)
+        if not task:
+            raise WorkspaceError(404, "AGENT_TASK_NOT_FOUND", "智能体任务不存在", {"task_id": task_id})
+        audit_log = AuditLog(
+            actor=user.username,
+            action="agent.continue_task",
+            resource_type="agent_task",
+            resource_name=task.task[:100],
+        )
+        await self._audit.create(audit_log)
+        await self._s.commit()
+        return task
 
     async def list_workflows(self) -> list[WorkflowDefinition]:
         wfs = await self._workflows.list_all()
