@@ -4,10 +4,8 @@ import { defineStore } from 'pinia'
 import {
   clearStoredWorkspaceSession,
   createAuthorizationHeader,
-  normalizeWorkspaceAccessRole,
   loadStoredWorkspaceSession,
   saveWorkspaceSession,
-  type WorkspaceAccessRole,
   type WorkspaceAuthSession,
 } from '@/auth'
 import {
@@ -20,19 +18,11 @@ import {
 import type { AuthResponse, UserCreate, UserPublic, UserUpdate } from '@/client/generated'
 
 export interface LoginCredentials {
-  accessRole?: WorkspaceAccessRole
   account: string
   password: string
 }
 
-export type RegisterCredentials = UserCreate & { accessRole?: WorkspaceAccessRole }
-
-export const accessRoleLabels: Record<WorkspaceAccessRole, string> = {
-  super_admin: '超级管理员',
-  admin: '管理员',
-  user: '普通用户',
-  readonly: '\u6e38\u5ba2\u767b\u9646',
-}
+export type RegisterCredentials = UserCreate
 
 interface WorkspaceApiError {
   code?: string
@@ -45,10 +35,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function toWorkspaceApiError(error: unknown): WorkspaceApiError | null {
-  if (!isRecord(error)) {
-    return null
-  }
-
+  if (!isRecord(error)) return null
   return {
     code: typeof error.code === 'string' ? error.code : undefined,
     detail: isRecord(error.detail) ? error.detail : undefined,
@@ -60,19 +47,15 @@ function loginErrorMessage(error: unknown) {
   const apiError = toWorkspaceApiError(error)
   if (apiError?.code === 'ACCOUNT_LOCKED') {
     const retryAfterSeconds = apiError.detail?.retry_after_seconds
-    if (typeof retryAfterSeconds === 'number' && retryAfterSeconds > 0) {
+    if (typeof retryAfterSeconds === 'number' && retryAfterSeconds > 0)
       return `账户已临时锁定，请 ${Math.ceil(retryAfterSeconds / 60)} 分钟后再试`
-    }
     return apiError.message ?? '账户已临时锁定，请稍后再试'
   }
-
   if (apiError?.code === 'INVALID_CREDENTIALS') {
     const remainingAttempts = apiError.detail?.remaining_attempts
-    if (typeof remainingAttempts === 'number' && remainingAttempts > 0) {
+    if (typeof remainingAttempts === 'number' && remainingAttempts > 0)
       return `账号或密码不正确，还可尝试 ${remainingAttempts} 次`
-    }
   }
-
   return '账号或密码不正确'
 }
 
@@ -83,62 +66,21 @@ export const useAuthStore = defineStore('auth', () => {
   const errorMessage = shallowRef('')
 
   const isAuthenticated = computed(() => Boolean(session.value?.accessToken))
-  const displayName = computed(() => currentUser.value?.display_name ?? session.value?.displayName ?? '未登录')
+  const displayName = computed(() => currentUser.value?.display_name ?? '未登录')
   const roles = computed(() => currentUser.value?.roles ?? [])
-  const selectedAccessRole = computed(() => session.value?.accessRole ?? inferAccessRole(currentUser.value?.roles ?? []))
-  const selectedAccessRoleLabel = computed(() => accessRoleLabels[selectedAccessRole.value])
-  const canAccessPermissionAudit = computed(() => selectedAccessRole.value === 'super_admin' || selectedAccessRole.value === 'admin')
+  const isAdmin = computed(() => roles.value.includes('admin') || roles.value.includes('super_admin'))
 
-  function inferAccessRole(roles: string[]): WorkspaceAccessRole {
-    if (roles.includes('super_admin')) return 'super_admin'
-    if (roles.includes('admin')) return 'admin'
-    if (roles.includes('readonly') || roles.includes('guest')) return 'readonly'
-    return 'user'
-  }
-
-  function scopeForAccessRole(accessRole: WorkspaceAccessRole) {
-    if (accessRole === 'super_admin' || accessRole === 'admin') return '系统'
-    if (accessRole === 'user') return '团队'
-    return '个人'
-  }
-
-  function applyAuthResponse(payload: AuthResponse, requestedAccessRole?: WorkspaceAccessRole) {
-    const accessRole = normalizeWorkspaceAccessRole(requestedAccessRole ?? inferAccessRole(payload.user.roles))
-    const nextSession: WorkspaceAuthSession = {
-      accessRole,
+  function applyAuthResponse(payload: AuthResponse) {
+    const next: WorkspaceAuthSession = {
       accessToken: payload.access_token,
       displayName: payload.user.display_name,
-      permissionScope: scopeForAccessRole(accessRole),
       refreshToken: payload.refresh_token,
       userId: String(payload.user.id),
     }
-
-    session.value = nextSession
+    session.value = next
     currentUser.value = payload.user
     errorMessage.value = ''
-    saveWorkspaceSession(nextSession)
-  }
-
-  function applyGuestSession() {
-    const guestUser: UserPublic = {
-      display_name: '游客',
-      email: 'guest@example.com',
-      id: 0,
-      roles: ['guest'],
-      username: 'guest',
-    }
-    const nextSession: WorkspaceAuthSession = {
-      accessRole: 'readonly',
-      accessToken: 'guest-demo-token',
-      displayName: '游客',
-      permissionScope: '个人',
-      userId: 'guest',
-    }
-
-    session.value = nextSession
-    currentUser.value = guestUser
-    errorMessage.value = ''
-    saveWorkspaceSession(nextSession)
+    saveWorkspaceSession(next)
   }
 
   function restoreLocalSession() {
@@ -147,159 +89,62 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function restoreSession() {
-    const storedSession = restoreLocalSession()
-    if (!storedSession?.accessToken) {
-      currentUser.value = null
-      return false
-    }
-
-    if (storedSession.accessRole === 'readonly' && storedSession.userId === 'guest') {
-      currentUser.value = {
-        display_name: '游客',
-        email: 'guest@example.com',
-        id: 0,
-        roles: ['guest'],
-        username: 'guest',
-      }
-      return true
-    }
-
+    const s = restoreLocalSession()
+    if (!s?.accessToken) { currentUser.value = null; return false }
     loading.value = true
     try {
-      const response = await meApiV1UsersMeGet({
-        headers: createAuthorizationHeader(storedSession.accessToken),
-      })
-
-      if (response.error || !response.data) {
-        logout()
-        return false
-      }
-
-      const accessRole = normalizeWorkspaceAccessRole(storedSession.accessRole)
-      currentUser.value = response.data.user
-      session.value = {
-        ...storedSession,
-        accessRole,
-        displayName: response.data.user.display_name,
-        permissionScope: scopeForAccessRole(accessRole),
-        userId: String(response.data.user.id),
-      }
+      const r = await meApiV1UsersMeGet({ headers: createAuthorizationHeader(s.accessToken) })
+      if (r.error || !r.data) { logout(); return false }
+      currentUser.value = r.data.user
+      session.value = { ...s, displayName: r.data.user.display_name, userId: String(r.data.user.id) }
       saveWorkspaceSession(session.value)
       return true
-    } finally {
-      loading.value = false
-    }
+    } finally { loading.value = false }
   }
 
   async function loginWithPassword(credentials: LoginCredentials) {
-    const { accessRole, ...loginPayload } = credentials
     loading.value = true
     try {
-      const response = await loginApiV1AuthLoginPost({
-        body: loginPayload,
-      })
-
-      if (response.error || !response.data) {
-        errorMessage.value = loginErrorMessage(response.error)
-        throw response.error ?? new Error(errorMessage.value)
-      }
-
-      applyAuthResponse(response.data, accessRole)
-      return response.data
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function loginAsGuest() {
-    loading.value = true
-    try {
-      applyGuestSession()
-      return true
-    } finally {
-      loading.value = false
-    }
+      const r = await loginApiV1AuthLoginPost({ body: credentials })
+      if (r.error || !r.data) { errorMessage.value = loginErrorMessage(r.error); throw r.error ?? new Error(errorMessage.value) }
+      applyAuthResponse(r.data)
+      return r.data
+    } finally { loading.value = false }
   }
 
   async function refreshSession() {
-    const storedSession = restoreLocalSession()
-    if (!storedSession?.refreshToken) {
-      logout()
-      return false
-    }
-
+    const s = restoreLocalSession()
+    if (!s?.refreshToken) { logout(); return false }
     loading.value = true
     try {
-      const response = await refreshApiV1AuthRefreshPost({
-        body: { refresh_token: storedSession.refreshToken },
-      })
-
-      if (response.error || !response.data) {
-        logout()
-        return false
-      }
-
-      applyAuthResponse(response.data, normalizeWorkspaceAccessRole(storedSession.accessRole))
-      return response.data
-    } finally {
-      loading.value = false
-    }
+      const r = await refreshApiV1AuthRefreshPost({ body: { refresh_token: s.refreshToken } })
+      if (r.error || !r.data) { logout(); return false }
+      applyAuthResponse(r.data)
+      return r.data
+    } finally { loading.value = false }
   }
 
   async function registerWithPassword(credentials: RegisterCredentials) {
-    const { accessRole, ...registerPayload } = credentials
     loading.value = true
     try {
-      const response = await registerApiV1AuthRegisterPost({
-        body: registerPayload,
-      })
-
-      if (response.error || !response.data) {
-        errorMessage.value = '注册失败，请检查用户名、邮箱和密码'
-        throw response.error ?? new Error(errorMessage.value)
-      }
-
-      applyAuthResponse(response.data, accessRole)
-      return response.data
-    } finally {
-      loading.value = false
-    }
+      const r = await registerApiV1AuthRegisterPost({ body: credentials })
+      if (r.error || !r.data) { errorMessage.value = '注册失败，请检查用户名、邮箱和密码'; throw r.error ?? new Error(errorMessage.value) }
+      applyAuthResponse(r.data)
+      return r.data
+    } finally { loading.value = false }
   }
 
   async function updateProfile(payload: UserUpdate) {
-    const storedSession = restoreLocalSession()
-    if (!storedSession?.accessToken) {
-      logout()
-      return false
-    }
-
+    const token = session.value?.accessToken
+    if (!token) throw new Error('未登录')
     loading.value = true
     try {
-      const response = await updateMeApiV1UsersMePatch({
-        body: payload,
-        headers: createAuthorizationHeader(storedSession.accessToken),
-      })
-
-      if (response.error || !response.data) {
-        errorMessage.value = '资料更新失败，请检查邮箱是否已被使用'
-        throw response.error ?? new Error(errorMessage.value)
-      }
-
-      const accessRole = normalizeWorkspaceAccessRole(storedSession.accessRole)
-      currentUser.value = response.data.user
-      session.value = {
-        ...storedSession,
-        accessRole,
-        displayName: response.data.user.display_name,
-        permissionScope: scopeForAccessRole(accessRole),
-        userId: String(response.data.user.id),
-      }
-      errorMessage.value = ''
-      saveWorkspaceSession(session.value)
-      return response.data
-    } finally {
-      loading.value = false
-    }
+      const r = await updateMeApiV1UsersMePatch({ body: payload, headers: createAuthorizationHeader(token) })
+      if (r.error || !r.data) { errorMessage.value = '更新失败'; throw r.error ?? new Error(errorMessage.value) }
+      currentUser.value = r.data.user
+      if (session.value) { session.value = { ...session.value, displayName: r.data.user.display_name }; saveWorkspaceSession(session.value) }
+      return r.data
+    } finally { loading.value = false }
   }
 
   function logout() {
@@ -310,23 +155,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
-    canAccessPermissionAudit,
-    currentUser,
-    displayName,
-    errorMessage,
-    isAuthenticated,
-    loading,
-    loginAsGuest,
-    loginWithPassword,
-    logout,
-    refreshSession,
-    registerWithPassword,
-    restoreLocalSession,
-    restoreSession,
-    roles,
-    selectedAccessRole,
-    selectedAccessRoleLabel,
-    session,
-    updateProfile,
+    currentUser, errorMessage, loading, session,
+    displayName, isAdmin, isAuthenticated, roles,
+    loginWithPassword, logout, refreshSession, registerWithPassword,
+    restoreLocalSession, restoreSession, updateProfile,
   }
 })

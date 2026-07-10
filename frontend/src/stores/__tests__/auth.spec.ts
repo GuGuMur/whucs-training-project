@@ -97,7 +97,6 @@ describe('auth store', () => {
       JSON.stringify({
         accessToken: 'stored-token',
         displayName: '旧会话',
-        permissionScope: '个人',
         refreshToken: 'stored-refresh-token',
         userId: '3',
       }),
@@ -169,7 +168,6 @@ describe('auth store', () => {
       JSON.stringify({
         accessToken: 'old-access-token',
         displayName: '旧会话',
-        permissionScope: '个人',
         refreshToken: 'old-refresh-token',
         userId: '9',
       }),
@@ -210,7 +208,6 @@ describe('auth store', () => {
       JSON.stringify({
         accessToken: 'profile-access-token',
         displayName: '旧资料',
-        permissionScope: '个人',
         refreshToken: 'profile-refresh-token',
         userId: '12',
       }),

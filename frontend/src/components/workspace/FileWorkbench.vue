@@ -405,7 +405,7 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
       </div>
     </template>
 
-    <div class="grid grid-cols-[270px_minmax(0,1fr)] max-lg:grid-cols-1">
+    <div class="grid grid-cols-[260px_minmax(0,1fr)] max-lg:grid-cols-1">
       <FolderTreePanel
         :active-folder-id="activeFolderId"
         :creating-folder="creatingFolder"
@@ -420,31 +420,25 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
       />
 
       <div class="min-w-0">
-        <div class="border-b border-line bg-muted p-3">
-          <div class="grid grid-cols-[minmax(180px,1fr)_150px_150px_170px_170px_auto] items-center gap-2 max-xl:grid-cols-[minmax(180px,1fr)_150px_150px] max-lg:grid-cols-1">
-            <NInput v-model:value="queryText" clearable placeholder="搜索文件名" @keyup.enter="handleSearch">
+        <div class="border-b border-line bg-muted px-4 py-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <NInput v-model:value="queryText" clearable placeholder="搜索文件名…" class="flex-1 min-w-200px" @keyup.enter="handleSearch">
               <template #prefix>
                 <NIcon aria-hidden="true"><Search /></NIcon>
               </template>
             </NInput>
-            <NSelect v-model:value="selectedTag" :options="tagOptions" />
-            <NSelect v-model:value="selectedFileType" :options="fileTypeOptions" />
-            <NInput v-model:value="updatedFromText" clearable placeholder="更新时间起" @keyup.enter="handleSearch" />
-            <NInput v-model:value="updatedToText" clearable placeholder="更新时间止" @keyup.enter="handleSearch" />
-            <NSpace class="justify-end" :wrap="false">
-              <NButton data-testid="search-files" type="primary" :loading="listingFiles" @click="handleSearch">
-                <template #icon>
-                  <NIcon aria-hidden="true"><Search /></NIcon>
-                </template>
-                检索
-              </NButton>
-              <NButton :disabled="listingFiles" @click="handleResetFilters">
-                <template #icon>
-                  <NIcon aria-hidden="true"><RefreshCw /></NIcon>
-                </template>
-                重置
-              </NButton>
-            </NSpace>
+            <NSelect v-model:value="selectedFileType" :options="fileTypeOptions" placeholder="文件类型" class="w-130px" clearable />
+            <NSelect v-model:value="selectedTag" :options="tagOptions" placeholder="标签" class="w-120px" clearable />
+            <NInput v-model:value="updatedFromText" clearable placeholder="更新起" class="w-130px" @keyup.enter="handleSearch" />
+            <NInput v-model:value="updatedToText" clearable placeholder="更新止" class="w-130px" @keyup.enter="handleSearch" />
+            <NButton data-testid="search-files" type="primary" size="small" :loading="listingFiles" @click="handleSearch">
+              <template #icon><NIcon aria-hidden="true"><Search /></NIcon></template>
+              检索
+            </NButton>
+            <NButton size="small" :disabled="listingFiles" @click="handleResetFilters">
+              <template #icon><NIcon aria-hidden="true"><RefreshCw /></NIcon></template>
+              重置
+            </NButton>
           </div>
         </div>
 

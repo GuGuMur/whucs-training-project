@@ -1,9 +1,9 @@
 ﻿<script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { AtSign, BellRing, FileText, LockKeyhole, Paperclip, Search, Send, ShieldCheck, UsersRound } from '@lucide/vue'
+import { AtSign, BellRing, FileText, LockKeyhole, Paperclip, Plus, Search, Send, ShieldCheck, UsersRound } from '@lucide/vue'
 
-import type { WorkspaceTeamMessage } from '@/client/workspace'
+import type { WorkspaceTeamMessage, WorkspaceTeamRole } from '@/client/workspace'
 import { useWorkspaceLayoutMode } from '@/composables/useWorkspaceLayoutMode'
 import { useWorkspaceNavigation } from '@/composables/useWorkspaceNavigation'
 import DesktopWorkspaceLayout from '@/layouts/DesktopWorkspaceLayout.vue'
@@ -63,30 +63,29 @@ const workspaceLayout = computed(() => (isMobileLayout.value ? MobileWorkspaceLa
 
 const activeTeamId = ref('')
 const draftMessage = ref('')
+const teamSearch = ref('')
 const composerRef = ref<HTMLElement | null>(null)
 const showMentionPanel = ref(false)
 const mentionQuery = ref('')
 
 const fallbackTeam = computed(() =>
-  teams.value[0] ?? { id: 'team-demo', name: '课程协作小组', role: '组长', member_count: 5, unread_count: 0 },
+  teams.value[0] ?? null,
 )
 const activeTeam = computed(() => teams.value.find((team) => team.id === activeTeamId.value) ?? fallbackTeam.value)
+const hasActiveTeam = computed(() => activeTeam.value !== null)
 const totalUnread = computed(() => teams.value.reduce((sum, team) => sum + team.unread_count, 0))
-const canMentionAll = computed(() => ['owner', 'admin', '组长', '管理员'].includes(activeTeam.value.role))
-const rawMessages = computed(() => teamMessagesById.value[activeTeam.value.id] ?? [])
+const canMentionAll = computed(() => activeTeam.value ? ['owner', 'admin', '组长', '管理员'].includes(activeTeam.value.role) : false)
+const rawMessages = computed(() => activeTeam.value ? teamMessagesById.value[activeTeam.value.id] ?? [] : [])
 const currentUserId = computed(() => auth.currentUser?.id ?? null)
 
-const members = computed<TeamMember[]>(() => [
-  ...(activeTeamDetail.value?.id === activeTeam.value.id
-    ? activeTeamDetail.value.members.map((member) => ({
-        id: member.id,
-        name: member.display_name || member.username,
-        role: member.role,
-        online: true,
-      }))
-    : []),
-  { id: 'member-agent', name: '智能助手', role: 'Agent', online: true },
-])
+const members = computed<TeamMember[]>(() =>
+  (activeTeamDetail.value?.members ?? []).map((member) => ({
+    id: member.id,
+    name: member.display_name || member.username,
+    role: member.role,
+    online: true,
+  })),
+)
 
 const messages = computed<ChatMessage[]>(() =>
   rawMessages.value.map((message) => ({
@@ -101,11 +100,41 @@ const messages = computed<ChatMessage[]>(() =>
   })),
 )
 
-const notices = ref<TeamNotice[]>([
-  { id: 'notice-1', title: '@ 提醒', detail: '周明在需求文档批注中提到了你', type: 'info' },
-  { id: 'notice-2', title: '文件更新', detail: '团队周报草稿已生成新版本', type: 'success' },
-  { id: 'notice-3', title: '权限变更', detail: '访客仅可查看共享资料文件夹', type: 'warning' },
-])
+const notices = ref<TeamNotice[]>([])
+const showCreateTeam = ref(false)
+const newTeamName = ref('')
+const newTeamDesc = ref('')
+const showInviteMember = ref(false)
+const inviteEmail = ref('')
+const inviteRole = ref<WorkspaceTeamRole>('member')
+const showJoinTeam = ref(false)
+const joinTeamId = ref('')
+const joinToken = ref('')
+
+async function handleCreateTeam() {
+  if (!newTeamName.value.trim()) return
+  await workspace.createTeam({ name: newTeamName.value.trim(), description: newTeamDesc.value.trim() })
+  showCreateTeam.value = false
+  newTeamName.value = ''
+  newTeamDesc.value = ''
+  await workspace.loadWorkspace()
+}
+
+async function handleInviteMember() {
+  if (!inviteEmail.value.trim() || !activeTeam.value) return
+  await workspace.inviteTeamMember(activeTeam.value.id, { email: inviteEmail.value.trim(), role: inviteRole.value })
+  inviteEmail.value = ''
+  showInviteMember.value = false
+}
+
+async function handleJoinTeam() {
+  if (!joinTeamId.value.trim() || !joinToken.value.trim()) return
+  await workspace.joinTeam(joinTeamId.value.trim(), joinToken.value.trim())
+  showJoinTeam.value = false
+  joinTeamId.value = ''
+  joinToken.value = ''
+  await workspace.loadWorkspace()
+}
 
 const mentionOptions = computed<MentionOption[]>(() => {
   const keyword = mentionQuery.value.trim().toLowerCase()
@@ -124,8 +153,13 @@ const mentionOptions = computed<MentionOption[]>(() => {
   return options.filter((option) => option.label.toLowerCase().includes(keyword) || option.role.toLowerCase().includes(keyword))
 })
 
-onMounted(() => {
-  void workspace.loadWorkspace()
+onMounted(async () => {
+  await workspace.loadWorkspace()
+  const firstTeam = workspace.teams[0]
+  if (firstTeam) {
+    activeTeamId.value = firstTeam.id
+    await workspace.loadTeamDetail(firstTeam.id)
+  }
 })
 
 watch(
@@ -214,7 +248,7 @@ function formatMessageTime(createdAt: string) {
 
 async function sendMessage() {
   const content = draftMessage.value.trim()
-  if (!content) return
+  if (!content || !activeTeam.value) return
 
   const mentions = mentionedTargets(content)
   await workspace.sendTeamMessage(activeTeam.value.id, {
@@ -242,6 +276,7 @@ async function sendMessage() {
     :api-state-type="apiStateType"
     :nav-items="navItems"
     :unread-notifications="summary.unread_notifications"
+    page-title="团队协作"
   >
     <section class="team-chat-page">
       <div class="chat-heading">
@@ -260,7 +295,7 @@ async function sendMessage() {
 
       <div class="chat-shell">
         <aside class="conversation-list" aria-label="团队会话列表">
-          <NInput placeholder="搜索团队或成员" size="small" clearable>
+          <NInput v-model:value="teamSearch" placeholder="搜索团队或成员" size="small" clearable>
             <template #prefix>
               <NIcon aria-hidden="true"><Search /></NIcon>
             </template>
@@ -270,7 +305,7 @@ async function sendMessage() {
             v-for="team in teams"
             :key="team.id"
             class="team-row"
-            :class="team.id === activeTeam.id ? 'is-active' : ''"
+            :class="team.id === activeTeam?.id ? 'is-active' : ''"
             type="button"
             @click="selectTeam(team.id)"
           >
@@ -281,13 +316,23 @@ async function sendMessage() {
             </span>
             <NBadge v-if="team.unread_count" :value="team.unread_count" type="info" />
           </button>
+          <div class="flex gap-2 px-3 pb-3">
+            <NButton size="tiny" secondary @click="showCreateTeam = true">
+              <template #icon><NIcon :size="14"><component :is="Plus" /></NIcon></template>
+              新建团队
+            </NButton>
+            <NButton size="tiny" secondary @click="showJoinTeam = true">
+              <template #icon><NIcon :size="14"><component :is="Plus" /></NIcon></template>
+              加入
+            </NButton>
+          </div>
         </aside>
 
-        <main class="chat-main" aria-label="团队聊天窗口">
+        <main v-if="hasActiveTeam" class="chat-main" aria-label="团队聊天窗口">
           <header class="chat-toolbar">
             <div>
               <strong>{{ activeTeam.name }}</strong>
-              <span>群聊 · 历史消息由后端 API 加载 · WebSocket 待接入</span>
+              <span>群聊 · 历史消息</span>
             </div>
             <NSpace :size="8">
               <NTag v-if="teamMessageTeamIdLoading === activeTeam.id" size="small" type="info" :bordered="false">
@@ -297,7 +342,7 @@ async function sendMessage() {
                 <template #icon><NIcon><AtSign /></NIcon></template>
                 提醒成员
               </NButton>
-              <NButton size="small" secondary type="primary">
+              <NButton size="small" secondary type="primary" @click="draftMessage += ' [文件] '">
                 <template #icon><NIcon><FileText /></NIcon></template>
                 引用文件
               </NButton>
@@ -361,7 +406,21 @@ async function sendMessage() {
           </form>
         </main>
 
-        <aside class="context-panel" aria-label="团队上下文">
+        <!-- Empty state when no team exists -->
+        <div v-if="!hasActiveTeam" class="flex flex-col items-center justify-center gap-3 py-16 text-center">
+          <NIcon :size="48" color="#94a3b8"><UsersRound /></NIcon>
+          <p class="m-0 text-ink text-16px font-700">暂无团队</p>
+          <p class="m-0 text-sub text-13px">创建或加入一个团队开始协作</p>
+          <NSpace>
+            <NButton type="primary" size="small" @click="showCreateTeam = true">
+              <template #icon><NIcon :size="14"><Plus /></NIcon></template>
+              新建团队
+            </NButton>
+            <NButton size="small" secondary @click="showJoinTeam = true">加入团队</NButton>
+          </NSpace>
+        </div>
+
+        <aside v-if="hasActiveTeam" class="context-panel" aria-label="团队上下文">
           <NCard size="small" title="成员与权限" :bordered="false" class="context-card">
             <div class="member-list">
               <div v-for="member in members" :key="member.id" class="member-row">
@@ -373,6 +432,10 @@ async function sendMessage() {
                 <NIcon class="permission-icon" aria-hidden="true"><ShieldCheck /></NIcon>
               </div>
             </div>
+            <NButton size="tiny" secondary block class="mt-2" @click="showInviteMember = true">
+              <template #icon><NIcon :size="14"><Plus /></NIcon></template>
+              邀请成员
+            </NButton>
           </NCard>
 
           <NCard size="small" title="通知中心" :bordered="false" class="context-card">
@@ -402,6 +465,54 @@ async function sendMessage() {
       </div>
     </section>
   </component>
+
+  <!-- Create Team Modal -->
+  <NModal v-model:show="showCreateTeam" title="新建团队">
+    <NCard style="width:420px" title="新建团队" :bordered="false" size="small">
+      <NFormItem label="团队名称">
+        <NInput v-model:value="newTeamName" placeholder="例如：课程项目组" />
+      </NFormItem>
+      <NFormItem label="团队描述">
+        <NInput v-model:value="newTeamDesc" placeholder="可选描述" />
+      </NFormItem>
+      <NSpace justify="end">
+        <NButton @click="showCreateTeam = false">取消</NButton>
+        <NButton type="primary" @click="handleCreateTeam">创建</NButton>
+      </NSpace>
+    </NCard>
+  </NModal>
+
+  <!-- Invite Member Modal -->
+  <NModal v-model:show="showInviteMember" title="邀请成员">
+    <NCard style="width:420px" title="邀请成员" :bordered="false" size="small">
+      <NFormItem label="邮箱">
+        <NInput v-model:value="inviteEmail" placeholder="member@example.com" />
+      </NFormItem>
+      <NFormItem label="角色">
+        <NSelect v-model:value="inviteRole" :options="[{ label: '成员', value: 'member' }, { label: '访客', value: 'guest' }, { label: '管理员', value: 'admin' }]" />
+      </NFormItem>
+      <NSpace justify="end">
+        <NButton @click="showInviteMember = false">取消</NButton>
+        <NButton type="primary" @click="handleInviteMember">发送邀请</NButton>
+      </NSpace>
+    </NCard>
+  </NModal>
+
+  <!-- Join Team Modal -->
+  <NModal v-model:show="showJoinTeam" title="加入团队">
+    <NCard style="width:420px" title="加入团队" :bordered="false" size="small">
+      <NFormItem label="团队 ID">
+        <NInput v-model:value="joinTeamId" placeholder="输入团队 ID 或从邀请链接获取" />
+      </NFormItem>
+      <NFormItem label="邀请码">
+        <NInput v-model:value="joinToken" placeholder="输入邀请码" />
+      </NFormItem>
+      <NSpace justify="end">
+        <NButton @click="showJoinTeam = false">取消</NButton>
+        <NButton type="primary" @click="handleJoinTeam">加入团队</NButton>
+      </NSpace>
+    </NCard>
+  </NModal>
 </template>
 
 <style scoped>

@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import naive, { NConfigProvider } from 'naive-ui'
 
-import { demoWorkspaceSnapshot, type WorkspaceKnowledgeBase, type WorkspaceKnowledgeDocument } from '@/client/workspace'
+import type { WorkspaceKnowledgeBase, WorkspaceKnowledgeDocument } from '@/client/workspace'
 import RagInsightPanel from '../RagInsightPanel.vue'
 
 const knowledgeBase: WorkspaceKnowledgeBase = {
@@ -35,7 +35,7 @@ function mountPanel() {
             activeKnowledgeBaseId: 'kb-algo',
             addingKnowledgeDocument: false,
             askingQuestion: false,
-            indexedFiles: demoWorkspaceSnapshot.files,
+            indexedFiles: [],
             knowledgeBases: [knowledgeBase],
             knowledgeDocuments: [knowledgeDocument],
             loadingKnowledge: false,

@@ -2,34 +2,46 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
 import { saveWorkspaceSession } from '@/auth'
+import type { FileItem } from '@/client/generated'
 import * as workspaceClient from '@/client/workspace'
-import {
-  demoWorkspaceSnapshot,
-  type WorkspaceNotification,
-  type WorkspacePermissionRule,
-  type WorkspaceFileVersion,
-  type WorkspaceFolder,
-  type WorkspaceKnowledgeBase,
-  type WorkspaceKnowledgeDocument,
-  type WorkspaceFileAnnotation,
-  type WorkspaceFileAnnotationReply,
-  type WorkspaceTeamMessage,
-  type WorkspaceTeamDetail,
-  type WorkspaceTeamInvite,
-  type WorkspaceTeamMember,
-  type WorkspaceWorkflow,
-  type WorkspaceWorkflowExecution,
-  type WorkspaceWorkflowValidation,
+import type {
+  WorkspaceNotification,
+  WorkspacePermissionRule,
+  WorkspaceFileVersion,
+  WorkspaceFolder,
+  WorkspaceKnowledgeBase,
+  WorkspaceKnowledgeDocument,
+  WorkspaceFileAnnotation,
+  WorkspaceFileAnnotationReply,
+  WorkspaceTeamMessage,
+  WorkspaceTeamDetail,
+  WorkspaceTeamInvite,
+  WorkspaceTeamMember,
+  WorkspaceWorkflow,
+  WorkspaceWorkflowExecution,
+  WorkspaceWorkflowValidation,
+  WorkspaceSnapshot,
+  FileItem,
 } from '@/client/workspace'
 import { useWorkspaceStore } from '@/stores/workspace'
 
-function getDemoFile(fileId: string) {
-  const file = demoWorkspaceSnapshot.files.find((item) => item.id === fileId)
-  if (!file) {
-    throw new Error(`Missing demo file fixture: ${fileId}`)
-  }
-  return file
+const testFile: FileItem = {
+  id: 'file-test-1',
+  name: '测试文件.pdf',
+  folder_id: 'personal-root',
+  type: 'pdf',
+  tags: ['测试'],
+  size: 128,
+  sha256: 'abc123',
+  content_type: 'application/pdf',
+  permission_scope: '个人',
+  parse_status: 'parsed',
+  updated_at: new Date().toISOString(),
+  created_at: new Date().toISOString(),
+  created_by: 'xiaoming',
 }
+
+function getTestFile(_fileId: string) { return { ...testFile } }
 
 describe('workspace store file actions', () => {
   beforeEach(() => {
@@ -42,7 +54,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -61,7 +72,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -97,7 +107,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -115,11 +124,10 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
-    const deletedFile = getDemoFile('file-microscope')
+    const deletedFile = getTestFile('file-microscope')
     const recycledItem = {
       deleted_at: '2026-07-09T18:20:00+08:00',
       deleted_by: 'xiaoming',
@@ -141,7 +149,7 @@ describe('workspace store file actions', () => {
     expect(workspace.recycleBinItems).toEqual([])
     expect(restoreSpy).toHaveBeenCalledWith('access-token', 'file-microscope')
     expect(workspace.files[0]).toEqual(deletedFile)
-    expect(workspace.summary.file_count).toBe(demoWorkspaceSnapshot.summary.file_count)
+    expect(workspace.summary.file_count).toBe(0)
     expect(workspace.recycleBinLoading).toBe(false)
     expect(workspace.restoringDeletedFileId).toBeNull()
   })
@@ -150,11 +158,10 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
-    const searchedFile = getDemoFile('file-microscope')
+    const searchedFile = getTestFile('file-microscope')
     const listSpy = vi.spyOn(workspaceClient, 'listWorkspaceFiles').mockResolvedValue({
       items: [searchedFile],
       total: 1,
@@ -191,13 +198,12 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
     const uploadFile = new File(['细胞壁清晰可见。'], '观察记录.md', { type: 'text/markdown' })
     const uploaded = {
-      ...getDemoFile('file-microscope'),
+      ...getTestFile('file-microscope'),
       id: 'file-uploaded',
       name: '观察记录.md',
       parse_status: 'queued' as const,
@@ -215,7 +221,7 @@ describe('workspace store file actions', () => {
       tags: ['实验', '观察'],
     })
     expect(workspace.files[0]).toEqual(uploaded)
-    expect(workspace.summary.file_count).toBe(demoWorkspaceSnapshot.summary.file_count + 1)
+    expect(workspace.summary.file_count).toBe(1)
     expect(workspace.uploadingFile).toBe(false)
   })
 
@@ -223,13 +229,12 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
     const uploadFile = new File(['第一片', '第二片'], '大文件观察记录.md', { type: 'text/markdown' })
     const uploaded = {
-      ...getDemoFile('file-microscope'),
+      ...getTestFile('file-microscope'),
       id: 'file-large-uploaded',
       name: '大文件观察记录.md',
       parse_status: 'queued' as const,
@@ -253,7 +258,7 @@ describe('workspace store file actions', () => {
       tags: ['实验', '分片'],
     })
     expect(workspace.files[0]).toEqual(uploaded)
-    expect(workspace.summary.file_count).toBe(demoWorkspaceSnapshot.summary.file_count + 1)
+    expect(workspace.summary.file_count).toBe(1)
     expect(workspace.uploadingFile).toBe(false)
   })
 
@@ -261,12 +266,11 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
     const updated = {
-      ...getDemoFile('file-microscope'),
+      ...getTestFile('file-microscope'),
       name: '显微镜实验归档.pdf',
       folder_id: 'folder-course',
       tags: ['实验', '归档'],
@@ -293,12 +297,11 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
     const copied = {
-      ...getDemoFile('file-microscope'),
+      ...getTestFile('file-microscope'),
       id: 'file-copy',
       name: '显微镜实验报告 副本.pdf',
       folder_id: 'folder-course',
@@ -316,7 +319,7 @@ describe('workspace store file actions', () => {
       targetFolderId: 'folder-course',
     })
     expect(workspace.files[0]).toEqual(copied)
-    expect(workspace.summary.file_count).toBe(demoWorkspaceSnapshot.summary.file_count + 1)
+    expect(workspace.summary.file_count).toBe(1)
     expect(workspace.copyingFileId).toBeNull()
   })
 
@@ -324,7 +327,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -333,7 +335,7 @@ describe('workspace store file actions', () => {
       createVersion('version-1', 1, false),
     ]
     const restored = {
-      ...getDemoFile('file-microscope'),
+      ...getTestFile('file-microscope'),
       sha256: 'restored-sha256',
       parse_status: 'queued' as const,
     }
@@ -356,7 +358,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -381,7 +382,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -413,7 +413,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -451,7 +450,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -473,7 +471,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -524,7 +521,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -555,7 +551,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -632,7 +627,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -739,7 +733,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -805,7 +798,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -846,7 +838,6 @@ describe('workspace store file actions', () => {
     saveWorkspaceSession({
       accessToken: 'access-token',
       displayName: '小明',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })

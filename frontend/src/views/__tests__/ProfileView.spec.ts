@@ -39,7 +39,6 @@ describe('ProfileView', () => {
                 session: {
                   accessToken: 'profile-access-token',
                   displayName: '旧资料',
-                  permissionScope: '个人',
                   refreshToken: 'profile-refresh-token',
                   userId: '12',
                 },

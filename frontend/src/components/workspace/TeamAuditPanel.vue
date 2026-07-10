@@ -261,7 +261,7 @@ function statusType(role: WorkspaceTeamRole) {
       @mark-notification-read="emit('mark-notification-read', $event)"
     />
 
-    <NCard v-if="auth.canAccessPermissionAudit" id="audit" class="min-w-0 overflow-hidden scroll-mt-24 max-md:scroll-mt-32" size="small">
+    <NCard v-if="auth.isAdmin" id="audit" class="min-w-0 overflow-hidden scroll-mt-24 max-md:scroll-mt-32" size="small">
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <span>????</span>

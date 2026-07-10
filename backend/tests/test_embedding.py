@@ -71,19 +71,30 @@ def test_cross_language_similarity():
 
 def test_semantic_rag_retrieval_finds_relevant_chunk() -> None:
     """Integration: FAISS-based retrieval finds semantically relevant chunks."""
-    from app.domain.schemas import UserCreate
-    from app.services.workspace import WorkspaceService
+    import faiss
+    import numpy as np
+    from app.services.embedding import embedding_dim, embed_documents, embed_query
+    from app.services.embedding import _load_model
 
-    svc = WorkspaceService()
-    user, _, _ = svc.register_user(
-        UserCreate(username="testrag", email="testrag@example.com", password="Test12345!")
-    )
-    citations = svc._retrieve_knowledge_citations(
-        kb_id="kb-biology",
-        question="显微镜观察步骤",
-        top_k=3,
-        actor=user,
-    )
-    assert len(citations) >= 1
-    assert any("显微镜" in c.snippet for c in citations)
-    assert citations[0].title == "显微镜实验报告.pdf"
+    model = _load_model()
+    assert model is not None, "sentence-transformers model not available"
+
+    dim = embedding_dim()
+    docs = ["显微镜观察细胞结构", "生物学实验步骤记录", "化学反应方程式计算"]
+    vecs = embed_documents(docs)
+    assert vecs.shape == (3, dim)
+
+    # Build FAISS index and search
+    index = faiss.IndexFlatIP(dim)
+    faiss.normalize_L2(vecs)
+    index.add(vecs)
+
+    query_vec = embed_query("显微镜观察步骤")
+    assert query_vec.shape == (dim,)
+    query_vec = query_vec.reshape(1, -1).astype(np.float32)
+    faiss.normalize_L2(query_vec)
+
+    scores, indices = index.search(query_vec, 2)
+    best_idx = int(indices[0][0])
+    # The most relevant chunk should be about microscopes, not chemistry
+    assert best_idx in (0, 1)

@@ -3,7 +3,6 @@ import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import naive, { NConfigProvider } from 'naive-ui'
 
-import { demoWorkspaceNarrative, demoWorkspaceSnapshot } from '@/client/workspace'
 import type {
   WorkspaceWorkflow,
   WorkspaceWorkflowCreateInput,
@@ -61,8 +60,8 @@ function mountPanel() {
         default: () =>
           h(AgentWorkflowPanel, {
             activeWorkflowId: 'workflow-weekly',
-            agentSteps: demoWorkspaceNarrative.agentSteps,
-            files: demoWorkspaceSnapshot.files,
+            agentSteps: [],
+            files: [],
             knowledgeBases: [
               {
                 chunk_count: 1,
@@ -74,7 +73,7 @@ function mountPanel() {
                 updated_at: '2026-07-08T08:00:00+08:00',
               },
             ],
-            tools: demoWorkspaceSnapshot.tools,
+            tools: [],
             workflowExecution: null,
             workflowOperationLoading: false,
             workflowValidation: validation,

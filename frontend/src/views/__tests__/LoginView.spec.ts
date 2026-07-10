@@ -25,12 +25,12 @@ describe('LoginView', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('登录智能文件平台')
+    expect(wrapper.text()).toContain('智能文件管理平台')
     expect(wrapper.text()).toContain('账号')
     expect(wrapper.text()).toContain('密码')
     expect(wrapper.text()).toContain('进入工作台')
     expect(wrapper.text()).toContain('注册账号')
-    expect(wrapper.text()).toContain('JWT 鉴权')
-    expect(wrapper.text()).toContain('权限前置')
+    expect(wrapper.text()).toContain('文件管理')
+    expect(wrapper.text()).toContain('团队协作')
   })
 })

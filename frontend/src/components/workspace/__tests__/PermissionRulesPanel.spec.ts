@@ -4,11 +4,29 @@ import { defineComponent, h } from 'vue'
 import naive, { NConfigProvider } from 'naive-ui'
 
 import {
-  demoWorkspaceSnapshot,
-  demoWorkspaceTeamDetail,
   type WorkspacePermissionRule,
+  type WorkspaceTeamDetail,
 } from '@/client/workspace'
 import PermissionRulesPanel from '../PermissionRulesPanel.vue'
+
+const mockTeamDetail: WorkspaceTeamDetail = {
+  description: '',
+  id: 'team-1',
+  member_count: 0,
+  name: 'Test',
+  role: 'member',
+  root_folder: {
+    id: 'f-1',
+    name: 'root',
+    parent_id: null,
+    scope: 'team',
+    permission: 'team',
+    children: [],
+  },
+  unread_count: 0,
+  members: [],
+  invites: [],
+}
 
 describe('PermissionRulesPanel', () => {
   it('shows inherited and direct override rules and emits create/delete actions', async () => {
@@ -42,9 +60,9 @@ describe('PermissionRulesPanel', () => {
           default: () =>
             h(PermissionRulesPanel, {
               activeFolderId: 'team-root',
-              activeTeamDetail: demoWorkspaceTeamDetail,
-              files: demoWorkspaceSnapshot.files,
-              folders: [demoWorkspaceTeamDetail.root_folder],
+              activeTeamDetail: mockTeamDetail,
+              files: [],
+              folders: [mockTeamDetail.root_folder],
               rules,
             }),
         }),

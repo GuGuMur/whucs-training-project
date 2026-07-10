@@ -4,7 +4,8 @@ from datetime import datetime
 from urllib.parse import quote
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Header, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Header, Response, UploadFile, WebSocket, status
+from fastapi.responses import StreamingResponse
 
 from app.domain.schemas import (
     AgentTaskRequest,
@@ -387,6 +388,34 @@ def qa_query(payload: QARequest, user: Annotated[UserPublic, Depends(current_use
     return workspace_service.answer_question(payload, user)
 
 
+@api_router.post("/qa/query/stream")
+async def qa_query_stream(payload: QARequest, user: Annotated[UserPublic, Depends(current_user)]):
+    """Streaming QA endpoint using Server-Sent Events."""
+    from app.services.llm import generate_rag_answer_stream
+
+    citations = workspace_service._retrieve_knowledge_citations(
+        payload.kb_id, payload.question, payload.top_k, user,
+    )
+    snippets = [c.snippet for c in citations[:5]]
+    kb_name = workspace_service._knowledge_bases.get(payload.kb_id)
+    kb_label = kb_name.name if kb_name else payload.kb_id
+
+    async def event_stream():
+        for chunk in generate_rag_answer_stream(payload.question, snippets, kb_label):
+            yield f"data: {chunk}\n\n"
+        # Send citations as final event
+        import json
+
+        citation_data = json.dumps(
+            [{"title": c.title, "snippet": c.snippet, "page_no": c.page_no} for c in citations],
+            ensure_ascii=False,
+        )
+        yield f"event: citations\ndata: {citation_data}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
 @api_router.get("/tools", response_model=ToolListResponse)
 def tools(_: Annotated[UserPublic, Depends(current_user)]) -> ToolListResponse:
     return ToolListResponse(items=workspace_service.list_tools())
@@ -561,3 +590,38 @@ def audit_logs(_: Annotated[UserPublic, Depends(current_user)]) -> AuditLogRespo
 @api_router.get("/workspace/snapshot", response_model=WorkspaceSnapshot)
 def workspace_snapshot(user: Annotated[UserPublic, Depends(current_user)]) -> WorkspaceSnapshot:
     return workspace_service.snapshot(user)
+
+
+# ── WebSocket ──────────────────────────────────────────────────────────
+
+@api_router.websocket("/ws")
+async def ws_connect(ws: WebSocket, token: str = ""):
+    """Authenticated WebSocket for real-time push.
+
+    Query params: token (JWT), channels (comma-separated: workflow,chat,activity)
+    """
+    from urllib.parse import parse_qs
+
+    from app.services.websocket_manager import ws_manager
+
+    # Parse query string from WebSocket scope
+    qs = parse_qs(ws.scope.get("query_string", b"").decode())
+    token = qs.get("token", [""])[0]
+    channels_str = qs.get("channels", ["workflow"])[0]
+    channels = [c.strip() for c in channels_str.split(",") if c.strip()]
+
+    # Authenticate
+    try:
+        user = workspace_service.require_user(f"Bearer {token}")
+    except Exception:
+        await ws.close(code=4001)
+        return
+
+    await ws_manager.connect(ws, channels)
+    try:
+        while True:
+            await ws.receive_text()
+    except Exception:
+        pass
+    finally:
+        await ws_manager.disconnect(ws)

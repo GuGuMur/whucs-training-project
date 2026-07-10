@@ -82,5 +82,42 @@ def generate_rag_answer(question: str, context_snippets: list[str], kb_name: str
 
 
 def _template_answer(question: str, snippets: list[str], kb_name: str) -> str:
-    joined = "；".join(snippets[:3])
-    return f"根据知识库「{kb_name}」的检索结果，与问题相关的片段如下：{joined}"
+    if not snippets:
+        return f"知识库「{kb_name}」未检索到相关内容。"
+    return "\n\n".join(f"[来源 {i + 1}] {s}" for i, s in enumerate(snippets[:5]))
+
+
+def generate_rag_answer_stream(question: str, context_snippets: list[str], kb_name: str):
+    """Yield answer chunks via SSE-compatible generator.
+
+    When LLM is available, streams tokens one at a time. Otherwise
+    yields the template answer as a single chunk.
+    """
+    if not context_snippets:
+        yield f"知识库「{kb_name}」暂未检索到与问题相关的已索引片段。"
+        return
+
+    llm = _get_llm()
+    if llm is None:
+        yield _template_answer(question, context_snippets, kb_name)
+        return
+
+    context = "\n\n---\n\n".join(
+        f"[来源 {i + 1}] {s}" for i, s in enumerate(context_snippets)
+    )
+    prompt = (
+        "你是一个知识库问答助手。请根据以下参考资料回答用户的问题。\n"
+        "如果参考资料不足以回答问题，请如实说明。\n"
+        "回答时请引用来源编号（如 [来源 1]）。\n\n"
+        f"【参考资料】\n{context}\n\n"
+        f"【用户问题】{question}\n\n"
+        "【回答】"
+    )
+    try:
+        for chunk in llm.stream(prompt):
+            content = chunk.content if hasattr(chunk, "content") else str(chunk)
+            if content:
+                yield content
+    except Exception:
+        logger.warning("LLM stream failed, falling back to template", exc_info=True)
+        yield _template_answer(question, context_snippets, kb_name)

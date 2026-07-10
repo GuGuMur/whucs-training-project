@@ -1,35 +1,18 @@
-export type WorkspacePermissionScope = '个人' | '团队' | '系统'
-export type WorkspaceAccessRole = 'super_admin' | 'admin' | 'user' | 'readonly'
-
 export interface WorkspaceAuthSession {
-  accessRole?: WorkspaceAccessRole
   accessToken?: string
   displayName: string
-  permissionScope: WorkspacePermissionScope
   refreshToken?: string
   userId: string
 }
 
 export const workspaceSessionStorageKey = 'whu-workspace-session'
-export const defaultWorkspaceAccessRole: WorkspaceAccessRole = 'user'
-
-export const demoWorkspaceAuthSession: WorkspaceAuthSession = {
-  accessRole: defaultWorkspaceAccessRole,
-  displayName: '演示用户',
-  permissionScope: '个人',
-  userId: 'demo-user',
-}
 
 export function createAuthorizationHeader(token: string) {
   return { authorization: `Bearer ${token}` }
 }
 
-export function resolveWorkspaceToken(session: WorkspaceAuthSession = demoWorkspaceAuthSession) {
-  return session.accessToken
-}
-
-export function normalizeWorkspaceAccessRole(value: unknown): WorkspaceAccessRole {
-  return value === 'super_admin' || value === 'admin' || value === 'readonly' || value === 'user' ? value : defaultWorkspaceAccessRole
+export function resolveWorkspaceToken(session?: WorkspaceAuthSession) {
+  return session?.accessToken
 }
 
 function canUseLocalStorage() {
@@ -37,42 +20,27 @@ function canUseLocalStorage() {
 }
 
 export function loadStoredWorkspaceSession(): WorkspaceAuthSession | null {
-  if (!canUseLocalStorage()) {
-    return null
-  }
-
-  const rawSession = window.localStorage.getItem(workspaceSessionStorageKey)
-  if (!rawSession) {
-    return null
-  }
-
+  if (!canUseLocalStorage()) return null
+  const raw = window.localStorage.getItem(workspaceSessionStorageKey)
+  if (!raw) return null
   try {
-    const session = JSON.parse(rawSession) as Partial<WorkspaceAuthSession>
-    if (!session.accessToken || !session.userId || !session.displayName) {
-      return null
-    }
-
+    const s = JSON.parse(raw) as Partial<WorkspaceAuthSession>
+    if (!s.accessToken && !s.refreshToken) return null
     return {
-      accessRole: normalizeWorkspaceAccessRole(session.accessRole),
-      accessToken: session.accessToken,
-      displayName: session.displayName,
-      permissionScope: session.permissionScope ?? '个人',
-      refreshToken: session.refreshToken,
-      userId: session.userId,
+      accessToken: s.accessToken,
+      displayName: s.displayName ?? '未知用户',
+      refreshToken: s.refreshToken,
+      userId: s.userId ?? 'unknown',
     }
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
 export function saveWorkspaceSession(session: WorkspaceAuthSession) {
-  if (canUseLocalStorage()) {
-    window.localStorage.setItem(workspaceSessionStorageKey, JSON.stringify(session))
-  }
+  if (!canUseLocalStorage()) return
+  window.localStorage.setItem(workspaceSessionStorageKey, JSON.stringify(session))
 }
 
 export function clearStoredWorkspaceSession() {
-  if (canUseLocalStorage()) {
-    window.localStorage.removeItem(workspaceSessionStorageKey)
-  }
+  if (!canUseLocalStorage()) return
+  window.localStorage.removeItem(workspaceSessionStorageKey)
 }

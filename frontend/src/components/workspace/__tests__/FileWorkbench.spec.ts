@@ -3,11 +3,7 @@ import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import naive, { NConfigProvider } from 'naive-ui'
 
-import {
-  demoWorkspaceSnapshot,
-  type WorkspaceFileAnnotation,
-  type WorkspaceFileVersion,
-} from '@/client/workspace'
+import type { WorkspaceFileAnnotation, WorkspaceFileVersion } from '@/client/workspace'
 import FileWorkbench from '../FileWorkbench.vue'
 
 describe('FileWorkbench', () => {
@@ -15,7 +11,7 @@ describe('FileWorkbench', () => {
     const TestHost = defineComponent({
       setup: () => () =>
         h(NConfigProvider, null, {
-          default: () => h(FileWorkbench, { files: demoWorkspaceSnapshot.files }),
+          default: () => h(FileWorkbench, { files: [] }),
         }),
     })
     const wrapper = mount(TestHost, { global: { plugins: [naive] } })
@@ -32,7 +28,7 @@ describe('FileWorkbench', () => {
     const TestHost = defineComponent({
       setup: () => () =>
         h(NConfigProvider, null, {
-          default: () => h(FileWorkbench, { files: demoWorkspaceSnapshot.files }),
+          default: () => h(FileWorkbench, { files: [] }),
         }),
     })
     const wrapper = mount(TestHost, { global: { plugins: [naive] } })
@@ -56,7 +52,7 @@ describe('FileWorkbench', () => {
     const TestHost = defineComponent({
       setup: () => () =>
         h(NConfigProvider, null, {
-          default: () => h(FileWorkbench, { files: demoWorkspaceSnapshot.files }),
+          default: () => h(FileWorkbench, { files: [] }),
         }),
     })
     const wrapper = mount(TestHost, { global: { plugins: [naive] } })
@@ -108,7 +104,7 @@ describe('FileWorkbench', () => {
           default: () =>
             h(FileWorkbench, {
               fileVersionsById: { 'file-microscope': versions },
-              files: demoWorkspaceSnapshot.files,
+              files: [],
               folderOptions: [
                 { label: '个人文件', value: 'personal-root' },
                 { label: '个人文件 / 生物学实验', value: 'folder-biology' },
@@ -167,7 +163,7 @@ describe('FileWorkbench', () => {
           default: () =>
             h(FileWorkbench, {
               fileAnnotationsById: { 'file-weekly': annotations },
-              files: demoWorkspaceSnapshot.files,
+              files: [],
             }),
         }),
     })

@@ -13,15 +13,6 @@ import {
   createWorkspaceWorkflow,
   createWorkspaceTeam,
   createWorkspaceFolder,
-  demoWorkspaceFileVersions,
-  demoWorkspaceKnowledgeBases,
-  demoWorkspaceKnowledgeDocuments,
-  demoWorkspaceNarrative,
-  demoWorkspacePermissionRules,
-  demoWorkspaceTeamMessages,
-  demoWorkspaceFolders,
-  demoWorkspaceSnapshot,
-  demoWorkspaceTeamDetail,
   deleteWorkspacePermissionRule,
   deleteWorkspaceFile,
   deleteWorkspaceFileAnnotation,
@@ -101,7 +92,7 @@ import {
 } from '@/client/workspace'
 import { useAuthStore } from '@/stores/auth'
 
-export type WorkspaceApiState = 'demo' | 'live' | 'fallback'
+export type WorkspaceApiState = 'live' | 'fallback'
 
 const emptyFileFilters: WorkspaceFileFilters = {
   fileType: '',
@@ -112,22 +103,20 @@ const emptyFileFilters: WorkspaceFileFilters = {
 }
 
 export const useWorkspaceStore = defineStore('workspace', () => {
-  const snapshot = shallowRef<WorkspaceSnapshot>(demoWorkspaceSnapshot)
-  const folders = shallowRef<WorkspaceFolder[]>(cloneFolderTree(demoWorkspaceFolders.items))
-  const fileVersionsById = shallowRef<Record<string, WorkspaceFileVersion[]>>(cloneVersionMap(demoWorkspaceFileVersions))
+  const snapshot = shallowRef<WorkspaceSnapshot>({ files: [], folders: [], tools: [], workflows: [], teams: [], audit_logs: [], summary: { total_files: 0, total_folders: 0, unread_notifications: 0 } })
+  const folders = shallowRef<WorkspaceFolder[]>([])
+  const fileVersionsById = shallowRef<Record<string, WorkspaceFileVersion[]>>({})
   const fileAnnotationsById = shallowRef<Record<string, WorkspaceFileAnnotation[]>>({})
   const notifications = shallowRef<WorkspaceNotification[]>([])
-  const teamMessagesById = shallowRef<Record<string, WorkspaceTeamMessage[]>>(cloneTeamMessageMap(demoWorkspaceTeamMessages))
-  const knowledgeBases = shallowRef<WorkspaceKnowledgeBase[]>(cloneKnowledgeBases(demoWorkspaceKnowledgeBases))
-  const activeKnowledgeBaseId = shallowRef<string | null>(demoWorkspaceKnowledgeBases[0]?.id ?? null)
-  const knowledgeDocumentsByKbId = shallowRef<Record<string, WorkspaceKnowledgeDocument[]>>(
-    cloneKnowledgeDocumentMap(demoWorkspaceKnowledgeDocuments),
-  )
-  const narrative = shallowRef<WorkspaceNarrative>(demoWorkspaceNarrative)
-  const activeTeamDetail = shallowRef<WorkspaceTeamDetail | null>(demoWorkspaceTeamDetail)
-  const permissionRules = shallowRef<WorkspacePermissionRule[]>(clonePermissionRules(demoWorkspacePermissionRules))
+  const teamMessagesById = shallowRef<Record<string, WorkspaceTeamMessage[]>>({})
+  const knowledgeBases = shallowRef<WorkspaceKnowledgeBase[]>([])
+  const activeKnowledgeBaseId = shallowRef<string | null>(null)
+  const knowledgeDocumentsByKbId = shallowRef<Record<string, WorkspaceKnowledgeDocument[]>>({})
+  const narrative = shallowRef<WorkspaceNarrative>({ answer: '', citations: [], agentSteps: [] })
+  const activeTeamDetail = shallowRef<WorkspaceTeamDetail | null>(null)
+  const permissionRules = shallowRef<WorkspacePermissionRule[]>([])
   const recycleBinItems = shallowRef<WorkspaceRecycleBinItem[]>([])
-  const activeWorkflowId = shallowRef<string | null>(demoWorkspaceSnapshot.workflows[0]?.id ?? null)
+  const activeWorkflowId = shallowRef<string | null>(null)
   const activeWorkflowValidation = shallowRef<WorkspaceWorkflowValidation | null>(null)
   const activeWorkflowExecution = shallowRef<WorkspaceWorkflowExecution | null>(null)
   const loading = shallowRef(false)
@@ -164,7 +153,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const deletingPermissionRuleId = shallowRef<string | null>(null)
   const workflowOperationLoading = shallowRef(false)
   const errorMessage = shallowRef('')
-  const apiState = shallowRef<WorkspaceApiState>('demo')
+  const apiState = shallowRef<WorkspaceApiState>('live')
 
   const files = computed(() => snapshot.value.files)
   const indexedFiles = computed(() => snapshot.value.files.filter((file) => file.parse_status === 'indexed'))
@@ -189,22 +178,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     const accessToken = resolveOptionalAccessToken(token)
 
     if (!accessToken) {
-      apiState.value = 'demo'
-      fileFilters.value = { ...emptyFileFilters }
-      resetFoldersToDemo()
-      resetVersionsToDemo()
-      resetAnnotations()
-      resetNotifications()
-      resetTeamMessagesToDemo()
-      resetKnowledgeToDemo()
-      resetPermissionRulesToDemo()
-      resetRecycleBinToDemo()
-      snapshot.value = demoWorkspaceSnapshot
-      narrative.value = demoWorkspaceNarrative
-      activeTeamDetail.value = demoWorkspaceTeamDetail
-      activeWorkflowValidation.value = null
-      activeWorkflowExecution.value = null
-      ensureActiveWorkflowSelection()
+      // No session — keep empty state, caller should redirect to login
+      apiState.value = 'live'
       return
     }
 
@@ -230,26 +205,13 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       activeTeamDetail.value = null
       ensureActiveFolderSelection()
       ensureActiveWorkflowSelection()
-      narrative.value = demoWorkspaceNarrative
+      narrative.value = { answer: '', citations: [], agentSteps: [] }
       activeWorkflowValidation.value = null
       activeWorkflowExecution.value = null
       fileFilters.value = { ...emptyFileFilters }
       apiState.value = 'live'
+      connectWebSocket(accessToken)
     } catch {
-      snapshot.value = demoWorkspaceSnapshot
-      narrative.value = demoWorkspaceNarrative
-      resetFoldersToDemo()
-      resetVersionsToDemo()
-      resetAnnotations()
-      resetNotifications()
-      resetTeamMessagesToDemo()
-      resetKnowledgeToDemo()
-      resetPermissionRulesToDemo()
-      resetRecycleBinToDemo()
-      activeTeamDetail.value = demoWorkspaceTeamDetail
-      activeWorkflowValidation.value = null
-      activeWorkflowExecution.value = null
-      ensureActiveWorkflowSelection()
       apiState.value = 'fallback'
     } finally {
       loading.value = false
@@ -260,7 +222,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     const accessToken = resolveOptionalAccessToken(token)
 
     if (!accessToken) {
-      resetFoldersToDemo()
       return { items: folders.value }
     }
 
@@ -316,7 +277,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     const accessToken = resolveOptionalAccessToken(token)
 
     if (!accessToken) {
-      resetKnowledgeToDemo()
       return { items: knowledgeBases.value }
     }
 
@@ -687,11 +647,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     const accessToken = resolveOptionalAccessToken(token)
 
     if (!accessToken) {
-      const messages = demoWorkspaceTeamMessages[teamId] ?? teamMessagesById.value[teamId] ?? []
-      teamMessagesById.value = {
-        ...teamMessagesById.value,
-        [teamId]: messages.map((message) => ({ ...message })),
-      }
       return { items: teamMessagesById.value[teamId] ?? [], total: teamMessagesById.value[teamId]?.length ?? 0 }
     }
 
@@ -760,7 +715,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     const accessToken = resolveOptionalAccessToken(token)
 
     if (!accessToken) {
-      resetRecycleBinToDemo()
       return { items: recycleBinItems.value, total: recycleBinItems.value.length }
     }
 
@@ -804,11 +758,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     const accessToken = resolveOptionalAccessToken(token)
 
     if (!accessToken) {
-      snapshot.value = {
-        ...snapshot.value,
-        teams: demoWorkspaceSnapshot.teams,
-      }
-      activeTeamDetail.value = demoWorkspaceTeamDetail
       return { items: snapshot.value.teams }
     }
 
@@ -821,7 +770,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         teams: response.items,
         summary: {
           ...snapshot.value.summary,
-          unread_notifications: response.items.reduce((sum, team) => sum + team.unread_count, 0),
         },
       }
       apiState.value = 'live'
@@ -838,7 +786,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     const accessToken = resolveOptionalAccessToken(token)
 
     if (!accessToken) {
-      resetPermissionRulesToDemo()
       return { items: permissionRules.value }
     }
 
@@ -1399,15 +1346,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     return tags.map((tag) => tag.trim()).filter(Boolean)
   }
 
-  function resetFoldersToDemo() {
-    folders.value = cloneFolderTree(demoWorkspaceFolders.items)
-    ensureActiveFolderSelection()
-  }
-
-  function resetVersionsToDemo() {
-    fileVersionsById.value = cloneVersionMap(demoWorkspaceFileVersions)
-  }
-
   function resetAnnotations() {
     fileAnnotationsById.value = {}
   }
@@ -1417,21 +1355,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     syncUnreadNotificationSummary(0)
   }
 
-  function resetTeamMessagesToDemo() {
-    teamMessagesById.value = cloneTeamMessageMap(demoWorkspaceTeamMessages)
-  }
-
-  function resetKnowledgeToDemo() {
-    knowledgeBases.value = cloneKnowledgeBases(demoWorkspaceKnowledgeBases)
-    knowledgeDocumentsByKbId.value = cloneKnowledgeDocumentMap(demoWorkspaceKnowledgeDocuments)
-    ensureActiveKnowledgeBaseSelection()
-  }
-
-  function resetPermissionRulesToDemo() {
-    permissionRules.value = clonePermissionRules(demoWorkspacePermissionRules)
-  }
-
-  function resetRecycleBinToDemo() {
+  function resetRecycleBin() {
     recycleBinItems.value = []
   }
 
@@ -1556,7 +1480,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       teams: nextTeams,
       summary: {
         ...snapshot.value.summary,
-        unread_notifications: nextTeams.reduce((sum, team) => sum + team.unread_count, 0),
+        
       },
     }
   }
@@ -1650,6 +1574,31 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   }
 
+  // ── WebSocket connection for real-time notifications ──
+  let _ws: WebSocket | null = null
+
+  function connectWebSocket(token: string) {
+    if (_ws && _ws.readyState === WebSocket.OPEN) return
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const url = `${proto}//${location.host}/api/v1/ws?token=${encodeURIComponent(token)}`
+    try {
+      _ws = new WebSocket(url)
+      _ws.addEventListener('message', (event) => {
+        try {
+          const payload = JSON.parse(event.data)
+          if (payload.event === 'notification' && payload.data) {
+            // Prepend new notification and update unread count
+            const newNotif = payload.data as WorkspaceNotification
+            notifications.value = [newNotif, ...notifications.value]
+            syncUnreadNotificationSummary((snapshot.value.summary.unread_notifications ?? 0) + 1)
+          }
+        } catch { /* ignore malformed messages */ }
+      })
+      _ws.addEventListener('close', () => { _ws = null })
+      _ws.addEventListener('error', () => { _ws?.close(); _ws = null })
+    } catch { /* WebSocket not available */ }
+  }
+
   return {
     activeWorkflow,
     activeWorkflowExecution,
@@ -1669,6 +1618,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     auditLogs,
     askKnowledgeQuestion,
     askingQuestion,
+    connectWebSocket,
     copyFile,
     copyingFileId,
     createFileAnnotation,

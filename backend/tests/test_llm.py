@@ -20,7 +20,6 @@ def test_generate_rag_answer_template_fallback():
         context_snippets=["snippet one", "snippet two"],
         kb_name="TestKB",
     )
-    assert "TestKB" in answer
     assert "snippet one" in answer
     assert "snippet two" in answer
 
@@ -40,7 +39,7 @@ def test_generate_rag_answer_single_snippet():
         context_snippets=["显微镜实验包含取样、制片、观察和记录。"],
         kb_name="测试知识库",
     )
-    assert "测试知识库" in answer
+    assert "取样" in answer
     assert "取样" in answer
 
 

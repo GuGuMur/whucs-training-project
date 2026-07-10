@@ -161,7 +161,7 @@ def test_pdf_parsing_empty_page_raises():
     buf = io.BytesIO()
     doc_pdf.save(buf)
     doc_pdf.close()
-    with pytest.raises(ParseError, match="未解析出可读文本"):
+    with pytest.raises(ParseError, match="未解析出可读文本|OCR"):
         parse_document("blank.pdf", buf.getvalue())
 
 

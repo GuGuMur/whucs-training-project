@@ -34,6 +34,24 @@ class ParsedDocument:
     segments: list[ParsedSegment]
 
 
+def chunk_text(text: str, chunk_size: int = 512, overlap: int = 128) -> list[str]:
+    """Split text into overlapping chunks using sliding window (FR-K04)."""
+    if not text.strip():
+        return []
+    chunks: list[str] = []
+    start = 0
+    text_len = len(text)
+    while start < text_len:
+        end = min(start + chunk_size, text_len)
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+        if end >= text_len:
+            break
+        start = end - overlap
+    return chunks
+
+
 _FORMAT_ALIASES = {
     "pdf": "pdf",
     "docx": "docx",
@@ -52,6 +70,33 @@ def _format_for(filename: str, declared_type: str | None = None) -> str:
     if not resolved:
         raise ParseError(f"不支持的解析格式: {suffix or declared_type or 'unknown'}")
     return resolved
+
+
+def _ocr_fallback(content: bytes) -> str:
+    """Try OCR on scanned PDF pages. Returns extracted text or raises ParseError."""
+    try:
+        from paddleocr import PaddleOCR  # noqa: F811 - lazy import
+
+        ocr = PaddleOCR(lang="ch", use_angle_cls=False, show_log=False)
+        import fitz
+
+        doc = fitz.open(stream=content, filetype="pdf")
+        texts: list[str] = []
+        for page in doc:
+            pix = page.get_pixmap(dpi=200)
+            result = ocr.ocr(pix.tobytes("png"), cls=False)
+            if result and result[0]:
+                texts.extend(line[1][0] for line in result[0])
+        doc.close()
+        if not texts:
+            raise ParseError("OCR 未识别出文字")
+        return "\n".join(texts)
+    except ImportError:
+        raise ParseError("OCR 服务不可用（PaddleOCR 未安装），请安装 paddlepaddle 后重试")
+    except ParseError:
+        raise
+    except Exception as exc:
+        raise ParseError(f"OCR 识别失败: {exc}") from exc
 
 
 def _block_to_segments(text: str, *, base_page: int = 1) -> list[ParsedSegment]:
@@ -168,8 +213,13 @@ def parse_document(
                 text = _parse_csv(content)
             segments = _block_to_segments(text)
         elif fmt == "pdf":
-            segments = _parse_pdf(content)
-            text = "\n".join(segment.content for segment in segments)
+            try:
+                segments = _parse_pdf(content)
+                text = "\n".join(segment.content for segment in segments)
+            except ParseError:
+                # FR-K03: try OCR fallback for scanned PDFs
+                text = _ocr_fallback(content)
+                segments = _block_to_segments(text, base_page=1)
         elif fmt == "docx":
             segments = _parse_docx(content)
             text = "\n".join(segment.content for segment in segments)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { ArrowLeft, Database, FileText, MessageSquareText, Search, Send, Sparkles } from '@lucide/vue'
+import { Database, FileText, Send, Sparkles } from '@lucide/vue'
 
 import { useWorkspaceLayoutMode } from '@/composables/useWorkspaceLayoutMode'
 import { useWorkspaceNavigation } from '@/composables/useWorkspaceNavigation'
@@ -10,159 +10,118 @@ import MobileWorkspaceLayout from '@/layouts/MobileWorkspaceLayout.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 
 const workspace = useWorkspaceStore()
-const { apiState, files, narrative, summary } = storeToRefs(workspace)
+const {
+  activeKnowledgeBaseId, apiState, askingQuestion, indexedFiles,
+  knowledgeBases, summary,
+} = storeToRefs(workspace)
+
 const { isMobileLayout } = useWorkspaceLayoutMode()
 const { apiStateLabel, apiStateType, navItems } = useWorkspaceNavigation(apiState, 'rag')
-const workspaceLayout = computed(() => (isMobileLayout.value ? MobileWorkspaceLayout : DesktopWorkspaceLayout))
+const layout = computed(() => (isMobileLayout.value ? MobileWorkspaceLayout : DesktopWorkspaceLayout))
 
-const question = ref('总结所有用到显微镜的实验步骤')
-const lastQuestion = ref(question.value)
+const question = ref('')
 const answerText = ref('')
+const citations = ref<Array<{ title: string; snippet: string; page_no: number; file_id: string }>>([])
+const selectedKbId = ref<string | null>(null)
+const showCreateKb = ref(false)
+const newKbName = ref('')
+const newKbDesc = ref('')
 
-const citationCards = computed(() => narrative.value.citations)
-const sourceFiles = computed(() => {
-  const citationFileIds = new Set(citationCards.value.map((citation) => citation.file_id))
-  return files.value.filter((file) => citationFileIds.has(file.id))
-})
+const kbOptions = computed(() => knowledgeBases.value.map((kb) => ({ label: kb.name, value: kb.id })))
 
-onMounted(() => {
-  void workspace.loadWorkspace().then(() => {
-    answerText.value = narrative.value.answer
-  })
-})
+onMounted(() => { void workspace.loadWorkspace() })
 
-function submitQuestion() {
-  const trimmedQuestion = question.value.trim()
-  if (!trimmedQuestion) return
+async function submitQuestion() {
+  const q = question.value.trim()
+  if (!q) return
+  const kbId = selectedKbId.value ?? activeKnowledgeBaseId.value ?? knowledgeBases.value[0]?.id
+  if (!kbId) return
+  try {
+    const result = await workspace.askKnowledgeQuestion({ kbId, question: q, topK: 3 })
+    answerText.value = result.answer
+    citations.value = (result.citations ?? []).map((c: any) => ({
+      title: c.title ?? '', snippet: c.snippet ?? '', page_no: c.page_no ?? 1, file_id: c.file_id ?? '',
+    }))
+  } catch { answerText.value = '查询失败，请确认知识库中有已索引文档。' }
+}
 
-  lastQuestion.value = trimmedQuestion
-  answerText.value = narrative.value.answer
+async function handleIndexDocument(fileId: string) {
+  const kbId = selectedKbId.value ?? knowledgeBases.value[0]?.id
+  if (!kbId) return
+  try { await workspace.addKnowledgeDocument(kbId, fileId) } catch { /* ignore */ }
 }
 </script>
 
 <template>
-  <component
-    :is="workspaceLayout"
-    :api-state-label="apiStateLabel"
-    :api-state-type="apiStateType"
-    :nav-items="navItems"
-    :unread-notifications="summary.unread_notifications"
-  >
-    <section class="rag-page">
-      <div class="rag-heading">
-        <div>
-          <RouterLink class="btn-secondary no-underline" to="/">
-            <NIcon aria-hidden="true" class="mr-1.5"><ArrowLeft /></NIcon>
-            返回主页
-          </RouterLink>
-          <p class="eyebrow">知识库检索增强问答</p>
-          <h2>RAG 知识问答</h2>
-          <span>围绕当前工作台文件进行提问，回答区展示可追溯引用和命中文档。</span>
+  <component :is="layout" :api-state-label="apiStateLabel" :api-state-type="apiStateType" :nav-items="navItems" :unread-notifications="summary.unread_notifications" page-title="RAG 知识问答">
+    <div class="mb-4">
+      <p class="m-0 text-sub text-13px">知识库检索增强问答</p>
+      <h2 class="m-0 mt-1 text-ink text-30px font-800 leading-[1.2]">RAG 知识问答</h2>
+      <p class="m-0 mt-1 text-sub text-15px">选择知识库，输入问题，获取基于文档内容的带引用回答。</p>
+    </div>
+    <div class="grid gap-4">
+      <div class="flex flex-wrap items-center gap-3">
+        <NSelect v-model:value="selectedKbId" :options="kbOptions" :placeholder="knowledgeBases.length ? '选择知识库' : '暂无知识库'" style="width:240px" />
+        <NButton size="small" secondary @click="showCreateKb = true">
+          <template #icon><NIcon :size="16"><Database /></NIcon></template>
+          新建知识库
+        </NButton>
+      </div>
+
+      <NCard size="small">
+        <div class="flex items-start gap-3">
+          <NInput v-model:value="question" type="textarea" placeholder="输入问题，系统将从知识库检索相关内容并生成回答..." :autosize="{ minRows: 2, maxRows: 4 }" class="flex-1" @keydown.enter.exact.prevent="submitQuestion" />
+          <NButton type="primary" :loading="askingQuestion" @click="submitQuestion">
+            <template #icon><NIcon :size="18"><Send /></NIcon></template>
+            提问
+          </NButton>
         </div>
-        <NTag type="info" round>
-          <template #icon><NIcon><Database /></NIcon></template>
-          {{ citationCards.length }} 条引用
-        </NTag>
-      </div>
+      </NCard>
 
-      <div class="rag-shell">
-        <main class="chat-panel">
-          <NCard :bordered="false" class="rag-card ask-card">
-            <template #header>
-              <div class="card-title"><NIcon><MessageSquareText /></NIcon>提问</div>
-            </template>
-            <NInput
-              v-model:value="question"
-              type="textarea"
-              :autosize="{ minRows: 3, maxRows: 6 }"
-              placeholder="输入你想问知识库的问题"
-              @keydown.ctrl.enter.prevent="submitQuestion"
-            />
-            <div class="ask-actions">
-              <NButton secondary>
-                <template #icon><NIcon><Search /></NIcon></template>
-                搜索上下文
-              </NButton>
-              <NButton type="primary" @click="submitQuestion">
-                <template #icon><NIcon><Send /></NIcon></template>
-                发送问题
-              </NButton>
+      <NCard v-if="answerText" size="small" title="回答">
+        <p class="m-0 whitespace-pre-wrap text-15px leading-[1.7]">{{ answerText }}</p>
+      </NCard>
+
+      <NCard v-if="citations.length" size="small" title="引用来源">
+        <div class="grid gap-2">
+          <div v-for="(c, i) in citations" :key="i" class="flex items-start gap-2 rounded-1 border border-line bg-muted p-3">
+            <NIcon :size="16" class="mt-0.5 text-primary"><FileText /></NIcon>
+            <div>
+              <p class="m-0 text-ink text-14px font-650">{{ c.title }}</p>
+              <p class="m-0 mt-0.5 text-sub text-13px">{{ c.snippet }}</p>
             </div>
-          </NCard>
+          </div>
+        </div>
+      </NCard>
 
-          <NCard :bordered="false" class="rag-card answer-card">
-            <template #header>
-              <div class="card-title"><NIcon><Sparkles /></NIcon>回答</div>
-            </template>
-            <div class="question-bubble">{{ lastQuestion }}</div>
-            <p class="answer-text">{{ answerText || narrative.answer }}</p>
-          </NCard>
+      <NCard size="small" title="可索引文件">
+        <div v-if="indexedFiles.length === 0" class="text-sub text-14px">暂无已解析文件，请先在文件管理中上传文件。</div>
+        <div v-else class="grid gap-2">
+          <div v-for="f in indexedFiles" :key="f.id" class="flex items-center justify-between rounded-1 border border-line bg-muted p-2">
+            <span class="text-14px">{{ f.name }}</span>
+            <NButton size="tiny" secondary @click="handleIndexDocument(f.id)">
+              <template #icon><NIcon :size="14"><Sparkles /></NIcon></template>
+              索引
+            </NButton>
+          </div>
+        </div>
+      </NCard>
+    </div>
 
-          <NCard :bordered="false" class="rag-card">
-            <template #header>
-              <div class="card-title"><NIcon><FileText /></NIcon>引用来源</div>
-            </template>
-            <NList bordered>
-              <NListItem v-for="citation in citationCards" :key="citation.chunk_id">
-                <NThing :title="citation.title">
-                  <template #description>
-                    第 {{ citation.page_no ?? '-' }} 页 · 第 {{ citation.paragraph_no ?? '-' }} 段
-                  </template>
-                  <p class="citation-text">{{ citation.snippet }}</p>
-                </NThing>
-              </NListItem>
-            </NList>
-          </NCard>
-        </main>
-
-        <aside class="context-panel">
-          <NCard :bordered="false" class="rag-card">
-            <template #header>
-              <div class="card-title"><NIcon><Database /></NIcon>命中文档</div>
-            </template>
-            <div class="source-list">
-              <div v-for="file in sourceFiles" :key="file.id" class="source-item">
-                <strong>{{ file.name }}</strong>
-                <span>{{ file.permission_scope }} · {{ file.parse_status }}</span>
-                <NSpace size="small">
-                  <NTag v-for="tag in file.tags" :key="tag" size="small" round>{{ tag }}</NTag>
-                </NSpace>
-              </div>
-              <NEmpty v-if="sourceFiles.length === 0" description="暂无命中文档" />
-            </div>
-          </NCard>
-
-          <NCard :bordered="false" class="rag-card">
-            <template #header>检索策略</template>
-            <NDescriptions :column="1" bordered size="small">
-              <NDescriptionsItem label="范围">当前用户可访问文件</NDescriptionsItem>
-              <NDescriptionsItem label="返回">答案、引用、页码与段落</NDescriptionsItem>
-              <NDescriptionsItem label="状态">{{ apiStateLabel }}</NDescriptionsItem>
-            </NDescriptions>
-          </NCard>
-        </aside>
-      </div>
-    </section>
+      <!-- Create KB Modal -->
+      <NModal v-model:show="showCreateKb" title="新建知识库">
+        <NCard style="width:400px" title="新建知识库" :bordered="false" size="small">
+          <NFormItem label="名称">
+            <NInput v-model:value="newKbName" placeholder="知识库名称" />
+          </NFormItem>
+          <NFormItem label="描述">
+            <NInput v-model:value="newKbDesc" placeholder="可选描述" />
+          </NFormItem>
+          <NSpace justify="end">
+            <NButton @click="showCreateKb = false">取消</NButton>
+            <NButton type="primary" @click="workspace.createKnowledgeBase({ name: newKbName || '新知识库', description: newKbDesc }); showCreateKb = false">创建</NButton>
+          </NSpace>
+        </NCard>
+      </NModal>
   </component>
 </template>
-
-<style scoped>
-.rag-page { display: grid; gap: 14px; }
-.rag-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
-.rag-heading .eyebrow { margin: 14px 0 4px; color: #64748b; font-size: 13px; }
-.rag-heading h2 { margin: 0; color: #172033; font-size: 30px; font-weight: 800; line-height: 1.2; }
-.rag-heading span { display: block; margin-top: 6px; color: #64748b; font-size: 14px; }
-.rag-shell { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
-.chat-panel, .context-panel { display: grid; gap: 12px; min-width: 0; }
-.rag-card { overflow: hidden; border: 1px solid #e8eef6; border-radius: 8px; box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045); }
-.card-title { display: inline-flex; align-items: center; gap: 8px; color: #172033; font-weight: 800; }
-.ask-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
-.question-bubble { display: inline-block; max-width: 76%; margin-bottom: 14px; padding: 10px 12px; color: #1d4ed8; background: #eff6ff; border: 1px solid #dbeafe; border-radius: 8px; font-weight: 700; }
-.answer-text { margin: 0; color: #172033; font-size: 15px; line-height: 1.75; }
-.citation-text { margin: 0; color: #334155; font-size: 13px; line-height: 1.6; }
-.source-list { display: grid; gap: 10px; }
-.source-item { display: grid; gap: 8px; padding: 12px; background: #f8fafc; border: 1px solid #e8eef6; border-radius: 8px; }
-.source-item strong { color: #172033; font-size: 14px; }
-.source-item span { color: #64748b; font-size: 12px; }
-@media (max-width: 980px) { .rag-heading { align-items: flex-start; flex-direction: column; } .rag-shell { grid-template-columns: 1fr; } .question-bubble { max-width: 100%; } }
-</style>

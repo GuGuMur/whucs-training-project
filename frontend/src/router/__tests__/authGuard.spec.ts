@@ -19,14 +19,13 @@ describe('auth router guard', () => {
     await router.isReady()
 
     expect(router.currentRoute.value.name).toBe('login')
-    expect(router.currentRoute.value.query.redirect).toBe('/')
+    expect(router.currentRoute.value.query.redirect).toBe('/files')
   })
 
   it('allows workspace access after restoring a local auth session', async () => {
     saveWorkspaceSession({
       accessToken: 'stored-token',
       displayName: '演示用户',
-      permissionScope: '个人',
       refreshToken: 'refresh-token',
       userId: '1',
     })
@@ -37,7 +36,7 @@ describe('auth router guard', () => {
     await router.push('/')
     await router.isReady()
 
-    expect(router.currentRoute.value.name).toBe('workspace')
+    expect(router.currentRoute.value.name).toBe('files')
   })
 
   it('protects the profile route with the same auth guard', async () => {

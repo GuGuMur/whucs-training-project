@@ -4,7 +4,7 @@
 Build a frontend-backend separated, well-structured intelligent file management and agent collaboration platform based on the documents under `report/`.
 
 ## Current Phase
-Phase 27 — LLM Answer Generation Service (complete)
+Phase 35 — OCR + Reranker (complete) — All planned phases finished 🎉
 
 ## Phases
 

@@ -119,6 +119,7 @@ const triggerOptions = [
   { label: 'WebSocket 事件', value: 'websocket' },
 ]
 
+const activeWorkflowId = ref<string | null>(null)
 const flowName = ref('智能文件处理流程')
 const triggerMode = ref('file_uploaded')
 const currentVersion = ref('v1.2.0')
@@ -281,30 +282,11 @@ async function runFlow() {
   if (!activeWorkflowId.value) { message.warning('请先保存流程定义'); return }
   try {
     running.value = true
-    const exec = await workspace.executeWorkflow(activeWorkflowId.value, { file_id: '', target_kb_id: null })
-    executionLog.value.unshift({ time: new Date().toLocaleString(), status: exec.status, detail: exec.status })
+    const exec = await workspace.executeWorkflow(activeWorkflowId.value, { fileId: '', targetKbId: null })
+    versionLog.value.unshift(`执行完成: ${exec.status} (${new Date().toLocaleString()})`)
     message.success('流程执行完成')
   } catch { message.error('流程执行失败') }
   finally { running.value = false }
-
-  running.value = true
-  executionProgress.value = 0
-  activeRunStep.value = 0
-  nodes.value.forEach((node) => (node.data.status = 'idle'))
-
-  const orderedNodes = [...nodes.value].sort((a, b) => a.position.x - b.position.x)
-  for (let index = 0; index < orderedNodes.length; index += 1) {
-    const current = orderedNodes[index]
-    if (!current) continue
-    activeRunStep.value = index + 1
-    current.data.status = 'running'
-    await wait(460)
-    current.data.status = 'success'
-    executionProgress.value = Math.round(((index + 1) / orderedNodes.length) * 100)
-  }
-
-  running.value = false
-  message.success('执行完成，进度已同步')
 }
 
 function singleStep() {
@@ -424,6 +406,7 @@ function wait(ms: number) {
     :api-state-type="apiStateType"
     :nav-items="navItems"
     :unread-notifications="summary.unread_notifications"
+    page-title="工具流编排"
   >
     <section class="workflow-builder">
       <div class="builder-heading">

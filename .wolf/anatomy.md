@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-09T14:19:43.166Z
-> Files: 103 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T02:50:42.131Z
+> Files: 127 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../.claude/plans/
 
@@ -15,7 +15,7 @@
 - `OPEN_DESIGN.md` — Open Design 使用说明，记录导入本项目、MCP 命令和推荐 prompt (~300 tok)
 - `progress.md` — Progress Log (~20740 tok)
 - `README.md` — Project documentation (~0 tok)
-- `task_plan.md` — Task Plan: Intelligent File Workspace Platform (~7503 tok)
+- `task_plan.md` — Task Plan: Intelligent File Workspace Platform (~7507 tok)
 
 ## .claude/
 
@@ -53,18 +53,24 @@
 - `tests/test_parser.py` — Parser unit tests: 21 tests covering 6 formats (PDF/DOCX/PPTX/TXT/MD/CSV), format detection, error handling, and segment metadata (~400 tok)
 - `tests/test_workspace_api.py` — Backend API contract tests for auth, refresh-token/profile boundaries, folder CRUD/tree validations, file lifecycle/versioning, files, annotations, notifications, RAG, agent tools, workflow MVP, team RBAC, and ACL permission rules (~4200 tok)
 
+## backend/app/api/
+
+- `routes.py` — current_user, register, login, refresh (~6640 tok)
+
 ## backend/app/services/
 
 - `embedding.py` — Semantic embedding service wrapping sentence-transformers. (~576 tok)
-- `llm.py` — LLM service wrapping OpenAI-compatible APIs with graceful fallback. (~775 tok)
-- `workspace.py` — WorkspaceError: register_user, login_user, refresh_session, require_user + 3 more (~36844 tok)
+- `llm.py` — LLM service wrapping OpenAI-compatible APIs with graceful fallback. (~1125 tok)
+- `parser.py` — Multi-format document text extraction for the knowledge-base pipeline. (~2266 tok)
+- `websocket_manager.py` — WebSocket connection manager for real-time push. (~424 tok)
+- `workspace.py` — WorkspaceError: register_user, login_user, refresh_session, require_user + 2 more (~35125 tok)
 
 ## backend/tests/
 
-- `test_embedding.py` — Tests for the embedding service. (~834 tok)
-- `test_llm.py` — Tests for the LLM service with graceful fallback. (~445 tok)
-- `test_parser.py` — Tests for the multi-format document parser. (~2124 tok)
-- `test_workspace_api.py` — auth_session, auth_headers, session_headers, test_register_login_and_current_user_require_bearer_tok (~21681 tok)
+- `test_embedding.py` — Tests for the embedding service. (~934 tok)
+- `test_llm.py` — Tests for the LLM service with graceful fallback. (~435 tok)
+- `test_parser.py` — Tests for the multi-format document parser. (~2125 tok)
+- `test_workspace_api.py` — auth_session, auth_headers, upload_test_file, create_test_folder (~22900 tok)
 
 ## frontend deleted starter files/
 
@@ -129,13 +135,64 @@
 - `vite.config.ts` — Vite config using Vue, Vue JSX, Vue DevTools, UnoCSS, and `@` alias (~120 tok)
 - `vitest.config.ts` — Vitest config merged with Vite using jsdom and excluding e2e tests (~120 tok)
 
+## frontend/src/auth/
+
+- `workspaceAccess.ts` — Exports WorkspaceAuthSession, workspaceSessionStorageKey, createAuthorizationHeader, resolveWorkspac (~402 tok)
+
+## frontend/src/client/
+
+- `workspace.ts` — Exports AgentStep, WorkspaceFile, WorkspaceFileAnnotation, WorkspaceFileAnnotationReply + 56 more (~12430 tok)
+
+## frontend/src/client/generated/
+
+- `client.gen.ts` — The `createClientConfig()` function will be called on client initialization (~350 tok)
+
 ## frontend/src/components/workspace/
 
 - `AgentWorkflowPanel.vue` — Vue: 选择文件, setup (~3776 tok)
+- `FileWorkbench.vue` — Vue: setup (~5180 tok)
+- `TeamAuditPanel.vue` — Vue: setup (~2814 tok)
+
+## frontend/src/components/workspace/__tests__/
+
+- `AgentWorkflowPanel.spec.ts` — API routes: GET (9 endpoints) (~1389 tok)
+- `PermissionRulesPanel.spec.ts` — API routes: GET (2 endpoints) (~906 tok)
+
+## frontend/src/composables/
+
+- `useWorkspaceNavigation.ts` — Exports WorkspaceNavItem, useWorkspaceNavigation (~465 tok)
+
+## frontend/src/layouts/
+
+- `DesktopWorkspaceLayout.vue` — Vue: setup (~2320 tok)
+- `MobileWorkspaceLayout.vue` — Vue: setup (~1704 tok)
+
+## frontend/src/router/
+
+- `index.ts` — Exports createAppRouter (~694 tok)
+
+## frontend/src/stores/
+
+- `auth.ts` — Exports LoginCredentials, RegisterCredentials, useAuthStore (~1652 tok)
+- `workspace.ts` — Exports WorkspaceApiState, useWorkspaceStore (~17713 tok)
+
+## frontend/src/stores/__tests__/
+
+- `workspace.spec.ts` — testFile: getTestFile (~10985 tok)
 
 ## frontend/src/views/
 
-- `WorkflowBuilderView.vue` — Vue: setup (~8241 tok)
+- `FileManagerView.vue` — Vue: setup (~1296 tok)
+- `LoginView.vue` — Vue: setup (~1080 tok)
+- `PermissionAuditView.vue` — Vue: setup (~901 tok)
+- `ProfileView.vue` — Vue: setup (~1263 tok)
+- `RagQaView.vue` — Vue: 新知识库, setup (~1325 tok)
+- `TeamChatView.vue` — Vue: all, setup (~6671 tok)
+- `WorkflowBuilderView.vue` — Vue: setup (~8084 tok)
+
+## frontend/src/views/__tests__/
+
+- `LoginView.spec.ts` — Declares TestHost (~363 tok)
 
 ## references/
 
