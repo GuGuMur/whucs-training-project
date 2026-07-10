@@ -26,6 +26,19 @@ class FileUpdate(BaseModel):
     tags: list[str] | None = None
 
 
+class FileContentResponse(BaseModel):
+    file_id: str
+    name: str
+    type: str
+    content: str
+    editable: bool
+    updated_at: datetime
+
+
+class FileContentUpdate(BaseModel):
+    content: str = Field(max_length=1_000_000)
+
+
 class FileCopyRequest(BaseModel):
     target_folder_id: str = Field(min_length=1)
     name: str | None = Field(default=None, min_length=1, max_length=255)
@@ -153,3 +166,17 @@ class RecycleBinItem(BaseModel):
 class RecycleBinResponse(BaseModel):
     items: list[RecycleBinItem]
     total: int
+
+
+class CompressionRequest(BaseModel):
+    file_ids: list[str] = Field(min_length=1, max_length=50)
+    algorithm: Literal["zip", "tar.gz"] = "zip"
+
+
+class CompressionResult(BaseModel):
+    file_id: str
+    file_name: str
+    original_size: int
+    compressed_size: int
+    algorithm: str
+    ratio: float

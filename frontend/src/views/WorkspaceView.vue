@@ -50,6 +50,7 @@ const {
   auditLogs,
   creatingFolder,
   copyingFileId,
+  creatingAgentTask,
   deletingAnnotationId,
   deletingFileId,
   deletingFolderId,
@@ -227,6 +228,10 @@ async function handleExecuteWorkflow(workflowId: string, payload: WorkspaceWorkf
   await workspace.executeWorkflow(workflowId, payload)
 }
 
+async function handleCreateAgentTask(payload: { task: string; kbId?: string | null; contextFileIds?: string[] }) {
+  await workspace.createAgentTask({ task: payload.task, kbId: payload.kbId ?? null, contextFileIds: payload.contextFileIds ?? [] })
+}
+
 function saveBlob(file: WorkspaceFile, blob: Blob) {
   if (
     typeof document === 'undefined' ||
@@ -317,8 +322,10 @@ function saveBlob(file: WorkspaceFile, blob: Blob) {
           :tools="tools"
           :workflow-execution="activeWorkflowExecution"
           :workflow-operation-loading="workflowOperationLoading"
+          :agent-task-running="creatingAgentTask"
           :workflow-validation="activeWorkflowValidation"
           :workflows="workflows"
+          @create-agent-task="handleCreateAgentTask"
           @create-workflow="handleCreateWorkflow"
           @execute-workflow="handleExecuteWorkflow"
           @publish-workflow="handlePublishWorkflow"

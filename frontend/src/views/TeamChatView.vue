@@ -112,7 +112,7 @@ async function handleEditTeam() {
 async function handleInviteMember() {
   if (!activeTeam.value) return
   try {
-    await workspace.inviteTeamMember(activeTeam.value.id, { email: 'invite@whucs.local', role: inviteRole.value })
+    await workspace.inviteTeamMember(activeTeam.value.id, { email: inviteEmail.value.trim() || 'member@example.com', role: inviteRole.value })
     showInviteMember.value = false
   } catch { message.error('生成邀请链接失败') }
 }
@@ -162,6 +162,11 @@ function updateDraftMessage(value: string) {
 function insertMention(option: any) {
   draftMessage.value = draftMessage.value.replace(/(?:^|\s)@[^\s@]*$/, (m) => `${m.startsWith(' ') ? ' ' : ''}${option.label} `)
   showMentionPanel.value = false
+}
+
+function openMentionPanel() {
+  mentionQuery.value = ''
+  showMentionPanel.value = true
 }
 
 function insertFileRef() { draftMessage.value += ' [文件] ' }

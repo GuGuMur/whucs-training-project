@@ -35,10 +35,10 @@ export function useWorkspaceNavigation(apiState: Ref<WorkspaceApiState>, activeK
     }
 
     if (apiState.value === 'fallback') {
-      return '演示数据（API 不可用）'
+      return '连接异常'
     }
 
-    return '演示数据'
+    return '连接异常'
   })
 
   const apiStateType = computed<'success' | 'warning' | 'info'>(() => {
@@ -50,7 +50,7 @@ export function useWorkspaceNavigation(apiState: Ref<WorkspaceApiState>, activeK
       return 'warning'
     }
 
-    return 'info'
+    return 'warning'
   })
 
   return {

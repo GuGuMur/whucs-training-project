@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
 import { saveWorkspaceSession } from '@/auth'
-import type { FileItem } from '@/client/generated'
 import * as workspaceClient from '@/client/workspace'
 import type {
   WorkspaceNotification,
@@ -13,6 +12,7 @@ import type {
   WorkspaceKnowledgeDocument,
   WorkspaceFileAnnotation,
   WorkspaceFileAnnotationReply,
+  WorkspaceFileContent,
   WorkspaceTeamMessage,
   WorkspaceTeamDetail,
   WorkspaceTeamInvite,
@@ -21,11 +21,11 @@ import type {
   WorkspaceWorkflowExecution,
   WorkspaceWorkflowValidation,
   WorkspaceSnapshot,
-  FileItem,
+  WorkspaceFile,
 } from '@/client/workspace'
 import { useWorkspaceStore } from '@/stores/workspace'
 
-const testFile: FileItem = {
+const testFile: WorkspaceFile = {
   id: 'file-test-1',
   name: '测试文件.pdf',
   folder_id: 'personal-root',
@@ -33,15 +33,13 @@ const testFile: FileItem = {
   tags: ['测试'],
   size: 128,
   sha256: 'abc123',
-  content_type: 'application/pdf',
   permission_scope: '个人',
-  parse_status: 'parsed',
+  parse_status: 'indexed',
   updated_at: new Date().toISOString(),
-  created_at: new Date().toISOString(),
-  created_by: 'xiaoming',
+  knowledge_base_ids: [],
 }
 
-function getTestFile(_fileId: string) { return { ...testFile } }
+function getTestFile(fileId: string) { return { ...testFile, id: fileId } }
 
 describe('workspace store file actions', () => {
   beforeEach(() => {
@@ -66,6 +64,45 @@ describe('workspace store file actions', () => {
     expect(downloadSpy).toHaveBeenCalledWith('access-token', 'file-microscope')
     expect(result).toBe(fileBlob)
     expect(workspace.downloadingFileId).toBeNull()
+  })
+
+  it('loads and saves editable file content through generated-client adapters', async () => {
+    saveWorkspaceSession({
+      accessToken: 'access-token',
+      displayName: '小明',
+      refreshToken: 'refresh-token',
+      userId: '1',
+    })
+    const content: WorkspaceFileContent = {
+      content: '第一版笔记',
+      editable: true,
+      file_id: 'file-microscope',
+      name: '显微镜实验报告.md',
+      type: 'md',
+      updated_at: '2026-07-10T08:00:00+08:00',
+    }
+    const updated = {
+      ...getTestFile('file-microscope'),
+      name: '显微镜实验报告.md',
+      parse_status: 'queued' as const,
+      sha256: 'edited-sha',
+      size: '第二版笔记'.length,
+      type: 'md',
+      updated_at: '2026-07-10T09:00:00+08:00',
+    }
+    const readSpy = vi.spyOn(workspaceClient, 'readWorkspaceFileContent').mockResolvedValue(content)
+    const updateSpy = vi.spyOn(workspaceClient, 'updateWorkspaceFileContent').mockResolvedValue(updated)
+    const workspace = useWorkspaceStore()
+
+    await workspace.loadFileContent('file-microscope')
+    await workspace.updateFileContent('file-microscope', { content: '第二版笔记' })
+
+    expect(readSpy).toHaveBeenCalledWith('access-token', 'file-microscope')
+    expect(updateSpy).toHaveBeenCalledWith('access-token', 'file-microscope', { content: '第二版笔记' })
+    expect(workspace.fileContentById['file-microscope']?.content).toBe('第二版笔记')
+    expect(workspace.files.find((file) => file.id === 'file-microscope')).toEqual(updated)
+    expect(workspace.fileContentLoadingId).toBeNull()
+    expect(workspace.editingFileContentId).toBeNull()
   })
 
   it('creates a share link through the generated-client adapter with the stored access token', async () => {
@@ -149,7 +186,7 @@ describe('workspace store file actions', () => {
     expect(workspace.recycleBinItems).toEqual([])
     expect(restoreSpy).toHaveBeenCalledWith('access-token', 'file-microscope')
     expect(workspace.files[0]).toEqual(deletedFile)
-    expect(workspace.summary.file_count).toBe(0)
+    expect(workspace.summary.file_count).toBe(1)
     expect(workspace.recycleBinLoading).toBe(false)
     expect(workspace.restoringDeletedFileId).toBeNull()
   })
@@ -291,6 +328,49 @@ describe('workspace store file actions', () => {
     })
     expect(workspace.files.find((file) => file.id === 'file-microscope')).toEqual(updated)
     expect(workspace.updatingFileId).toBeNull()
+  })
+
+  it('reparses a file through the generated-client adapter and replaces the snapshot row', async () => {
+    saveWorkspaceSession({
+      accessToken: 'access-token',
+      displayName: '小明',
+      refreshToken: 'refresh-token',
+      userId: '1',
+    })
+    const reparsed = {
+      ...getTestFile('file-microscope'),
+      parse_status: 'indexed' as const,
+    }
+    const reparseSpy = vi.spyOn(workspaceClient, 'reparseWorkspaceFile').mockResolvedValue(reparsed)
+    const workspace = useWorkspaceStore()
+
+    await workspace.reparseFile('file-microscope')
+
+    expect(reparseSpy).toHaveBeenCalledWith('access-token', 'file-microscope')
+    expect(workspace.files.find((file) => file.id === 'file-microscope')).toEqual(reparsed)
+    expect(workspace.reparsingFileId).toBeNull()
+    expect(workspace.summary.indexed_count).toBe(1)
+  })
+
+  it('shows a specific message when reparse cannot find original file content', async () => {
+    saveWorkspaceSession({
+      accessToken: 'access-token',
+      displayName: '小明',
+      refreshToken: 'refresh-token',
+      userId: '1',
+    })
+    vi.spyOn(workspaceClient, 'reparseWorkspaceFile').mockRejectedValue({
+      code: 'FILE_CONTENT_MISSING',
+      message: '原始文件内容缺失，请重新上传该文件后再解析',
+    })
+    const workspace = useWorkspaceStore()
+
+    await expect(workspace.reparseFile('file-microscope')).rejects.toMatchObject({
+      code: 'FILE_CONTENT_MISSING',
+    })
+
+    expect(workspace.errorMessage).toBe('原始文件内容缺失，请重新上传该文件后再解析')
+    expect(workspace.reparsingFileId).toBeNull()
   })
 
   it('copies a file through the generated-client adapter and prepends the copied file', async () => {
@@ -605,6 +685,7 @@ describe('workspace store file actions', () => {
       conversationId: null,
       kbId: 'kb-algo',
       question: '归并排序的步骤和复杂度是什么？',
+      reportMode: false,
       topK: 2,
     })
     expect(workspace.knowledgeBases[0]).toEqual({
@@ -1090,3 +1171,69 @@ function createWorkflowDefinition(id: string, status: WorkspaceWorkflow['status'
     version: '0.1.0',
   }
 }
+
+describe('workspace store agent task actions', () => {
+  it('creates an agent task through the client adapter and populates narrative.agentSteps', async () => {
+    saveWorkspaceSession({
+      accessToken: 'access-token',
+      displayName: '小明',
+      refreshToken: 'refresh-token',
+      userId: '1',
+    })
+
+    const agentResponse = {
+      final_answer: '分析完成：共发现 3 个关键信息。',
+      id: 'agent-abc123',
+      status: 'completed' as const,
+      steps: [
+        {
+          content: '理解用户需求...',
+          metadata: {},
+          status: 'success' as const,
+          title: '分析需求',
+          tool_name: null,
+          type: 'thought' as const,
+        },
+        {
+          content: '找到 2 个文件：\n- 实验记录.md (md, indexed)\n- 数据.csv (csv, indexed)',
+          metadata: {},
+          status: 'success' as const,
+          title: '搜索文件',
+          tool_name: 'file_search',
+          type: 'action' as const,
+        },
+        {
+          content: '已搜索到 2 个相关文件，准备生成分析报告。',
+          metadata: {},
+          status: 'success' as const,
+          title: '观察结果',
+          tool_name: null,
+          type: 'observation' as const,
+        },
+        {
+          content: '分析完成：共发现 3 个关键信息。',
+          metadata: {},
+          status: 'success' as const,
+          title: '给出答案',
+          tool_name: null,
+          type: 'answer' as const,
+        },
+      ],
+      task: '分析实验数据',
+    }
+
+    const createSpy = vi.spyOn(workspaceClient, 'createAgentTask').mockResolvedValue(agentResponse)
+    const workspace = useWorkspaceStore()
+
+    await workspace.createAgentTask({ task: '分析实验数据', kbId: null, contextFileIds: [] })
+
+    expect(createSpy).toHaveBeenCalledWith('access-token', {
+      contextFileIds: [],
+      kbId: null,
+      task: '分析实验数据',
+    })
+    expect(workspace.narrative.answer).toBe('分析完成：共发现 3 个关键信息。')
+    expect(workspace.narrative.agentSteps).toEqual(agentResponse.steps)
+    expect(workspace.creatingAgentTask).toBe(false)
+  })
+})

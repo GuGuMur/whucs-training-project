@@ -33,6 +33,8 @@ from app.domain.file import (
     FileAnnotationReplyCreate,
     FileAnnotationReplyItem,
     FileCopyRequest,
+    FileContentResponse,
+    FileContentUpdate,
     FileItem,
     FileListResponse,
     FileUpdate,

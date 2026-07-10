@@ -73,6 +73,16 @@ async def add_knowledge_document(
     return await svc.add_knowledge_document(kb_id, payload, user)
 
 
+@router.delete("/knowledge-bases/{kb_id}/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_knowledge_document(
+    kb_id: str,
+    doc_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+    svc: WorkspaceServiceDB = Depends(get_svc),
+) -> None:
+    await svc.remove_knowledge_document(kb_id, doc_id, user)
+
+
 @router.post("/qa/query", response_model=QAResponse)
 async def qa_query(
     payload: QARequest,

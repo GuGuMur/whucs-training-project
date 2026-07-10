@@ -3,6 +3,7 @@ import {
   addKnowledgeDocumentApiV2KnowledgeBasesKbIdDocumentsPost,
   completeMultipartUploadApiV2FilesMultipartUploadsSessionIdCompletePost,
   copyFileApiV2FilesFileIdCopyPost,
+  createAgentTaskApiV2AgentsTasksPost,
   createFileAnnotationApiV2FilesFileIdAnnotationsPost,
   createFileShareLinkApiV2FilesFileIdShareLinksPost,
   createFolderApiV2FoldersPost,
@@ -19,6 +20,7 @@ import {
   downloadFileApiV2FilesFileIdDownloadGet,
   executeWorkflowApiV2WorkflowsWorkflowIdExecutionsPost,
   fileAnnotationsApiV2FilesFileIdAnnotationsGet,
+  fileContentApiV2FilesFileIdContentGet,
   listFilesApiV2FilesGet,
   fileVersionsApiV2FilesFileIdVersionsGet,
   folderTreeApiV2FoldersTreeGet,
@@ -37,6 +39,7 @@ import {
   teamMessagesApiV2TeamsTeamIdMessagesGet,
   listTeamsApiV2TeamsGet,
   updateFileApiV2FilesFileIdPatch,
+  updateFileContentApiV2FilesFileIdContentPatch,
   updateFolderApiV2FoldersFolderIdPatch,
   updateKnowledgeBaseApiV2KnowledgeBasesKbIdPatch,
   updateTeamMemberApiV2TeamsTeamIdMembersMemberIdPatch,
@@ -51,8 +54,10 @@ import {
   listWorkflowsApiV2WorkflowsGet,
   workspaceSnapshotApiV2WorkspaceSnapshotGet,
 } from '@/client/generated'
+import { reparseFileApiV2FilesFileIdReparsePost } from '@/client/generated/sdk.gen'
 import type {
   AgentStep as GeneratedAgentStep,
+  AgentTaskResponse,
   AuditLogEntry,
   Citation,
   FileCopyRequest,
@@ -61,6 +66,8 @@ import type {
   FileAnnotationListResponse,
   FileAnnotationReplyCreate,
   FileAnnotationReplyItem,
+  FileContentResponse,
+  FileContentUpdate,
   DashboardSummary,
   FileItem,
   FileListResponse,
@@ -112,6 +119,7 @@ export type WorkspaceFile = FileItem
 export type WorkspaceFileAnnotation = FileAnnotationItem
 export type WorkspaceFileAnnotationReply = FileAnnotationReplyItem
 export type WorkspaceFileAnnotationListResponse = FileAnnotationListResponse
+export type WorkspaceFileContent = FileContentResponse
 export type WorkspaceFileVersion = FileVersionItem
 export type WorkspaceFileVersionListResponse = FileVersionListResponse
 export type WorkspaceShareLink = ShareLinkPublic
@@ -176,6 +184,9 @@ export interface WorkspaceFileCopyInput {
   tags?: string[] | null
   targetFolderId: string
 }
+export interface WorkspaceFileContentUpdateInput {
+  content: string
+}
 export interface WorkspaceShareLinkCreateInput {
   downloadLimit?: number | null
   expiresInSeconds?: number
@@ -214,6 +225,7 @@ export interface WorkspaceQuestionInput {
   conversationId?: string | null
   kbId: string
   question: string
+  reportMode?: boolean
   topK?: number
 }
 export interface WorkspaceTeamCreateInput {
@@ -255,6 +267,11 @@ export interface WorkspaceWorkflowUpdateInput {
 export interface WorkspaceWorkflowExecuteInput {
   fileId: string
   targetKbId?: string | null
+}
+export interface WorkspaceAgentTaskInput {
+  contextFileIds?: string[]
+  kbId?: string | null
+  task: string
 }
 export type {
   AuditLogEntry,
@@ -397,6 +414,26 @@ export async function executeWorkspaceWorkflow(
     },
     headers: createAuthorizationHeader(token),
     path: { workflow_id: workflowId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function createAgentTask(
+  token: string,
+  payload: WorkspaceAgentTaskInput,
+): Promise<AgentTaskResponse> {
+  const response = await createAgentTaskApiV2AgentsTasksPost({
+    body: {
+      context_file_ids: payload.contextFileIds ?? [],
+      kb_id: payload.kbId ?? null,
+      task: payload.task,
+    },
+    headers: createAuthorizationHeader(token),
   })
 
   if (response.error) {
@@ -951,6 +988,19 @@ export async function updateWorkspaceFile(
   return response.data
 }
 
+export async function reparseWorkspaceFile(token: string, fileId: string): Promise<WorkspaceFile> {
+  const response = await reparseFileApiV2FilesFileIdReparsePost({
+    headers: createAuthorizationHeader(token),
+    path: { file_id: fileId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
 async function sha256Blob(blob: Blob): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())
   return Array.from(new Uint8Array(digest))
@@ -1124,6 +1174,43 @@ export async function downloadWorkspaceFile(token: string, fileId: string): Prom
   }
 
   throw new Error('文件下载响应格式不正确')
+}
+
+export async function readWorkspaceFileContent(
+  token: string,
+  fileId: string,
+): Promise<WorkspaceFileContent> {
+  const response = await fileContentApiV2FilesFileIdContentGet({
+    headers: createAuthorizationHeader(token),
+    path: { file_id: fileId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function updateWorkspaceFileContent(
+  token: string,
+  fileId: string,
+  payload: WorkspaceFileContentUpdateInput,
+): Promise<WorkspaceFile> {
+  const body: FileContentUpdate = {
+    content: payload.content,
+  }
+  const response = await updateFileContentApiV2FilesFileIdContentPatch({
+    body,
+    headers: createAuthorizationHeader(token),
+    path: { file_id: fileId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
 }
 
 export async function listWorkspaceFileVersions(

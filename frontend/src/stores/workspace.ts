@@ -6,6 +6,7 @@ import {
   addKnowledgeDocument,
   askWorkspaceQuestion,
   copyWorkspaceFile,
+  createAgentTask,
   createWorkspaceFileAnnotation,
   createKnowledgeBase,
   createWorkspaceFileShareLink,
@@ -41,10 +42,13 @@ import {
   publishWorkspaceWorkflow,
   removeWorkspaceTeamMember,
   replyWorkspaceFileAnnotation,
+  readWorkspaceFileContent,
+  reparseWorkspaceFile,
   restoreWorkspaceDeletedFile,
   restoreWorkspaceFileVersion,
   sendWorkspaceTeamMessage,
   updateWorkspaceTeamMember,
+  updateWorkspaceFileContent,
   updateWorkspaceFile,
   updateWorkspaceFolder,
   updateWorkspaceWorkflow,
@@ -56,6 +60,8 @@ import {
   type WorkspaceFileAnnotation,
   type WorkspaceFileAnnotationCreateInput,
   type WorkspaceFileAnnotationReplyInput,
+  type WorkspaceFileContent,
+  type WorkspaceFileContentUpdateInput,
   type WorkspaceFileCopyInput,
   type WorkspaceFileFilters,
   type WorkspaceFileUpdateInput,
@@ -64,6 +70,7 @@ import {
   type WorkspaceShareLinkCreateInput,
   type WorkspaceMultipartUploadInput,
   type WorkspaceFileVersion,
+  type DashboardSummary,
   type WorkspaceFolder,
   type WorkspaceFolderCreateInput,
   type WorkspaceFolderOption,
@@ -89,6 +96,7 @@ import {
   type WorkspaceWorkflow,
   type WorkspaceWorkflowCreateInput,
   type WorkspaceWorkflowExecuteInput,
+  type WorkspaceAgentTaskInput,
   type WorkspaceWorkflowExecution,
   type WorkspaceWorkflowUpdateInput,
   type WorkspaceWorkflowValidation,
@@ -96,6 +104,12 @@ import {
 import { useAuthStore } from "@/stores/auth";
 
 export type WorkspaceApiState = "live" | "fallback";
+
+interface WorkspaceApiError {
+  code?: string;
+  detail?: WorkspaceApiError;
+  message?: string;
+}
 
 const emptyFileFilters: WorkspaceFileFilters = {
   fileType: "",
@@ -105,23 +119,33 @@ const emptyFileFilters: WorkspaceFileFilters = {
   updatedTo: "",
 };
 
+const emptyDashboardSummary: DashboardSummary = {
+  file_count: 0,
+  indexed_count: 0,
+  knowledge_base_count: 0,
+  running_workflows: 0,
+  tools_enabled: 0,
+  unread_notifications: 0,
+};
+
 export const useWorkspaceStore = defineStore("workspace", () => {
   const snapshot = shallowRef<WorkspaceSnapshot>({
     files: [],
-    folders: [],
     tools: [],
     workflows: [],
     teams: [],
     audit_logs: [],
-    summary: { total_files: 0, total_folders: 0, unread_notifications: 0 },
+    summary: { ...emptyDashboardSummary },
   });
   const folders = shallowRef<WorkspaceFolder[]>([]);
   const fileVersionsById = shallowRef<Record<string, WorkspaceFileVersion[]>>({});
+  const fileContentById = shallowRef<Record<string, WorkspaceFileContent>>({});
   const fileAnnotationsById = shallowRef<Record<string, WorkspaceFileAnnotation[]>>({});
   const notifications = shallowRef<WorkspaceNotification[]>([]);
   const teamMessagesById = shallowRef<Record<string, WorkspaceTeamMessage[]>>({});
   const knowledgeBases = shallowRef<WorkspaceKnowledgeBase[]>([]);
   const activeKnowledgeBaseId = shallowRef<string | null>(null);
+  const activeConversationId = shallowRef<string | null>(null);
   const knowledgeDocumentsByKbId = shallowRef<Record<string, WorkspaceKnowledgeDocument[]>>({});
   const narrative = shallowRef<WorkspaceNarrative>({ answer: "", citations: [], agentSteps: [] });
   const activeTeamDetail = shallowRef<WorkspaceTeamDetail | null>(null);
@@ -140,6 +164,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const downloadingFileId = shallowRef<string | null>(null);
   const sharingFileId = shallowRef<string | null>(null);
   const updatingFileId = shallowRef<string | null>(null);
+  const reparsingFileId = shallowRef<string | null>(null);
+  const fileContentLoadingId = shallowRef<string | null>(null);
+  const editingFileContentId = shallowRef<string | null>(null);
   const copyingFileId = shallowRef<string | null>(null);
   const versionFileId = shallowRef<string | null>(null);
   const restoringVersionId = shallowRef<string | null>(null);
@@ -158,6 +185,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const knowledgeOperationLoading = shallowRef(false);
   const addingKnowledgeDocument = shallowRef(false);
   const askingQuestion = shallowRef(false);
+  const creatingAgentTask = shallowRef(false);
   const teamOperationLoading = shallowRef(false);
   const permissionRulesLoading = shallowRef(false);
   const permissionRuleSaving = shallowRef(false);
@@ -274,11 +302,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       snapshot.value = {
         ...snapshot.value,
         files: response.items,
-        summary: {
-          ...snapshot.value.summary,
-          file_count: response.total,
-          indexed_count: response.items.filter((file) => file.parse_status === "indexed").length,
-        },
+        summary: buildFileSummary(response.items, response.total),
       };
       apiState.value = "live";
       return response;
@@ -389,10 +413,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   async function askKnowledgeQuestion(payload: WorkspaceQuestionInput) {
     const accessToken = requireAccessToken();
     const nextPayload: WorkspaceQuestionInput = {
-      conversationId: payload.conversationId ?? null,
+      conversationId: payload.conversationId ?? activeConversationId.value,
       kbId: payload.kbId,
       question: payload.question.trim(),
       topK: payload.topK ?? 5,
+      reportMode: payload.reportMode ?? false,
     };
 
     askingQuestion.value = true;
@@ -403,7 +428,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         ...narrative.value,
         answer: response.answer,
         citations: response.citations,
+        agentSteps: [...narrative.value.agentSteps],
       };
+      // Track conversation for multi-turn
+      activeConversationId.value = response.conversation_id;
       activeKnowledgeBaseId.value = payload.kbId;
       apiState.value = "live";
       return response;
@@ -472,6 +500,24 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
+  async function reparseFile(fileId: string) {
+    const accessToken = requireAccessToken();
+
+    reparsingFileId.value = fileId;
+    errorMessage.value = "";
+    try {
+      const updated = await reparseWorkspaceFile(accessToken, fileId);
+      replaceFileInSnapshot(updated);
+      apiState.value = "live";
+      return updated;
+    } catch (error) {
+      errorMessage.value = reparseErrorMessage(error);
+      throw error;
+    } finally {
+      reparsingFileId.value = null;
+    }
+  }
+
   async function copyFile(fileId: string, payload: WorkspaceFileCopyInput) {
     const accessToken = requireAccessToken();
     const nextPayload: WorkspaceFileCopyInput = {
@@ -515,6 +561,58 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       throw error;
     } finally {
       downloadingFileId.value = null;
+    }
+  }
+
+  async function loadFileContent(fileId: string) {
+    const accessToken = requireAccessToken();
+
+    fileContentLoadingId.value = fileId;
+    errorMessage.value = "";
+    try {
+      const content = await readWorkspaceFileContent(accessToken, fileId);
+      fileContentById.value = {
+        ...fileContentById.value,
+        [fileId]: content,
+      };
+      apiState.value = "live";
+      return content;
+    } catch (error) {
+      errorMessage.value = "文件预览加载失败，请确认文件内容仍可访问";
+      throw error;
+    } finally {
+      fileContentLoadingId.value = null;
+    }
+  }
+
+  async function updateFileContent(fileId: string, payload: WorkspaceFileContentUpdateInput) {
+    const accessToken = requireAccessToken();
+
+    editingFileContentId.value = fileId;
+    errorMessage.value = "";
+    try {
+      const updated = await updateWorkspaceFileContent(accessToken, fileId, {
+        content: payload.content,
+      });
+      replaceFileInSnapshot(updated);
+      const currentContent = fileContentById.value[fileId];
+      if (currentContent) {
+        fileContentById.value = {
+          ...fileContentById.value,
+          [fileId]: {
+            ...currentContent,
+            content: payload.content,
+            updated_at: updated.updated_at,
+          },
+        };
+      }
+      apiState.value = "live";
+      return updated;
+    } catch (error) {
+      errorMessage.value = "文件内容保存失败，请确认文件类型和写入权限";
+      throw error;
+    } finally {
+      editingFileContentId.value = null;
     }
   }
 
@@ -1303,6 +1401,33 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
+  async function createAgentTaskAction(payload: WorkspaceAgentTaskInput) {
+    const accessToken = requireAccessToken();
+    const nextPayload: WorkspaceAgentTaskInput = {
+      contextFileIds: payload.contextFileIds ?? [],
+      kbId: payload.kbId ?? null,
+      task: payload.task.trim(),
+    };
+
+    creatingAgentTask.value = true;
+    errorMessage.value = "";
+    try {
+      const response = await createAgentTask(accessToken, nextPayload);
+      narrative.value = {
+        ...narrative.value,
+        answer: response.final_answer,
+        agentSteps: response.steps,
+      };
+      apiState.value = "live";
+      return response;
+    } catch (error) {
+      errorMessage.value = "智能体任务执行失败，请稍后重试";
+      throw error;
+    } finally {
+      creatingAgentTask.value = false;
+    }
+  }
+
   function resolveOptionalAccessToken(token?: string) {
     const auth = useAuthStore();
     return token ?? auth.session?.accessToken ?? resolveWorkspaceToken();
@@ -1317,6 +1442,28 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     return accessToken;
   }
 
+  function reparseErrorMessage(error: unknown) {
+    const apiError = toWorkspaceApiError(error);
+    if (apiError?.code === "FILE_CONTENT_MISSING") {
+      return apiError.message ?? "原始文件内容缺失，请重新上传该文件后再解析";
+    }
+    return "文件重新解析失败，请检查文件内容和权限后重试";
+  }
+
+  function toWorkspaceApiError(error: unknown): WorkspaceApiError | null {
+    if (!isRecord(error)) return null;
+    const detail = isRecord(error.detail) ? (toWorkspaceApiError(error.detail) ?? undefined) : undefined;
+    return {
+      code: typeof error.code === "string" ? error.code : detail?.code,
+      detail,
+      message: typeof error.message === "string" ? error.message : detail?.message,
+    };
+  }
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
+  }
+
   function removeFileFromSnapshot(fileId: string) {
     const removedFile = snapshot.value.files.find((file) => file.id === fileId);
     if (!removedFile) {
@@ -1326,14 +1473,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     snapshot.value = {
       ...snapshot.value,
       files: snapshot.value.files.filter((file) => file.id !== fileId),
-      summary: {
-        ...snapshot.value.summary,
-        file_count: Math.max(0, snapshot.value.summary.file_count - 1),
-        indexed_count:
-          removedFile.parse_status === "indexed"
-            ? Math.max(0, snapshot.value.summary.indexed_count - 1)
-            : snapshot.value.summary.indexed_count,
-      },
+      summary: buildFileSummary(snapshot.value.files.filter((file) => file.id !== fileId)),
     };
   }
 
@@ -1347,34 +1487,31 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     const nextFiles = moveToFront
       ? [updated, ...snapshot.value.files.filter((file) => file.id !== updated.id)]
       : snapshot.value.files.map((file) => (file.id === updated.id ? updated : file));
+    const files = existed ? nextFiles : [updated, ...snapshot.value.files];
 
     snapshot.value = {
       ...snapshot.value,
-      files: existed ? nextFiles : [updated, ...snapshot.value.files],
-      summary: {
-        ...snapshot.value.summary,
-        file_count: existed
-          ? snapshot.value.summary.file_count
-          : snapshot.value.summary.file_count + 1,
-        indexed_count: nextFiles.filter((file) => file.parse_status === "indexed").length,
-      },
+      files,
+      summary: buildFileSummary(files),
     };
   }
 
   function insertFileIntoSnapshot(uploaded: WorkspaceFile) {
-    const existed = snapshot.value.files.some((file) => file.id === uploaded.id);
     const nextFiles = [uploaded, ...snapshot.value.files.filter((file) => file.id !== uploaded.id)];
 
     snapshot.value = {
       ...snapshot.value,
       files: nextFiles,
-      summary: {
-        ...snapshot.value.summary,
-        file_count: existed
-          ? snapshot.value.summary.file_count
-          : snapshot.value.summary.file_count + 1,
-        indexed_count: nextFiles.filter((file) => file.parse_status === "indexed").length,
-      },
+      summary: buildFileSummary(nextFiles),
+    };
+  }
+
+  function buildFileSummary(files: WorkspaceFile[], fileCount = files.length): DashboardSummary {
+    return {
+      ...emptyDashboardSummary,
+      ...snapshot.value.summary,
+      file_count: fileCount,
+      indexed_count: files.filter((file) => file.parse_status === "indexed").length,
     };
   }
 
@@ -1663,10 +1800,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     snapshot.value = {
       ...snapshot.value,
       files: nextFiles,
-      summary: {
-        ...snapshot.value.summary,
-        indexed_count: nextFiles.filter((file) => file.parse_status === "indexed").length,
-      },
+      summary: buildFileSummary(nextFiles),
     };
   }
 
@@ -1710,6 +1844,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     activeWorkflowId,
     activeWorkflowValidation,
     activeKnowledgeBase,
+    activeConversationId,
     activeKnowledgeBaseId,
     activeKnowledgeDocuments,
     activeTeamDetail,
@@ -1726,6 +1861,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     connectWebSocket,
     copyFile,
     copyingFileId,
+    createAgentTask: createAgentTaskAction,
+    creatingAgentTask,
     createFileAnnotation,
     createFolder,
     createKnowledgeBase: createKnowledgeBaseAction,
@@ -1742,9 +1879,12 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     deletingFileId,
     downloadFile,
     downloadingFileId,
+    editingFileContentId,
     errorMessage,
     executeWorkflow,
     fileAnnotationsById,
+    fileContentById,
+    fileContentLoadingId,
     fileFilters,
     fileListLoading,
     fileVersionsById,
@@ -1759,6 +1899,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     loadKnowledgeBases,
     loadKnowledgeDocuments,
     loadFolders,
+    loadFileContent,
     loadFileAnnotations,
     loadFileVersions,
     loadNotifications,
@@ -1779,6 +1920,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     permissionRulesLoading,
     recycleBinItems,
     recycleBinLoading,
+    reparseFile,
+    reparsingFileId,
     replyFileAnnotation,
     resetFileFilters,
     restoreDeletedFile,
@@ -1807,6 +1950,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     tools,
     updateTeamMemberRole,
     updateFile,
+    updateFileContent,
     createFileShareLink,
     updateFolder,
     updateWorkflow,

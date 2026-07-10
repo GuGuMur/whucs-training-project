@@ -60,7 +60,7 @@ describe('frontend source architecture', () => {
     const workspaceClient = readFileSync(resolve(srcRoot, 'client', 'workspace.ts'), 'utf-8')
 
     expect(workspaceClient).toContain("@/client/generated")
-    expect(workspaceClient).toContain('workspaceSnapshotApiV1WorkspaceSnapshotGet')
+    expect(workspaceClient).toContain('workspaceSnapshotApiV2WorkspaceSnapshotGet')
     expect(workspaceClient).not.toContain("from 'axios'")
   })
 

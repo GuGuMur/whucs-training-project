@@ -99,6 +99,9 @@ export const useAuthStore = defineStore('auth', () => {
       session.value = { ...s, displayName: r.data.user.display_name, userId: String(r.data.user.id) }
       saveWorkspaceSession(session.value)
       return true
+    } catch {
+      logout()
+      return false
     } finally { loading.value = false }
   }
 

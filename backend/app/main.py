@@ -86,6 +86,11 @@ def create_app() -> FastAPI:
                 await repo.create(admin)
                 await session.commit()
 
+            # Seed workflow templates
+            from app.services.workspace_db import WorkspaceServiceDB
+            svc = WorkspaceServiceDB(session)
+            await svc._seed_workflow_templates()
+
     @app.exception_handler(WorkspaceError)
     async def workspace_error_handler(_: Request, exc: WorkspaceError) -> JSONResponse:
         error = ErrorResponse(code=exc.code, message=exc.message, detail=exc.detail)

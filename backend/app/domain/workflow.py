@@ -101,7 +101,7 @@ class WorkflowDefinition(BaseModel):
     trigger: str
     version: str
     node_count: int
-    status: Literal["draft", "published"]
+    status: Literal["draft", "published", "template"]
     nodes: list[WorkflowNodeDefinition] = Field(default_factory=list)
     edges: list[WorkflowEdgeDefinition] = Field(default_factory=list)
 

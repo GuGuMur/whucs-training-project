@@ -21,6 +21,7 @@ class FileVersionRepository:
     async def list_by_file(self, file_id: str) -> list[FileVersion]:
         r = await self._s.execute(select(FileVersion).where(FileVersion.file_id == file_id).order_by(FileVersion.version_no.desc()))
         return list(r.scalars().all())
+    async def get_by_id(self, vid: str) -> FileVersion | None: return await self._s.get(FileVersion, vid)
     async def create(self, v: FileVersion) -> FileVersion: self._s.add(v); await self._s.flush(); return v
 
 class AnnotationRepository:

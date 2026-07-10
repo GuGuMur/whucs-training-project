@@ -96,7 +96,43 @@ const running = ref(false)
 const executionProgress = ref(0)
 const debugCollapsed = ref(true)
 const debugHeight = ref(320)
-const versionLog = ref<string[]>(['v1 草稿已创建'])
+const versionLog = ref<string[]>([])
+
+const templateWorkflows = computed(() =>
+  workspace.workflows.filter((wf) => wf.status === 'template'),
+)
+
+function loadTemplateToCanvas(workflowId: string) {
+  const template = templateWorkflows.value.find((wf) => wf.id === workflowId)
+  if (!template) return
+  flowName.value = template.name
+  triggerMode.value = template.trigger
+  nodes.value = (template.nodes ?? []).map((n: any) => ({
+    id: n.id,
+    type: n.type,
+    position: n.position ?? { x: 80 + nodes.value.length * 48, y: 120 + nodes.value.length * 24 },
+    class: `workflow-node is-${n.type || 'tool'}`,
+    data: {
+      label: n.name,
+      kind: n.type || 'tool',
+      description: n.tool_name || '',
+      status: 'idle' as const,
+      params: n.parameters ?? {},
+    },
+  }))
+  edges.value = (template.edges ?? []).map((e: any) => ({
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    animated: true,
+    label: e.label ?? '',
+    type: e.type ?? 'smoothstep',
+  }))
+  selectedNodeId.value = nodes.value[0]?.id ?? null
+  activeWorkflowId.value = null
+  message.success(`已加载模板「${template.name}」`)
+  nextTick(() => flow.fitView({ padding: 0.25 }))
+}
 
 const nodePresets: NodePreset[] = [
   { kind: 'tool', title: '工具节点', description: '调用摘要、检索、分类等智能工具', icon: markRaw(Bot), color: '#246bfe', params: { tool: 'document-summarizer', timeout: 30, retry: 2 } },
@@ -106,18 +142,6 @@ const nodePresets: NodePreset[] = [
   { kind: 'output', title: '输出节点', description: '输出文档、报告或通知', icon: markRaw(UploadCloud), color: '#16a34a', params: { format: 'docx', destination: 'team-space', notify: true } },
 ]
 
-const templateOptions = [
-  { label: '新文件自动摘要', value: 'summary' },
-  { label: '团队周报生成', value: 'weekly' },
-  { label: '文件内容比对', value: 'compare' },
-]
-
-const flowTemplateOptions = [
-  { label: '新文件自动摘要', key: 'auto-summary' },
-  { label: '团队周报生成', key: 'team-weekly' },
-  { label: '文件内容比对', key: 'file-compare' },
-  { label: '批量问答', key: 'batch-qa' },
-]
 
 const triggerOptions = [
   { label: '手动触发', value: 'manual' },
@@ -127,13 +151,11 @@ const triggerOptions = [
 ]
 
 const activeWorkflowId = ref<string | null>(null)
-const flowName = ref('智能文件处理流程')
-const triggerMode = ref('file_uploaded')
-const currentVersion = ref('v1.2.0')
-const template = ref('summary')
-
-const nodes = ref<WorkflowNode[]>(createSummaryNodes())
-const edges = ref<WorkflowEdge[]>(createSummaryEdges())
+const flowName = ref('')
+const triggerMode = ref('manual')
+const currentVersion = ref('0.1.0')
+const nodes = ref<WorkflowNode[]>([])
+const edges = ref<WorkflowEdge[]>([])
 
 const selectedNode = computed<WorkflowNode | null>(() => nodes.value.find((node) => node.id === selectedNodeId.value) ?? null)
 const selectedData = computed<ToolNodeData | null>(() => selectedNode.value?.data ?? null)
@@ -197,24 +219,6 @@ function makeNode(id: string, kind: string, label: string, description: string, 
     data: { label, kind, description, status: 'idle', params },
   }
 }
-
-function createSummaryNodes() {
-  return [
-    makeNode('start-1', 'input', '新文件事件', '监听知识库中新上传的文件', 80, 170, { source: 'knowledge-base', event: 'file.created', required: true }, 'input'),
-    makeNode('tool-1', 'tool', '文件自动摘要', '生成标题、摘要、关键词与行动项', 360, 110, { tool: 'document-summarizer', timeout: 30, retry: 2 }),
-    makeNode('condition-1', 'condition', '可信度判断', '低可信度结果进入人工复核路径', 650, 170, { expression: 'confidence >= 0.8', trueLabel: '自动通过', falseLabel: '人工复核' }),
-    makeNode('output-1', 'output', '写入协同空间', '保存摘要并推送执行结果', 930, 170, { format: 'markdown', destination: 'team-space', notify: true }, 'output'),
-  ]
-}
-
-function createSummaryEdges() {
-  return [
-    { id: 'e-start-tool', source: 'start-1', target: 'tool-1', animated: true, label: '文件内容', type: 'smoothstep' },
-    { id: 'e-tool-condition', source: 'tool-1', target: 'condition-1', animated: true, label: '摘要结果', type: 'smoothstep' },
-    { id: 'e-condition-output', source: 'condition-1', target: 'output-1', animated: true, label: '通过', type: 'smoothstep' },
-  ]
-}
-
 function presetByKind(kind: string) {
   return nodePresets.find((preset) => preset.kind === kind)
 }
@@ -227,6 +231,53 @@ function nodeIcon(kind: string) {
 function nodeColor(kind: string) {
   if (kind === 'input') return '#0f766e'
   return presetByKind(kind)?.color ?? '#64748b'
+}
+
+function stepColor(type: string) {
+  switch (type) {
+    case 'thought': return '#7c3aed'
+    case 'action': return '#246bfe'
+    case 'observation': return '#ea580c'
+    case 'answer': return '#16a34a'
+    default: return '#64748b'
+  }
+}
+
+function stepTypeLabel(type: string) {
+  switch (type) {
+    case 'thought': return '思考'
+    case 'action': return '动作'
+    case 'observation': return '观察'
+    case 'answer': return '回答'
+    default: return type
+  }
+}
+
+function hasCycle() {
+  const graph = new Map<string, string[]>()
+  nodes.value.forEach((node) => graph.set(node.id, []))
+  edges.value.forEach((edge) => graph.get(edge.source)?.push(edge.target))
+
+  const visiting = new Set<string>()
+  const visited = new Set<string>()
+
+  function dfs(id: string): boolean {
+    if (visiting.has(id)) return true
+    if (visited.has(id)) return false
+    visiting.add(id)
+    for (const next of graph.get(id) ?? []) {
+      if (dfs(next)) return true
+    }
+    visiting.delete(id)
+    visited.add(id)
+    return false
+  }
+
+  return nodes.value.some((node) => dfs(node.id))
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
 function onNodeClick(event: NodeMouseEvent) {
@@ -242,7 +293,6 @@ function onDrop(event: DragEvent) {
   const kind = event.dataTransfer?.getData('application/vueflow') ?? ''
   const preset = presetByKind(kind)
   if (!preset) return
-
   const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect()
   const position = flow.project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top })
   addNodeFromPreset(preset, position.x, position.y)
@@ -267,11 +317,12 @@ function updateParam(key: string, value: ParamValue) {
 
 async function saveFlow() {
   try {
-    const payload = { name: flowName.value, trigger: triggerMode.value, nodes: nodes.value as any, edges: edges.value as any }
+    const payload = { name: flowName.value || '新建流程', trigger: triggerMode.value, nodes: nodes.value as any, edges: edges.value as any }
     if (activeWorkflowId.value) {
       await workspace.updateWorkflow(activeWorkflowId.value, payload)
     } else {
-      await workspace.createWorkflow({ ...payload, description: null })
+      const created = await workspace.createWorkflow({ ...payload, description: null })
+      activeWorkflowId.value = created.id
     }
     versionLog.value.unshift(`${currentVersion.value} 保存于 ${new Date().toLocaleString()}`)
     message.success('流程定义已保存到服务端')
@@ -345,170 +396,16 @@ function startDebugResize(event: MouseEvent) {
   event.preventDefault()
   const startY = event.clientY
   const startHeight = debugHeight.value
-
   const onMove = (moveEvent: MouseEvent) => {
     const nextHeight = startHeight - (moveEvent.clientY - startY)
     debugHeight.value = Math.min(460, Math.max(240, nextHeight))
   }
-
   const onUp = () => {
     window.removeEventListener('mousemove', onMove)
     window.removeEventListener('mouseup', onUp)
   }
-
   window.addEventListener('mousemove', onMove)
   window.addEventListener('mouseup', onUp)
-}
-
-function loadTemplate(value: string) {
-  template.value = value
-  resetRunState()
-
-  if (value === 'weekly') {
-    flowName.value = '团队周报自动生成流程'
-    triggerMode.value = 'schedule'
-    nodes.value = [
-      makeNode('input-weekly', 'input', '周报触发器', '每周五收集团队动态', 90, 180, { cron: '0 18 * * 5', source: 'workspace' }, 'input'),
-      makeNode('loop-members', 'loop', '遍历成员动态', '按成员聚合文件、任务与评论', 360, 130, { iterator: 'members', maxRounds: 20, breakOnError: false }),
-      makeNode('aggregate-weekly', 'aggregate', '聚合周报素材', '合并亮点、风险与计划', 650, 190, { strategy: 'group-by-section', requireAll: true }),
-      makeNode('output-weekly', 'output', '发布团队周报', '输出 Markdown 并通知团队', 940, 190, { format: 'markdown', destination: 'team-channel', notify: true }, 'output'),
-    ]
-    edges.value = [
-      { id: 'e1', source: 'input-weekly', target: 'loop-members', animated: true, type: 'smoothstep' },
-      { id: 'e2', source: 'loop-members', target: 'aggregate-weekly', animated: true, type: 'smoothstep' },
-      { id: 'e3', source: 'aggregate-weekly', target: 'output-weekly', animated: true, type: 'smoothstep' },
-    ]
-  } else if (value === 'compare') {
-    flowName.value = '文件内容比对流程'
-    triggerMode.value = 'manual'
-    nodes.value = [
-      makeNode('input-compare', 'input', '选择文件组', '接收待比对文件与基准文件', 90, 180, { source: 'manual', required: true }, 'input'),
-      makeNode('tool-extract', 'tool', '抽取结构化内容', '抽取标题、段落、表格与实体', 360, 110, { tool: 'content-extractor', timeout: 45, retry: 1 }),
-      makeNode('tool-compare', 'tool', '差异比对', '生成相似度、差异段落和冲突项', 650, 200, { tool: 'semantic-diff', timeout: 60, retry: 2 }),
-      makeNode('output-compare', 'output', '导出比对报告', '生成可审阅的比对报告', 940, 170, { format: 'docx', destination: 'review-folder', notify: false }, 'output'),
-    ]
-    edges.value = [
-      { id: 'e1', source: 'input-compare', target: 'tool-extract', animated: true, type: 'smoothstep' },
-      { id: 'e2', source: 'tool-extract', target: 'tool-compare', animated: true, type: 'smoothstep' },
-      { id: 'e3', source: 'tool-compare', target: 'output-compare', animated: true, type: 'smoothstep' },
-    ]
-  } else {
-    flowName.value = '智能文件处理流程'
-    triggerMode.value = 'file_uploaded'
-    nodes.value = createSummaryNodes()
-    edges.value = createSummaryEdges()
-  }
-
-  selectedNodeId.value = nodes.value[0]?.id ?? null
-  nextTick(() => flow.fitView({ padding: 0.25 }))
-}
-
-function loadFlowTemplate(key: string) {
-  resetRunState()
-
-  if (key === 'auto-summary') {
-    flowName.value = '新文件自动摘要'
-    triggerMode.value = 'file_uploaded'
-    nodes.value = [
-      makeNode('input-1', 'input', '新文件事件', '监听知识库中新上传的文件', 80, 170, { source: 'knowledge-base', event: 'file.created', required: true }, 'input'),
-      makeNode('tool-search', 'tool', '文件检索', '搜索相关文件内容', 360, 110, { tool: 'file_search', timeout: 30, retry: 1 }),
-      makeNode('tool-qa', 'tool', '知识问答', '基于检索结果回答', 650, 110, { tool: 'knowledge_qa', timeout: 60, retry: 2 }),
-      makeNode('output-report', 'output', '报告生成', '生成摘要报告并保存', 940, 170, { format: 'docx', destination: 'team-space', notify: true }, 'output'),
-    ]
-    edges.value = [
-      { id: 'e1', source: 'input-1', target: 'tool-search', animated: true, label: '文件内容', type: 'smoothstep' },
-      { id: 'e2', source: 'tool-search', target: 'tool-qa', animated: true, label: '检索结果', type: 'smoothstep' },
-      { id: 'e3', source: 'tool-qa', target: 'output-report', animated: true, label: '问答结果', type: 'smoothstep' },
-    ]
-  } else if (key === 'team-weekly') {
-    flowName.value = '团队周报生成'
-    triggerMode.value = 'schedule'
-    nodes.value = [
-      makeNode('input-1', 'input', '定时触发器', '每周五自动触发', 80, 170, { cron: '0 18 * * 5', source: 'workspace' }, 'input'),
-      makeNode('tool-search', 'tool', '文件检索', '搜索团队相关文件', 360, 110, { tool: 'file_search', timeout: 30, retry: 1 }),
-      makeNode('tool-activity', 'tool', '团队动态', '收集团队成员活动', 650, 110, { tool: 'team_activity', timeout: 45, retry: 2 }),
-      makeNode('output-report', 'output', '报告生成', '生成团队周报', 940, 170, { format: 'docx', destination: 'team-channel', notify: true }, 'output'),
-    ]
-    edges.value = [
-      { id: 'e1', source: 'input-1', target: 'tool-search', animated: true, label: '定时触发', type: 'smoothstep' },
-      { id: 'e2', source: 'tool-search', target: 'tool-activity', animated: true, label: '检索结果', type: 'smoothstep' },
-      { id: 'e3', source: 'tool-activity', target: 'output-report', animated: true, label: '动态汇总', type: 'smoothstep' },
-    ]
-  } else if (key === 'file-compare') {
-    flowName.value = '文件内容比对'
-    triggerMode.value = 'manual'
-    nodes.value = [
-      makeNode('input-1', 'input', '选择文件', '选择待比对文件', 80, 170, { source: 'manual', required: true }, 'input'),
-      makeNode('tool-compare', 'tool', '文件内容比对', '比对两个文件差异', 360, 110, { tool: 'file_compare', timeout: 60, retry: 2 }),
-      makeNode('output-diff', 'output', '差异报告', '生成比对差异报告', 650, 170, { format: 'docx', destination: 'review-folder', notify: false }, 'output'),
-    ]
-    edges.value = [
-      { id: 'e1', source: 'input-1', target: 'tool-compare', animated: true, label: '文件组', type: 'smoothstep' },
-      { id: 'e2', source: 'tool-compare', target: 'output-diff', animated: true, label: '比对结果', type: 'smoothstep' },
-    ]
-  } else if (key === 'batch-qa') {
-    flowName.value = '批量问答'
-    triggerMode.value = 'manual'
-    nodes.value = [
-      makeNode('input-1', 'input', '问题输入', '输入批量问题列表', 80, 170, { source: 'manual', required: true }, 'input'),
-      makeNode('tool-search', 'tool', '文件检索', '检索知识库相关文件', 360, 110, { tool: 'file_search', timeout: 30, retry: 1 }),
-      makeNode('output-qa', 'output', '问答输出', '生成批量问答结果', 650, 170, { format: '', destination: 'team-space', notify: false }, 'output'),
-    ]
-    edges.value = [
-      { id: 'e1', source: 'input-1', target: 'tool-search', animated: true, label: '问题列表', type: 'smoothstep' },
-      { id: 'e2', source: 'tool-search', target: 'output-qa', animated: true, label: '检索结果', type: 'smoothstep' },
-    ]
-  }
-
-  selectedNodeId.value = nodes.value[0]?.id ?? null
-  nextTick(() => flow.fitView({ padding: 0.25 }))
-}
-
-function stepColor(type: string) {
-  switch (type) {
-    case 'thought': return '#7c3aed'
-    case 'action': return '#246bfe'
-    case 'observation': return '#ea580c'
-    case 'answer': return '#16a34a'
-    default: return '#64748b'
-  }
-}
-
-function stepTypeLabel(type: string) {
-  switch (type) {
-    case 'thought': return '思考'
-    case 'action': return '动作'
-    case 'observation': return '观察'
-    case 'answer': return '回答'
-    default: return type
-  }
-}
-
-function hasCycle() {
-  const graph = new Map<string, string[]>()
-  nodes.value.forEach((node) => graph.set(node.id, []))
-  edges.value.forEach((edge) => graph.get(edge.source)?.push(edge.target))
-
-  const visiting = new Set<string>()
-  const visited = new Set<string>()
-
-  function dfs(id: string): boolean {
-    if (visiting.has(id)) return true
-    if (visited.has(id)) return false
-    visiting.add(id)
-    for (const next of graph.get(id) ?? []) {
-      if (dfs(next)) return true
-    }
-    visiting.delete(id)
-    visited.add(id)
-    return false
-  }
-
-  return nodes.value.some((node) => dfs(node.id))
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 </script>
 
@@ -555,10 +452,6 @@ function wait(ms: number) {
 
       <div class="builder-shell">
         <aside class="builder-sidebar">
-          <NCard size="small" title="流程模板" :bordered="false" class="builder-card">
-            <NSelect v-model:value="template" :options="templateOptions" @update:value="loadTemplate" />
-          </NCard>
-
           <NCard size="small" title="节点库" :bordered="false" class="builder-card">
             <div class="node-palette">
               <button v-for="item in nodePresets" :key="item.kind" class="palette-item" draggable="true"
@@ -588,17 +481,15 @@ function wait(ms: number) {
 
         <main class="builder-main">
           <div class="builder-toolbar">
-            <NInput v-model:value="flowName" size="large" class="title-input" />
-            <NDropdown trigger="click" :options="flowTemplateOptions" @select="loadFlowTemplate">
-              <NButton secondary>
-                <template #icon>
-                  <NIcon>
-                    <Workflow />
-                  </NIcon>
-                </template>
-                模板
-              </NButton>
-            </NDropdown>
+            <NInput v-model:value="flowName" size="large" class="title-input" placeholder="输入流程名称" />
+            <NSelect
+              v-if="templateWorkflows.length"
+              :value="null"
+              :options="templateWorkflows.map(t => ({ label: t.name, value: t.id }))"
+              placeholder="从模板创建..."
+              class="template-select"
+              @update:value="loadTemplateToCanvas"
+            />
             <NTag type="info" round>{{ currentVersion }}</NTag>
             <NTag :type="hasBlockingIssue ? 'error' : 'success'" round>{{ hasBlockingIssue ? '待修复' : '可执行' }}</NTag>
           </div>

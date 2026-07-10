@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 from urllib.parse import quote
 
@@ -10,6 +11,10 @@ from app.domain.schemas import (
     FileAnnotationListResponse,
     FileAnnotationReplyCreate,
     FileAnnotationReplyItem,
+    CompressionRequest,
+    CompressionResult,
+    FileContentResponse,
+    FileContentUpdate,
     FileCopyRequest,
     FileItem,
     FileListResponse,
@@ -32,8 +37,23 @@ router = APIRouter()
 async def list_files(
     user: Annotated[UserPublic, Depends(current_user)],
     svc: WorkspaceServiceDB = Depends(get_svc),
+    query: str | None = None,
+    tag: str | None = None,
+    file_type: str | None = None,
+    updated_from: datetime | None = None,
+    updated_to: datetime | None = None,
 ) -> FileListResponse:
     items = await svc.list_files(user)
+    if query:
+        items = [item for item in items if query.lower() in item.name.lower()]
+    if tag:
+        items = [item for item in items if tag in item.tags]
+    if file_type:
+        items = [item for item in items if item.type == file_type]
+    if updated_from:
+        items = [item for item in items if item.updated_at >= updated_from]
+    if updated_to:
+        items = [item for item in items if item.updated_at <= updated_to]
     return FileListResponse(items=items, total=len(items))
 
 
@@ -103,6 +123,25 @@ async def download_file(
         media_type="application/octet-stream",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"},
     )
+
+
+@router.get("/files/{file_id}/content", response_model=FileContentResponse)
+async def file_content(
+    file_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+    svc: WorkspaceServiceDB = Depends(get_svc),
+) -> FileContentResponse:
+    return await svc.read_file_content_text(file_id, user)
+
+
+@router.patch("/files/{file_id}/content", response_model=FileItem)
+async def update_file_content(
+    file_id: str,
+    payload: FileContentUpdate,
+    user: Annotated[UserPublic, Depends(current_user)],
+    svc: WorkspaceServiceDB = Depends(get_svc),
+) -> FileItem:
+    return await svc.update_file_content_text(file_id, payload, user)
 
 
 @router.get("/files/recycle-bin", response_model=RecycleBinResponse)
@@ -250,3 +289,21 @@ async def complete_multipart_upload(
     svc: WorkspaceServiceDB = Depends(get_svc),
 ) -> FileItem:
     return await svc.complete_multipart_upload(session_id, user)
+
+
+@router.post("/files/compress", response_model=CompressionResult, status_code=status.HTTP_201_CREATED)
+async def compress_files(
+    payload: CompressionRequest,
+    user: Annotated[UserPublic, Depends(current_user)],
+    svc: WorkspaceServiceDB = Depends(get_svc),
+) -> CompressionResult:
+    return await svc.compress_files(payload.file_ids, payload.algorithm, user)
+
+
+@router.post("/files/{file_id}/decompress", response_model=list[CompressionResult], status_code=status.HTTP_201_CREATED)
+async def decompress_file(
+    file_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+    svc: WorkspaceServiceDB = Depends(get_svc),
+) -> list[CompressionResult]:
+    return await svc.decompress_file(file_id, user)

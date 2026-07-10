@@ -10,7 +10,7 @@ import type {
   WorkspaceNarrative,
   WorkspaceQuestionInput,
 } from '@/client/workspace'
-import StatusChip from './StatusChip.vue'
+import StatusChip from '../files/StatusChip.vue'
 
 const props = withDefaults(defineProps<{
   activeKnowledgeBaseId?: string | null

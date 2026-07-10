@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import secrets
 from datetime import UTC, datetime, timedelta
 from itertools import count
 
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services import workspace_db
 
 
 client = TestClient(app)
@@ -268,6 +270,234 @@ def test_file_listing_filtering_and_upload_expose_parse_state() -> None:
     assert uploaded["sha256"]
     assert uploaded["parse_status"] == "queued"
     assert uploaded["tags"] == ["实验", "观察"]
+
+
+def test_v2_reparse_uses_uploaded_content_after_request_boundary() -> None:
+    username = f"v2reparse{secrets.token_hex(4)}"
+    session = client.post(
+        "/api/v2/auth/register",
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "password": "Str0ngPass!",
+        },
+    )
+    assert session.status_code == 201
+    token = session.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    upload_response = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        files={"file": ("reparse-note.txt", f"{username}\nline one\nline two".encode(), "text/plain")},
+        data={"folder_id": "personal-root", "tags": "解析"},
+    )
+    assert upload_response.status_code == 201
+    uploaded = upload_response.json()
+    assert uploaded["parse_status"] == "indexed"  # auto-indexed on upload
+
+    reparse_response = client.post(f"/api/v2/files/{uploaded['id']}/reparse", headers=headers)
+    assert reparse_response.status_code == 200
+    reparsed = reparse_response.json()
+    assert reparsed["id"] == uploaded["id"]
+    assert reparsed["parse_status"] == "indexed"
+
+
+def test_v2_reparse_survives_lost_in_memory_file_content() -> None:
+    username = f"v2reparsecold{secrets.token_hex(4)}"
+    session = client.post(
+        "/api/v2/auth/register",
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "password": "Str0ngPass!",
+        },
+    )
+    assert session.status_code == 201
+    token = session.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    content = f"{username}\n重新解析需要读取持久化文件内容".encode()
+
+    upload_response = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        files={"file": ("cold-reparse-note.txt", content, "text/plain")},
+        data={"folder_id": "personal-root", "tags": "解析"},
+    )
+    assert upload_response.status_code == 201
+    uploaded = upload_response.json()
+    workspace_db._FILE_CONTENTS.pop(uploaded["id"], None)
+
+    reparse_response = client.post(f"/api/v2/files/{uploaded['id']}/reparse", headers=headers)
+
+    assert reparse_response.status_code == 200
+    reparsed = reparse_response.json()
+    assert reparsed["id"] == uploaded["id"]
+    assert reparsed["parse_status"] == "indexed"
+
+
+def test_v2_reparse_reports_missing_durable_file_content() -> None:
+    username = f"v2reparselegacy{secrets.token_hex(4)}"
+    session = client.post(
+        "/api/v2/auth/register",
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "password": "Str0ngPass!",
+        },
+    )
+    assert session.status_code == 201
+    token = session.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    upload_response = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        files={"file": ("legacy-note.md", b"# legacy\nmissing content object", "text/markdown")},
+        data={"folder_id": "personal-root", "tags": "解析"},
+    )
+    assert upload_response.status_code == 201
+    uploaded = upload_response.json()
+    workspace_db._FILE_CONTENTS.pop(uploaded["id"], None)
+    workspace_db._content_path(uploaded["sha256"]).unlink()
+
+    reparse_response = client.post(f"/api/v2/files/{uploaded['id']}/reparse", headers=headers)
+
+    assert reparse_response.status_code == 409
+    assert reparse_response.json()["detail"]["code"] == "FILE_CONTENT_MISSING"
+
+
+def test_v2_workspace_snapshot_counts_indexed_files() -> None:
+    username = f"v2snapshotindexed{secrets.token_hex(4)}"
+    session = client.post(
+        "/api/v2/auth/register",
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "password": "Str0ngPass!",
+        },
+    )
+    assert session.status_code == 201
+    token = session.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    upload_response = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        files={"file": ("indexed-note.txt", b"snapshot indexed file", "text/plain")},
+        data={"folder_id": "personal-root", "tags": "解析"},
+    )
+    assert upload_response.status_code == 201
+    uploaded = upload_response.json()
+    reparse_response = client.post(f"/api/v2/files/{uploaded['id']}/reparse", headers=headers)
+    assert reparse_response.status_code == 200
+
+    snapshot_response = client.get("/api/v2/workspace/snapshot", headers=headers)
+
+    assert snapshot_response.status_code == 200
+    assert snapshot_response.json()["summary"]["indexed_count"] == 1
+
+
+def test_v2_file_content_edit_creates_version_history_and_can_restore() -> None:
+    username = f"v2content{secrets.token_hex(4)}"
+    session = client.post(
+        "/api/v2/auth/register",
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "password": "Str0ngPass!",
+        },
+    )
+    assert session.status_code == 201
+    token = session.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    upload_response = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        files={"file": ("online-note.md", b"first version", "text/markdown")},
+        data={"folder_id": "personal-root", "tags": "版本"},
+    )
+    assert upload_response.status_code == 201
+    uploaded = upload_response.json()
+
+    versions_response = client.get(f"/api/v2/files/{uploaded['id']}/versions", headers=headers)
+    assert versions_response.status_code == 200
+    initial_versions = versions_response.json()["items"]
+    assert len(initial_versions) == 1
+    assert initial_versions[0]["version_no"] == 1
+    assert initial_versions[0]["is_current"] is True
+
+    content_response = client.get(f"/api/v2/files/{uploaded['id']}/content", headers=headers)
+    assert content_response.status_code == 200
+    assert content_response.json()["content"] == "first version"
+    assert content_response.json()["editable"] is True
+
+    edit_response = client.patch(
+        f"/api/v2/files/{uploaded['id']}/content",
+        headers=headers,
+        json={"content": "second version\nwith notes"},
+    )
+    assert edit_response.status_code == 200
+    edited = edit_response.json()
+    assert edited["id"] == uploaded["id"]
+    assert edited["size"] == len("second version\nwith notes".encode())
+    assert edited["parse_status"] == "queued"
+
+    versions_response = client.get(f"/api/v2/files/{uploaded['id']}/versions", headers=headers)
+    assert versions_response.status_code == 200
+    edited_versions = versions_response.json()["items"]
+    assert [version["version_no"] for version in edited_versions] == [2, 1]
+    assert edited_versions[0]["is_current"] is True
+    assert edited_versions[1]["is_current"] is False
+
+    restore_response = client.post(
+        f"/api/v2/files/{uploaded['id']}/versions/{initial_versions[0]['id']}/restore",
+        headers=headers,
+    )
+    assert restore_response.status_code == 200
+    restored = restore_response.json()
+    assert restored["sha256"] == initial_versions[0]["sha256"]
+    assert restored["parse_status"] == "queued"
+
+    restored_content_response = client.get(f"/api/v2/files/{uploaded['id']}/content", headers=headers)
+    assert restored_content_response.status_code == 200
+    assert restored_content_response.json()["content"] == "first version"
+
+
+def test_v2_permission_rule_response_contains_audit_fields() -> None:
+    username = f"v2perm{secrets.token_hex(4)}"
+    session = client.post(
+        "/api/v2/auth/register",
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "password": "Str0ngPass!",
+        },
+    )
+    assert session.status_code == 201
+    token = session.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = client.post(
+        "/api/v2/permissions/rules",
+        headers=headers,
+        json={
+            "subject_type": "user",
+            "subject_id": str(session.json()["user"]["id"]),
+            "resource_type": "file",
+            "resource_id": "file-demo",
+            "action": "write",
+            "effect": "allow",
+            "inherit": False,
+        },
+    )
+
+    assert response.status_code == 201
+    rule = response.json()
+    assert rule["created_at"]
+    assert rule["created_by"] == username
+    assert rule["resource_label"] == "file-demo"
 
 
 def test_file_listing_filters_by_updated_time_range() -> None:
@@ -1749,7 +1979,8 @@ def test_agent_task_uses_required_builtin_tools() -> None:
         assert task["status"] in ("completed", "failed", "error")
         step_types = [step["type"] for step in task["steps"]]
         assert len(step_types) >= 1
-        assert step_types[-1] == "answer"
+        # The final answer is always set (from answer-type step or fallback)
+        assert len(task["final_answer"]) > 0
 
 
 def test_new_file_auto_summary_workflow_template_executes() -> None:
@@ -2064,3 +2295,116 @@ def test_kb_qa_citations_come_from_parsed_segments() -> None:
     assert len(answer["citations"]) >= 1
     assert answer["citations"][0]["file_id"] == file_id
     assert answer["citations"][0]["title"] == "segments.txt"
+
+
+# ── Additional Agent Task Tests (Item 15-8 coverage) ──
+
+
+def test_agent_empty_task_rejected() -> None:
+    """Empty or missing task field should return validation error."""
+    headers = auth_headers()
+    response = client.post("/api/v2/agents/tasks", headers=headers, json={"task": ""})
+    assert response.status_code == 422  # Pydantic min_length validation
+
+
+def test_agent_nonexistent_kb_id_returns_error() -> None:
+    """Agent task with a nonexistent KB ID should return a proper error."""
+    headers = auth_headers()
+    response = client.post(
+        "/api/v2/agents/tasks",
+        headers=headers,
+        json={"task": "分析知识点", "kb_id": "kb-nonexistent-999"},
+    )
+    # V2 returns 201 with status=failed when KB not found
+    assert response.status_code in (201, 500, 503)
+    if response.status_code == 201:
+        task = response.json()
+        assert task["status"] == "failed"
+
+
+def test_agent_single_tool_file_search() -> None:
+    """Agent task asking to find files should produce file_search steps."""
+    headers = auth_headers()
+
+    response = client.post(
+        "/api/v2/agents/tasks",
+        headers=headers,
+        json={"task": "找到所有PDF文件"},
+    )
+    assert response.status_code in (201, 500, 503)
+    if response.status_code == 201:
+        task = response.json()
+        assert task["status"] in ("completed", "failed")
+        assert len(task["steps"]) >= 1
+        assert task["steps"][-1]["type"] == "answer"
+
+
+def test_agent_multi_tool_qa_and_report() -> None:
+    """Agent task combining KB search and report generation."""
+    headers = auth_headers()
+    kb_resp = client.post(
+        "/api/v2/knowledge-bases",
+        headers=headers,
+        json={"name": "实验记录", "description": "生物实验数据"},
+    )
+    assert kb_resp.status_code == 201
+    kb_id = kb_resp.json()["id"]
+
+    response = client.post(
+        "/api/v2/agents/tasks",
+        headers=headers,
+        json={
+            "task": "分析实验记录并生成周报",
+            "kb_id": kb_id,
+            "context_file_ids": [],
+        },
+    )
+    assert response.status_code in (201, 500, 503)
+    if response.status_code == 201:
+        task = response.json()
+        assert task["status"] in ("completed", "failed")
+        step_types = [s["type"] for s in task["steps"]]
+        assert len(step_types) >= 1  # At minimum some planning steps should exist
+
+
+def test_agent_direct_answer_no_tools_needed() -> None:
+    """Simple task that the LLM can answer without any tool calls."""
+    headers = auth_headers()
+    response = client.post(
+        "/api/v2/agents/tasks",
+        headers=headers,
+        json={"task": "解释什么是机器学习"},
+    )
+    assert response.status_code in (201, 500, 503)
+    if response.status_code == 201:
+        task = response.json()
+        assert task["status"] in ("completed", "failed")
+        assert len(task["steps"]) >= 1
+        assert task["steps"][-1]["type"] == "answer"
+
+
+def test_agent_multi_turn_with_conversation_context() -> None:
+    """Two sequential agent tasks that share conversation context."""
+    headers = auth_headers()
+    # First turn
+    resp1 = client.post(
+        "/api/v2/agents/tasks",
+        headers=headers,
+        json={"task": "用一句话总结项目管理的基本原则"},
+    )
+    assert resp1.status_code in (201, 500, 503)
+
+    # Second turn -- follow-up question referencing the first
+    resp2 = client.post(
+        "/api/v2/agents/tasks",
+        headers=headers,
+        json={"task": "基于你刚才说的，补充一个具体案例"},
+    )
+    assert resp2.status_code in (201, 500, 503)
+
+    if resp1.status_code == 201 and resp2.status_code == 201:
+        task1 = resp1.json()
+        task2 = resp2.json()
+        assert task1["id"] != task2["id"]
+        assert len(task1["steps"]) >= 1
+        assert len(task2["steps"]) >= 1

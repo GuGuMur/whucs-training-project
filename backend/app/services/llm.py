@@ -54,7 +54,7 @@ def llm_available() -> bool:
     return _get_llm() is not None
 
 
-def generate_rag_answer(question: str, context_snippets: list[str], kb_name: str) -> str:
+def generate_rag_answer(question: str, context_snippets: list[str], kb_name: str, history_context: str = "", report_mode: bool = False) -> str:
     """Generate an answer grounded in retrieved context snippets."""
     if not context_snippets:
         return f"知识库「{kb_name}」暂未检索到与问题相关的已索引片段。"
@@ -66,14 +66,26 @@ def generate_rag_answer(question: str, context_snippets: list[str], kb_name: str
     context = "\n\n---\n\n".join(
         f"[来源 {i + 1}] {s}" for i, s in enumerate(context_snippets)
     )
-    prompt = (
-        "你是一个知识库问答助手。请根据以下参考资料回答用户的问题。\n"
-        "如果参考资料不足以回答问题，请如实说明。\n"
-        "回答时请引用来源编号（如 [来源 1]）。\n\n"
-        f"【参考资料】\n{context}\n\n"
-        f"【用户问题】{question}\n\n"
-        "【回答】"
-    )
+    history = f"\n\n【对话历史】\n{history_context}" if history_context else ""
+    if report_mode:
+        prompt = (
+            "你是一个知识库报告生成助手。请根据以下参考资料生成一份结构化的分析报告。\n"
+            "报告应包含以下章节：## 摘要、## 详细分析、## 关键发现、## 建议。\n"
+            "如果参考资料不足以完成报告，请如实说明。\n"
+            "回答时请引用来源编号（如 [来源 1]）。\n\n"
+            f"【参考资料】\n{context}\n\n"
+            f"【用户问题】{question}{history}\n\n"
+            "【报告】"
+        )
+    else:
+        prompt = (
+            "你是一个知识库问答助手。请根据以下参考资料回答用户的问题。\n"
+            "如果参考资料不足以回答问题，请如实说明。\n"
+            "回答时请引用来源编号（如 [来源 1]）。\n\n"
+            f"【参考资料】\n{context}\n\n"
+            f"【用户问题】{question}{history}\n\n"
+            "【回答】"
+        )
     try:
         response = llm.invoke(prompt)
         return response.content.strip() if hasattr(response, "content") else str(response).strip()

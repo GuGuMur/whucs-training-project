@@ -22,11 +22,12 @@ import type {
   WorkspaceWorkflowUpdateInput,
   WorkspaceWorkflowValidation,
 } from '@/client/workspace'
-import StatusChip from './StatusChip.vue'
+import StatusChip from '../files/StatusChip.vue'
 
 const props = defineProps<{
   activeWorkflowId: string | null
   agentSteps: AgentStep[]
+  agentTaskRunning: boolean
   files: WorkspaceFile[]
   knowledgeBases: WorkspaceKnowledgeBase[]
   tools: ToolDefinition[]
@@ -37,6 +38,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  'create-agent-task': [payload: { task: string; kbId?: string | null; contextFileIds?: string[] }]
   'create-workflow': [payload: WorkspaceWorkflowCreateInput]
   'execute-workflow': [workflowId: string, payload: WorkspaceWorkflowExecuteInput]
   'publish-workflow': [workflowId: string]
@@ -44,6 +46,19 @@ const emit = defineEmits<{
   'update-workflow': [workflowId: string, payload: WorkspaceWorkflowUpdateInput]
   'validate-workflow': [workflowId: string]
 }>()
+
+const taskInput = shallowRef('')
+
+function handleCreateAgentTask() {
+  const task = taskInput.value.trim()
+  if (!task) return
+  emit('create-agent-task', {
+    task,
+    kbId: props.knowledgeBases[0]?.id ?? null,
+    contextFileIds: [],
+  })
+  taskInput.value = ''
+}
 
 const createForm = reactive({
   description: '',
@@ -350,6 +365,23 @@ function timelineType(status: AgentStep['status']) {
           <p v-if="workflowExecution" class="m-0 text-sub text-12px leading-[1.5]">
             最近执行：{{ workflowExecution.id }} · {{ workflowExecution.status }}
           </p>
+        </section>
+
+        <section class="grid gap-2 min-w-0">
+          <NInput
+            v-model:value="taskInput"
+            placeholder="描述你想让智能体完成的任务，如：分析本周实验数据并生成报告"
+            type="textarea"
+            :autosize="{ minRows: 2, maxRows: 4 }"
+          />
+          <NButton
+            type="primary"
+            :disabled="!taskInput.trim()"
+            :loading="agentTaskRunning"
+            @click="handleCreateAgentTask"
+          >
+            提交任务
+          </NButton>
         </section>
 
         <section class="min-w-0">

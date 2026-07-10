@@ -62,12 +62,21 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
     ],
   })
 
+  let tokenValidated = false
+
   router.beforeEach(async (to) => {
     const auth = useAuthStore()
 
     // Restore from localStorage if not already authenticated
-    if (!auth.isAuthenticated) {
+    const wasRestored = !auth.isAuthenticated
+    if (wasRestored) {
       auth.restoreLocalSession()
+    }
+
+    // Validate restored token against server (runs once per app load)
+    if (to.meta.requiresAuth && auth.isAuthenticated && wasRestored && !tokenValidated) {
+      tokenValidated = true
+      await auth.restoreSession().catch(() => {})
     }
 
     // For protected routes without a session, redirect to login

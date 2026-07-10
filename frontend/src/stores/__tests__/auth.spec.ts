@@ -9,8 +9,13 @@ import {
   registerApiV2AuthRegisterPost,
   updateMeApiV2UsersMePatch,
 } from '@/client/generated'
-import type { ErrorResponse } from '@/client/generated'
 import { useAuthStore } from '../auth'
+
+type ErrorResponse = {
+  code: string
+  detail?: Record<string, unknown>
+  message: string
+}
 
 vi.mock('@/client/generated', () => ({
   loginApiV2AuthLoginPost: vi.fn(),
@@ -79,7 +84,7 @@ describe('auth store', () => {
 
     loginApi.mockResolvedValue({
       data: undefined,
-      error: lockedError,
+      error: lockedError as never,
     })
 
     const auth = useAuthStore()

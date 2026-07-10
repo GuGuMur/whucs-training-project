@@ -369,6 +369,46 @@ export type FileAnnotationReplyItem = {
 };
 
 /**
+ * FileContentResponse
+ */
+export type FileContentResponse = {
+    /**
+     * Content
+     */
+    content: string;
+    /**
+     * Editable
+     */
+    editable: boolean;
+    /**
+     * File Id
+     */
+    file_id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Type
+     */
+    type: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
+ * FileContentUpdate
+ */
+export type FileContentUpdate = {
+    /**
+     * Content
+     */
+    content: string;
+};
+
+/**
  * FileCopyRequest
  */
 export type FileCopyRequest = {
@@ -2079,7 +2119,28 @@ export type ListFilesApiV2FilesGetData = {
         authorization?: string | null;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Query
+         */
+        query?: string | null;
+        /**
+         * Tag
+         */
+        tag?: string | null;
+        /**
+         * File Type
+         */
+        file_type?: string | null;
+        /**
+         * Updated From
+         */
+        updated_from?: string | null;
+        /**
+         * Updated To
+         */
+        updated_to?: string | null;
+    };
     url: '/api/v2/files';
 };
 
@@ -2490,6 +2551,78 @@ export type DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteRes
 
 export type DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteResponse = DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteResponses[keyof DeleteFileAnnotationApiV2FilesFileIdAnnotationsAnnotationIdDeleteResponses];
 
+export type FileContentApiV2FilesFileIdContentGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v2/files/{file_id}/content';
+};
+
+export type FileContentApiV2FilesFileIdContentGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FileContentApiV2FilesFileIdContentGetError = FileContentApiV2FilesFileIdContentGetErrors[keyof FileContentApiV2FilesFileIdContentGetErrors];
+
+export type FileContentApiV2FilesFileIdContentGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: FileContentResponse;
+};
+
+export type FileContentApiV2FilesFileIdContentGetResponse = FileContentApiV2FilesFileIdContentGetResponses[keyof FileContentApiV2FilesFileIdContentGetResponses];
+
+export type UpdateFileContentApiV2FilesFileIdContentPatchData = {
+    body: FileContentUpdate;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v2/files/{file_id}/content';
+};
+
+export type UpdateFileContentApiV2FilesFileIdContentPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateFileContentApiV2FilesFileIdContentPatchError = UpdateFileContentApiV2FilesFileIdContentPatchErrors[keyof UpdateFileContentApiV2FilesFileIdContentPatchErrors];
+
+export type UpdateFileContentApiV2FilesFileIdContentPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: FileItem;
+};
+
+export type UpdateFileContentApiV2FilesFileIdContentPatchResponse = UpdateFileContentApiV2FilesFileIdContentPatchResponses[keyof UpdateFileContentApiV2FilesFileIdContentPatchResponses];
+
 export type CopyFileApiV2FilesFileIdCopyPostData = {
     body: FileCopyRequest;
     headers?: {
@@ -2559,6 +2692,42 @@ export type DownloadFileApiV2FilesFileIdDownloadGetResponses = {
      */
     200: unknown;
 };
+
+export type ReparseFileApiV2FilesFileIdReparsePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v2/files/{file_id}/reparse';
+};
+
+export type ReparseFileApiV2FilesFileIdReparsePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReparseFileApiV2FilesFileIdReparsePostError = ReparseFileApiV2FilesFileIdReparsePostErrors[keyof ReparseFileApiV2FilesFileIdReparsePostErrors];
+
+export type ReparseFileApiV2FilesFileIdReparsePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: FileItem;
+};
+
+export type ReparseFileApiV2FilesFileIdReparsePostResponse = ReparseFileApiV2FilesFileIdReparsePostResponses[keyof ReparseFileApiV2FilesFileIdReparsePostResponses];
 
 export type RestoreDeletedFileApiV2FilesFileIdRestorePostData = {
     body?: never;

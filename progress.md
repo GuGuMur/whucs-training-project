@@ -691,6 +691,7 @@
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
 |-----------|-------|---------|------------|
+| 2026-07-11 00:00 | RAG/agent-flow refactor plan needed to be persisted locally before implementation | 1 | Created `docs/superpowers/plans/2026-07-11-rag-agent-flow-refactor.md` with staged backend/frontend/test tasks. |
 | 2026-07-08 08:26 | `SyntaxError: bytes can only contain ASCII literal characters` in backend test upload payload | 1 | Encoded the Chinese Markdown fixture from `str` with `.encode()`. |
 | 2026-07-08 08:36 | `uv pip install` waited on `backend/.venv/.lock` held by an existing `uv sync` process | 1 | Switched to running tests from `backend/` with `uv run --no-project --with ...` so the active sync is not interrupted. |
 | 2026-07-08 08:36 | `ModuleNotFoundError: No module named 'app'` | 1 | Expected TDD red state before adding the backend application package. |

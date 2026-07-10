@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue'
-import { Pencil, FolderInput, Copy, Tag, ShieldCheck, History, MessageSquareText, Plus, Trash2, RotateCcw } from '@lucide/vue'
+import { Pencil, FolderInput, Copy, Tag, ShieldCheck, History, MessageSquareText, Plus, Trash2, RotateCcw, Eye, Save } from '@lucide/vue'
 import type {
   WorkspaceFile,
   WorkspaceFileAnnotation, WorkspaceFileAnnotationCreateInput, WorkspaceFileAnnotationReplyInput,
-  WorkspaceFileCopyInput, WorkspaceFileUpdateInput, WorkspaceFileVersion,
-  WorkspaceFolderOption, WorkspacePermissionRule,
+  WorkspaceFileContent, WorkspaceFileContentUpdateInput, WorkspaceFileCopyInput,
+  WorkspaceFileUpdateInput, WorkspaceFileVersion,
+  WorkspaceFolderOption, WorkspacePermissionRule, WorkspacePermissionRuleCreateInput,
 } from '@/client/workspace'
 
 const props = withDefaults(defineProps<{
@@ -13,23 +14,30 @@ const props = withDefaults(defineProps<{
   folderOptions?: WorkspaceFolderOption[]
   versions?: WorkspaceFileVersion[]
   annotations?: WorkspaceFileAnnotation[]
+  fileContent?: WorkspaceFileContent | null
   permissionRules?: WorkspacePermissionRule[]
   show: boolean
   initialTab?: string
   copying?: boolean
   updating?: boolean
   loadingVersions?: boolean
+  loadingContent?: boolean
   restoringVersionId?: string | null
+  savingContent?: boolean
   loadingAnnotations?: boolean
   savingAnnotation?: boolean
   deletingAnnotationId?: string | null
   permissionsLoading?: boolean
+  permissionSaving?: boolean
   deletingPermissionRuleId?: string | null
 }>(), {
   file: null, folderOptions: () => [], versions: () => [], annotations: () => [], permissionRules: () => [],
+  fileContent: null,
   show: false, initialTab: 'rename', copying: false, updating: false, loadingVersions: false,
-  restoringVersionId: null, loadingAnnotations: false, savingAnnotation: false,
+  loadingContent: false, restoringVersionId: null, savingContent: false,
+  loadingAnnotations: false, savingAnnotation: false,
   deletingAnnotationId: null, permissionsLoading: false, deletingPermissionRuleId: null,
+  permissionSaving: false,
 })
 
 const emit = defineEmits<{
@@ -37,12 +45,15 @@ const emit = defineEmits<{
   close: []
   'update-file': [fileId: string, payload: WorkspaceFileUpdateInput]
   'copy-file': [fileId: string, payload: WorkspaceFileCopyInput]
+  'load-content': [fileId: string]
+  'save-content': [fileId: string, payload: WorkspaceFileContentUpdateInput]
   'load-versions': [fileId: string]
   'restore-version': [fileId: string, versionId: string]
   'load-annotations': [fileId: string]
   'create-annotation': [fileId: string, payload: WorkspaceFileAnnotationCreateInput]
   'reply-annotation': [annotationId: string, payload: WorkspaceFileAnnotationReplyInput]
   'delete-annotation': [fileId: string, annotationId: string]
+  'create-permission-rule': [payload: WorkspacePermissionRuleCreateInput]
   'delete-permission-rule': [ruleId: string]
 }>()
 
@@ -52,6 +63,28 @@ const moveTarget = shallowRef<string | null>(null)
 const copyTarget = shallowRef<string | null>(null)
 const editTags = shallowRef<string[]>([])
 const annotationContent = shallowRef('')
+const editableContent = shallowRef('')
+const permissionSubjectType = shallowRef<WorkspacePermissionRuleCreateInput['subjectType']>('user')
+const permissionSubjectId = shallowRef('')
+const permissionAction = shallowRef<WorkspacePermissionRuleCreateInput['action']>('read')
+const permissionEffect = shallowRef<WorkspacePermissionRuleCreateInput['effect']>('allow')
+const permissionInherit = shallowRef(false)
+
+const permissionSubjectTypeOptions = [
+  { label: '用户', value: 'user' },
+  { label: '团队', value: 'team' },
+  { label: '角色', value: 'role' },
+]
+const permissionActionOptions = [
+  { label: '读取', value: 'read' },
+  { label: '写入', value: 'write' },
+  { label: '删除', value: 'delete' },
+  { label: '管理', value: 'manage' },
+]
+const permissionEffectOptions = [
+  { label: '允许', value: 'allow' },
+  { label: '拒绝', value: 'deny' },
+]
 
 watch(() => props.show, (v) => {
   if (v && props.file) {
@@ -59,7 +92,18 @@ watch(() => props.show, (v) => {
     renameValue.value = props.file.name
     editTags.value = [...(props.file.tags || [])]
     moveTarget.value = null; copyTarget.value = null; annotationContent.value = ''
+    permissionSubjectType.value = 'user'
+    permissionSubjectId.value = ''
+    permissionAction.value = 'read'
+    permissionEffect.value = 'allow'
+    permissionInherit.value = false
+    editableContent.value = props.fileContent?.content ?? ''
+    if (props.initialTab === 'preview') emit('load-content', props.file.id)
   }
+})
+
+watch(() => props.fileContent, (content) => {
+  editableContent.value = content?.content ?? ''
 })
 
 const fileId = computed(() => props.file?.id ?? '')
@@ -69,10 +113,34 @@ function rename() { if (renameValue.value.trim() && props.file) emit('update-fil
 function doMove() { if (moveTarget.value && props.file) emit('update-file', props.file.id, { folderId: moveTarget.value }) }
 function doCopy() { if (copyTarget.value && props.file) emit('copy-file', props.file.id, { targetFolderId: copyTarget.value }) }
 function saveTags() { if (props.file) emit('update-file', props.file.id, { tags: [...editTags.value] }) }
+function loadContent() { if (props.file) emit('load-content', props.file.id) }
+function saveContent() {
+  if (!props.file || !props.fileContent?.editable) return
+  emit('save-content', props.file.id, { content: editableContent.value })
+}
 function createAnnotation() {
   if (!annotationContent.value.trim() || !props.file) return
   emit('create-annotation', props.file.id, { content: annotationContent.value.trim() })
   annotationContent.value = ''
+}
+function createPermissionRule() {
+  if (!props.file || !permissionSubjectId.value.trim()) return
+  emit('create-permission-rule', {
+    action: permissionAction.value,
+    effect: permissionEffect.value,
+    inherit: permissionInherit.value,
+    resourceId: props.file.id,
+    resourceType: 'file',
+    subjectId: permissionSubjectId.value.trim(),
+    subjectType: permissionSubjectType.value,
+  })
+  permissionSubjectId.value = ''
+}
+
+function formatSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1048576).toFixed(1)} MB`
 }
 </script>
 
@@ -80,6 +148,38 @@ function createAnnotation() {
   <NDrawer :show="show" :width="420" placement="right" @update:show="(v: boolean) => v ? null : close()">
     <NDrawerContent :title="file?.name ?? '文件操作'" closable @close="close">
       <NTabs v-model:value="activeTab" type="line" size="small" class="mb-4">
+        <NTabPane name="preview" tab="预览">
+          <div class="grid gap-3 pt-2">
+            <div class="flex items-center justify-between gap-2">
+              <p class="m-0 text-sub text-13px">在线预览与文本编辑</p>
+              <NButton size="small" secondary :loading="loadingContent" @click="loadContent">
+                <template #icon><NIcon :size="14"><Eye /></NIcon></template> 读取
+              </NButton>
+            </div>
+            <NSpin :show="loadingContent">
+              <NEmpty v-if="!fileContent" size="small" description="点击读取加载文件内容" />
+              <div v-else class="grid gap-2">
+                <NAlert v-if="!fileContent.editable" type="warning" :bordered="false">
+                  当前类型暂不支持在线编辑，可使用下载查看原文件。
+                </NAlert>
+                <NInput
+                  v-model:value="editableContent"
+                  type="textarea"
+                  :autosize="{ minRows: 12, maxRows: 18 }"
+                  :readonly="!fileContent.editable"
+                  placeholder="文件内容"
+                />
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-sub text-11px">{{ fileContent.type.toUpperCase() }} · {{ fileContent.updated_at }}</span>
+                  <NButton size="small" type="primary" :disabled="!fileContent.editable" :loading="savingContent" @click="saveContent">
+                    <template #icon><NIcon :size="14"><Save /></NIcon></template> 保存
+                  </NButton>
+                </div>
+              </div>
+            </NSpin>
+          </div>
+        </NTabPane>
+
         <NTabPane name="rename" tab="重命名">
           <div class="grid gap-3 pt-2">
             <p class="m-0 text-sub text-13px">当前名称：{{ file?.name }}</p>
@@ -123,7 +223,11 @@ function createAnnotation() {
                 <div class="flex items-center justify-between gap-3 w-full">
                   <div class="min-w-0">
                     <p class="m-0 text-ink text-13px font-650 truncate">{{ v.name }}</p>
-                    <p class="m-0 mt-0.5 text-sub text-11px">v{{ v.version_no }} · {{ v.created_by }}</p>
+                    <p class="m-0 mt-0.5 text-sub text-11px">
+                      v{{ v.version_no }} · {{ v.created_by }} · {{ formatSize(v.size) }}
+                      <NTag v-if="v.is_current" size="tiny" type="success" :bordered="false" class="ml-1">当前</NTag>
+                    </p>
+                    <p class="m-0 mt-0.5 text-sub text-11px font-mono truncate">{{ v.sha256 }}</p>
                   </div>
                   <NButton size="tiny" secondary :loading="restoringVersionId === v.id" @click="emit('restore-version', fileId, v.id)">
                     <template #icon><NIcon :size="12"><RotateCcw /></NIcon></template> 恢复
@@ -136,6 +240,20 @@ function createAnnotation() {
 
         <NTabPane name="permissions" tab="权限">
           <div class="grid gap-3 pt-2">
+            <div class="grid gap-2 rounded-2 border border-line p-3">
+              <div class="grid grid-cols-2 gap-2">
+                <NSelect v-model:value="permissionSubjectType" :options="permissionSubjectTypeOptions" size="small" />
+                <NInput v-model:value="permissionSubjectId" size="small" placeholder="主体 ID" />
+                <NSelect v-model:value="permissionAction" :options="permissionActionOptions" size="small" />
+                <NSelect v-model:value="permissionEffect" :options="permissionEffectOptions" size="small" />
+              </div>
+              <div class="flex items-center justify-between gap-2">
+                <NCheckbox v-model:checked="permissionInherit" size="small">继承到下级</NCheckbox>
+                <NButton size="small" type="primary" :loading="permissionSaving" :disabled="!permissionSubjectId.trim()" @click="createPermissionRule">
+                  <template #icon><NIcon :size="14"><Plus /></NIcon></template> 添加
+                </NButton>
+              </div>
+            </div>
             <NSpin :show="permissionsLoading">
               <NEmpty v-if="!permissionRules.length" size="small" description="暂无权限规则" />
               <NList v-else :show-divider="false">

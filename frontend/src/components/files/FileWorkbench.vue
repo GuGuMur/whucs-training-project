@@ -6,9 +6,10 @@ import { NButton, NDataTable, NIcon, NTag } from 'naive-ui'
 
 import type {
   WorkspaceFile, WorkspaceFileAnnotation, WorkspaceFileAnnotationCreateInput,
-  WorkspaceFileAnnotationReplyInput, WorkspaceFileCopyInput, WorkspaceFileFilters,
+  WorkspaceFileAnnotationReplyInput, WorkspaceFileContent, WorkspaceFileContentUpdateInput,
+  WorkspaceFileCopyInput, WorkspaceFileFilters,
   WorkspaceFileUpdateInput, WorkspaceFileUploadInput, WorkspaceFileVersion,
-  WorkspaceFolder, WorkspaceFolderOption, WorkspacePermissionRule,
+  WorkspaceFolder, WorkspaceFolderOption, WorkspacePermissionRule, WorkspacePermissionRuleCreateInput,
 } from '@/client/workspace'
 import CategorySidebar from '../files/CategorySidebar.vue'
 import FileDrawer from '../files/FileDrawer.vue'
@@ -26,6 +27,8 @@ const props = withDefaults(defineProps<{
   deletingFileId?: string | null
   deletingPermissionRuleId?: string | null
   fileAnnotationsById?: Record<string, WorkspaceFileAnnotation[]>
+  fileContentById?: Record<string, WorkspaceFileContent>
+  fileContentLoadingId?: string | null
   fileVersionsById?: Record<string, WorkspaceFileVersion[]>
   files: WorkspaceFile[]
   filters?: WorkspaceFileFilters
@@ -35,17 +38,22 @@ const props = withDefaults(defineProps<{
   listingFiles?: boolean
   permissionRules?: WorkspacePermissionRule[]
   permissionsLoading?: boolean
+  permissionRuleSaving?: boolean
+  reparsingFileId?: string | null
   restoringVersionId?: string | null
+  savingFileContentId?: string | null
   updatingFileId?: string | null
   uploadingFile?: boolean
   versionFileId?: string | null
 }>(), {
   activeFolderId: null, annotationSaving: false, copyingFileId: null, deletingAnnotationId: null,
   deletingFileId: null, deletingPermissionRuleId: null, fileAnnotationsById: () => ({}),
+  fileContentById: () => ({}), fileContentLoadingId: null,
   fileVersionsById: () => ({}), filters: () => ({ fileType: '', query: '', tag: '', updatedFrom: '', updatedTo: '' }),
   folderOptions: () => [], folderTreeLoading: false,
   folders: () => [], listingFiles: false, permissionRules: () => [],
-  permissionsLoading: false, restoringVersionId: null, updatingFileId: null,
+  permissionsLoading: false, permissionRuleSaving: false, reparsingFileId: null,
+  restoringVersionId: null, savingFileContentId: null, updatingFileId: null,
   uploadingFile: false, versionFileId: null,
 })
 
@@ -57,12 +65,16 @@ const emit = defineEmits<{
   'delete-file-annotation': [fileId: string, annotationId: string]
   'delete-permission-rule': [ruleId: string]
   'download-file': [file: WorkspaceFile]
+  'create-permission-rule': [payload: WorkspacePermissionRuleCreateInput]
+  'load-file-content': [fileId: string]
   'load-file-annotations': [fileId: string]
   'load-file-versions': [fileId: string]
   'reply-file-annotation': [annotationId: string, payload: WorkspaceFileAnnotationReplyInput]
+  'reparse-file': [file: WorkspaceFile]
   'restore-file-version': [fileId: string, versionId: string]
   'search-files': [filters: WorkspaceFileFilters]
   'select-folder': [folderId: string]
+  'update-file-content': [fileId: string, payload: WorkspaceFileContentUpdateInput]
   'update-file': [fileId: string, payload: WorkspaceFileUpdateInput]
   'upload-file': [payload: WorkspaceFileUploadInput]
 }>()
@@ -90,6 +102,7 @@ const deleteTarget = shallowRef<WorkspaceFile | null>(null)
 
 function openDrawer(file: WorkspaceFile, tab: string) {
   drawerFile.value = file; drawerTab.value = tab; drawerShow.value = true
+  if (tab === 'preview') emit('load-file-content', file.id)
 }
 
 function handleUpload(payload: WorkspaceFileUploadInput) {
@@ -99,6 +112,11 @@ function handleUpload(payload: WorkspaceFileUploadInput) {
 function confirmDelete() {
   if (deleteTarget.value) { emit('delete-file', deleteTarget.value); deleteConfirmShow.value = false; deleteTarget.value = null }
 }
+
+watch(() => props.files, (files) => {
+  if (!drawerFile.value) return
+  drawerFile.value = files.find((file) => file.id === drawerFile.value?.id) ?? drawerFile.value
+})
 
 // ── Tag / type options ──
 const tagOptions = computed(() => {
@@ -157,6 +175,15 @@ function handleReset() {
 
 // ── Drawer computed ──
 const drawerAnnotations = computed(() => drawerFile.value ? props.fileAnnotationsById[drawerFile.value.id] ?? [] : [])
+const drawerContent = computed(() => drawerFile.value ? props.fileContentById[drawerFile.value.id] ?? null : null)
+const drawerPermissionRules = computed(() => {
+  const file = drawerFile.value
+  if (!file) return []
+  return props.permissionRules.filter((rule) => {
+    if (rule.resource_type === 'file') return rule.resource_id === file.id
+    return rule.resource_type === 'folder' && rule.resource_id === file.folder_id && rule.inherit
+  })
+})
 const drawerVersions = computed(() => drawerFile.value ? props.fileVersionsById[drawerFile.value.id] ?? [] : [])
 
 // ── Table columns ──
@@ -188,7 +215,9 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
       file: row,
       annotationCount: 0,
       versionCount: props.fileVersionsById[row.id]?.length ?? 0,
+      reparsing: props.reparsingFileId === row.id,
       onDownload: (f: WorkspaceFile) => emit('download-file', f),
+      onPreview: (f: WorkspaceFile) => openDrawer(f, 'preview'),
       onRename: (f: WorkspaceFile) => openDrawer(f, 'rename'),
       onMove: (f: WorkspaceFile) => openDrawer(f, 'move'),
       onCopy: (f: WorkspaceFile) => openDrawer(f, 'copy'),
@@ -197,13 +226,7 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
       onPermissions: (f: WorkspaceFile) => openDrawer(f, 'permissions'),
       onVersions: (f: WorkspaceFile) => { emit('load-file-versions', f.id); openDrawer(f, 'versions') },
       onDelete: (f: WorkspaceFile) => { deleteTarget.value = f; deleteConfirmShow.value = true },
-      onReparse: async (f: WorkspaceFile) => {
-        try {
-          const token = JSON.parse(localStorage.getItem('whu-workspace-session')||'{}').accessToken||''
-          await fetch(`/api/v2/files/${f.id}/reparse`, { method:'POST', headers:{ Authorization:`Bearer ${token}` } })
-          location.reload()
-        } catch {}
-      },
+      onReparse: (f: WorkspaceFile) => emit('reparse-file', f),
     }),
   },
 ])
@@ -264,7 +287,9 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
                 <FileDropdown
                   :file="file" :annotation-count="0"
                   :version-count="fileVersionsById[file.id]?.length ?? 0"
+                  :reparsing="reparsingFileId === file.id"
                   @download="(f: WorkspaceFile) => emit('download-file', f)"
+                  @preview="(f: WorkspaceFile) => openDrawer(f, 'preview')"
                   @rename="(f: WorkspaceFile) => openDrawer(f, 'rename')"
                   @move="(f: WorkspaceFile) => openDrawer(f, 'move')"
                   @copy="(f: WorkspaceFile) => openDrawer(f, 'copy')"
@@ -273,7 +298,7 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
                   @permissions="(f: WorkspaceFile) => openDrawer(f, 'permissions')"
                   @versions="(f: WorkspaceFile) => { emit('load-file-versions', f.id); openDrawer(f, 'versions') }"
                   @delete="(f: WorkspaceFile) => { deleteTarget = f; deleteConfirmShow = true }"
-                  @reparse="async (f: WorkspaceFile) => { try { const token = JSON.parse(localStorage.getItem('whu-workspace-session')||'{}').accessToken||''; await fetch(`/api/v2/files/${f.id}/reparse`, { method:'POST', headers:{ Authorization:`Bearer ${token}` } }); location.reload() } catch {} }"
+                  @reparse="(f: WorkspaceFile) => emit('reparse-file', f)"
                 />
               </div>
               <div class="flex flex-wrap gap-1.5 text-11px text-sub">
@@ -298,20 +323,26 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
   <!-- Drawer -->
   <FileDrawer
     :show="drawerShow" :file="drawerFile" :folder-options="folderOptions"
-    :versions="drawerVersions" :annotations="drawerAnnotations" :permission-rules="permissionRules"
+    :versions="drawerVersions" :annotations="drawerAnnotations" :permission-rules="drawerPermissionRules"
+    :file-content="drawerContent"
     :initial-tab="drawerTab"
     :copying="copyingFileId === drawerFile?.id"
     :updating="updatingFileId === drawerFile?.id"
+    :loading-content="fileContentLoadingId === drawerFile?.id"
     :loading-versions="versionFileId === drawerFile?.id"
     :restoring-version-id="restoringVersionId"
+    :saving-content="savingFileContentId === drawerFile?.id"
     :saving-annotation="annotationSaving"
     :deleting-annotation-id="deletingAnnotationId"
     :permissions-loading="permissionsLoading"
+    :permission-saving="permissionRuleSaving"
     :deleting-permission-rule-id="deletingPermissionRuleId"
     @update:show="(v: boolean) => drawerShow = v"
     @close="drawerShow = false"
     @update-file="(fid, p) => emit('update-file', fid, p)"
     @copy-file="(fid, p) => emit('copy-file', fid, p)"
+    @create-permission-rule="(p) => emit('create-permission-rule', p)"
+    @load-content="(fid) => emit('load-file-content', fid)"
     @load-versions="(fid) => emit('load-file-versions', fid)"
     @restore-version="(fid, vid) => emit('restore-file-version', fid, vid)"
     @load-annotations="(fid) => emit('load-file-annotations', fid)"
@@ -319,6 +350,7 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
     @reply-annotation="(aid, p) => emit('reply-file-annotation', aid, p)"
     @delete-annotation="(fid, aid) => emit('delete-file-annotation', fid, aid)"
     @delete-permission-rule="(rid) => emit('delete-permission-rule', rid)"
+    @save-content="(fid, p) => emit('update-file-content', fid, p)"
   />
 
   <!-- Delete confirm -->

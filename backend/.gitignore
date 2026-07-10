@@ -191,6 +191,9 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
+# Local uploaded file content
+.data/
+
 # PyPI configuration file
 .pypirc
 
@@ -212,4 +215,5 @@ secrets.txtresult.json
 /rag_store
 /datamodels/
 .env.*
-*.dbwhucs.db
+*.db
+whucs.db
