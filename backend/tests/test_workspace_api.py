@@ -8,6 +8,7 @@ from itertools import count
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services import agent_executor
 from app.services import workspace_db
 
 
@@ -2474,6 +2475,31 @@ def test_v2_agent_calculator_task_uses_understand_call_observe_answer_flow() -> 
     assert detail_response.json()["id"] == task["id"]
 
 
+def test_v2_agent_multi_tool_task_runs_ordered_tools() -> None:
+    headers = auth_headers_v2("agent-multi-tool-owner")
+
+    response = client.post(
+        "/api/v2/agents/tasks",
+        headers=headers,
+        json={"task": "计算 2 + 3 并查询算法课程信息"},
+    )
+
+    assert response.status_code == 201
+    task = response.json()
+    assert task["status"] == "completed"
+    call_tools = [step["tool_name"] for step in task["steps"] if step["phase"] == "call"]
+    assert call_tools == ["calculator", "course_lookup"]
+    assert "5" in task["final_answer"]
+    assert "算法设计" in task["final_answer"]
+    assert task["result_view"]["type"] == "mixed"
+    assert task["result_view"]["tools"] == ["calculator", "course_lookup"]
+    course_observation = next(
+        step for step in task["steps"]
+        if step["phase"] == "observe" and step["tool_name"] == "course_lookup"
+    )
+    assert course_observation["output_json"]["source"].endswith("courses.json")
+
+
 def test_v2_agent_missing_course_query_can_continue() -> None:
     headers = auth_headers_v2("agent-course-owner")
 
@@ -2527,6 +2553,304 @@ def test_v2_agent_file_content_search_uses_context_file() -> None:
     observe_step = next(step for step in task["steps"] if step["phase"] == "observe")
     assert observe_step["tool_name"] == "file_content_search"
     assert observe_step["output_json"]["matches"][0]["file_id"] == file_id
+
+
+def test_v2_personal_root_exists_before_upload_and_uploads_normalize_folder_id() -> None:
+    headers = auth_headers_v2("personal-root-owner")
+
+    tree_response = client.get("/api/v2/folders/tree", headers=headers)
+    assert tree_response.status_code == 200
+    roots = tree_response.json()["items"]
+    assert len([item for item in roots if item["scope"] == "personal"]) == 1
+    personal_root_id = next(item["id"] for item in roots if item["scope"] == "personal")
+    assert personal_root_id.startswith("personal-root-")
+    assert personal_root_id != "personal-root"
+
+    upload_response = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        data={"folder_id": "personal-root", "tags": "个人"},
+        files={"file": ("personal-note.txt", b"personal root content", "text/plain")},
+    )
+    assert upload_response.status_code == 201
+    uploaded = upload_response.json()
+    assert uploaded["folder_id"] == personal_root_id
+    assert uploaded["permission_scope"] == "个人"
+
+
+def test_v2_personal_folder_crud_and_delete_rehomes_files() -> None:
+    headers = auth_headers_v2("personal-folder-owner")
+    root_response = client.get("/api/v2/folders/tree", headers=headers)
+    root_id = next(item["id"] for item in root_response.json()["items"] if item["scope"] == "personal")
+
+    create_response = client.post(
+        "/api/v2/folders",
+        headers=headers,
+        json={"name": "资料夹", "parent_id": root_id, "scope": "personal"},
+    )
+    assert create_response.status_code == 201
+    folder = create_response.json()
+
+    rename_response = client.patch(
+        f"/api/v2/folders/{folder['id']}",
+        headers=headers,
+        json={"name": "课程资料"},
+    )
+    assert rename_response.status_code == 200
+    assert rename_response.json()["name"] == "课程资料"
+
+    upload_response = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        data={"folder_id": folder["id"], "tags": "课程"},
+        files={"file": ("course.txt", b"course folder content", "text/plain")},
+    )
+    assert upload_response.status_code == 201
+    file_id = upload_response.json()["id"]
+    assert upload_response.json()["folder_id"] == folder["id"]
+
+    delete_response = client.delete(f"/api/v2/folders/{folder['id']}", headers=headers)
+    assert delete_response.status_code == 204
+
+    files_response = client.get("/api/v2/files", headers=headers)
+    assert files_response.status_code == 200
+    rehomed = next(item for item in files_response.json()["items"] if item["id"] == file_id)
+    assert rehomed["folder_id"] == root_id
+
+    root_rename_response = client.patch(
+        f"/api/v2/folders/{root_id}",
+        headers=headers,
+        json={"name": "不能改"},
+    )
+    assert root_rename_response.status_code in (400, 422)
+
+
+def test_v2_multipart_upload_completes_as_real_personal_file() -> None:
+    headers = auth_headers_v2("v2-multipart-owner")
+    content = b"first chunk\nsecond chunk\n"
+    digest = hashlib.sha256(content).hexdigest()
+
+    init_response = client.post(
+        "/api/v2/files/multipart-uploads",
+        headers=headers,
+        json={
+            "filename": "multipart-real.txt",
+            "folder_id": "personal-root",
+            "size": len(content),
+            "sha256": digest,
+            "chunk_size": 12,
+            "tags": ["分片"],
+        },
+    )
+    assert init_response.status_code == 201
+    session = init_response.json()
+    assert session["folder_id"].startswith("personal-root-")
+    assert session["received_chunks"] == []
+
+    chunk_size = session["chunk_size"]
+    chunks = [content[start:start + chunk_size] for start in range(0, len(content), chunk_size)]
+    for index, chunk in enumerate(chunks):
+        chunk_response = client.put(
+            f"/api/v2/files/multipart-uploads/{session['id']}/chunks/{index}",
+            headers=headers,
+            data={"sha256": hashlib.sha256(chunk).hexdigest()},
+            files={"chunk": (f"chunk-{index}", chunk, "application/octet-stream")},
+        )
+        assert chunk_response.status_code == 200
+        assert index in chunk_response.json()["received_chunks"]
+
+    complete_response = client.post(
+        f"/api/v2/files/multipart-uploads/{session['id']}/complete",
+        headers=headers,
+    )
+    assert complete_response.status_code == 201
+    completed = complete_response.json()
+    assert completed["name"] == "multipart-real.txt"
+    assert completed["folder_id"] == session["folder_id"]
+    assert completed["sha256"] == digest
+    assert completed["tags"] == ["分片"]
+
+    download_response = client.get(f"/api/v2/files/{completed['id']}/download", headers=headers)
+    assert download_response.status_code == 200
+    assert download_response.content == content
+
+
+def test_v2_agent_task_detail_is_persisted_after_new_service_instance() -> None:
+    headers = auth_headers_v2("agent-persist-owner")
+    create_response = client.post(
+        "/api/v2/agents/tasks",
+        headers=headers,
+        json={"task": "计算 6 * 7"},
+    )
+    assert create_response.status_code == 201
+    task = create_response.json()
+    assert task["status"] == "completed"
+
+    agent_executor._AGENT_TASKS.clear()
+    agent_executor._AGENT_OWNERS.clear()
+    agent_executor._AGENT_REQUESTS.clear()
+
+    detail_response = client.get(f"/api/v2/agents/tasks/{task['id']}", headers=headers)
+    assert detail_response.status_code == 200
+    detail = detail_response.json()
+    assert detail["id"] == task["id"]
+    assert detail["steps"][-1]["phase"] == "answer"
+    assert "42" in detail["final_answer"]
+
+
+def test_v2_agent_continue_persists_messages_and_summarizes_long_history() -> None:
+    headers = auth_headers_v2("agent-memory-owner")
+    create_response = client.post(
+        "/api/v2/agents/tasks",
+        headers=headers,
+        json={"task": "解释什么是机器学习"},
+    )
+    assert create_response.status_code == 201
+    task = create_response.json()
+    assert task["status"] == "completed"
+    assert [message["role"] for message in task["messages"]] == ["user", "assistant"]
+
+    task_id = task["id"]
+    for index in range(8):
+        continue_response = client.post(
+            f"/api/v2/agents/tasks/{task_id}/continue",
+            headers=headers,
+            json={"message": f"继续补充第 {index} 个案例"},
+        )
+        assert continue_response.status_code == 200
+        continued = continue_response.json()
+        assert continued["id"] == task_id
+        assert continued["status"] == "completed"
+
+    detail_response = client.get(f"/api/v2/agents/tasks/{task_id}", headers=headers)
+    assert detail_response.status_code == 200
+    detail = detail_response.json()
+    messages = detail["messages"]
+    assert len(messages) <= 12
+    assert messages[0]["role"] == "system"
+    assert messages[0]["metadata"]["kind"] == "history_summary"
+    assert "解释什么是机器学习" in messages[0]["content"]
+    assert messages[-2]["role"] == "user"
+    assert messages[-2]["content"] == "继续补充第 7 个案例"
+    assert messages[-1]["role"] == "assistant"
+
+
+def test_v2_agent_system_evaluation_metrics_cover_required_scenarios() -> None:
+    headers = auth_headers_v2("agent-system-eval-owner")
+    text_upload = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        data={"folder_id": "personal-root", "tags": "eval"},
+        files={"file": ("eval-notes.txt", b"beta launch checklist and project risk", "text/plain")},
+    )
+    assert text_upload.status_code == 201
+    text_file_id = text_upload.json()["id"]
+    csv_upload = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        data={"folder_id": "personal-root", "tags": "eval,csv"},
+        files={"file": ("scores.csv", b"name,score\nalice,80\nbob,95\n", "text/csv")},
+    )
+    assert csv_upload.status_code == 201
+    csv_file_id = csv_upload.json()["id"]
+
+    cases = [
+        {"task": "解释什么是机器学习", "tools": [], "status": "completed"},
+        {"task": "计算 10 / 2", "tools": ["calculator"], "status": "completed"},
+        {"task": "查询算法课程信息", "tools": ["course_lookup"], "status": "completed"},
+        {"task": "查询不存在课程信息", "tools": ["course_lookup"], "status": "completed"},
+        {"task": "查询课程信息", "tools": ["course_lookup"], "status": "needs_clarification"},
+        {"task": "在文件内容中查询 beta", "tools": ["file_content_search"], "status": "completed", "context_file_ids": [text_file_id]},
+        {"task": "在文件内容中查询 gamma", "tools": ["file_content_search"], "status": "completed", "context_file_ids": [text_file_id]},
+        {"task": "分析csv数据", "tools": ["python_data"], "status": "completed", "context_file_ids": [csv_file_id]},
+        {"task": "计算 2 + 2 并查询算法课程信息", "tools": ["calculator", "course_lookup"], "status": "completed"},
+        {"task": "计算 2 + abc", "tools": ["calculator"], "status": "failed"},
+    ]
+
+    completed = 0
+    correct_tools = 0
+    results = []
+    for case in cases:
+        response = client.post(
+            "/api/v2/agents/tasks",
+            headers=headers,
+            json={
+                "task": case["task"],
+                "context_file_ids": case.get("context_file_ids", []),
+            },
+        )
+        assert response.status_code == 201
+        task = response.json()
+        called_tools = [step["tool_name"] for step in task["steps"] if step["phase"] == "call"]
+        expected_tools = case["tools"]
+        if task["status"] == case["status"]:
+            completed += 1
+        if called_tools == expected_tools:
+            correct_tools += 1
+        results.append({
+            "task": case["task"],
+            "status": task["status"],
+            "tools": called_tools,
+            "answer": task["final_answer"],
+        })
+
+    completion_rate = completed / len(cases)
+    tool_selection_accuracy = correct_tools / len(cases)
+
+    assert completion_rate >= 0.9, results
+    assert tool_selection_accuracy >= 0.9, results
+
+
+def test_v2_workflow_execution_uses_registered_tool_registry() -> None:
+    headers = auth_headers_v2("workflow-tool-registry-owner")
+    upload_response = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        data={"folder_id": "personal-root", "tags": "workflow"},
+        files={"file": ("workflow-notes.txt", b"workflow beta launch checklist", "text/plain")},
+    )
+    assert upload_response.status_code == 201
+    file_id = upload_response.json()["id"]
+
+    create_response = client.post(
+        "/api/v2/workflows",
+        headers=headers,
+        json={
+            "name": "真实工具流程",
+            "description": "使用注册工具执行",
+            "trigger": "manual",
+            "nodes": [
+                {"id": "input", "name": "选择文件", "type": "trigger"},
+                {
+                    "id": "search",
+                    "name": "查询文件",
+                    "type": "tool",
+                    "tool_name": "file_content_search",
+                    "parameters": {"query": "beta"},
+                },
+            ],
+            "edges": [{"id": "e1", "source": "input", "target": "search"}],
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    validate_response = client.post(f"/api/v2/workflows/{workflow_id}/validate", headers=headers)
+    assert validate_response.status_code == 200
+    assert validate_response.json()["valid"] is True
+
+    execution_response = client.post(
+        f"/api/v2/workflows/{workflow_id}/executions",
+        headers=headers,
+        json={"file_id": file_id, "target_kb_id": None},
+    )
+    assert execution_response.status_code == 201
+    execution = execution_response.json()
+    assert execution["status"] == "completed"
+    tool_node = next(node for node in execution["node_executions"] if node["node_id"] == "search")
+    assert tool_node["tool_name"] == "file_content_search"
+    assert tool_node["status"] == "success"
+    assert tool_node["output"]["matches"][0]["file_id"] == file_id
 
 
 def test_v2_knowledge_base_scope_metadata_delete_and_access_control() -> None:
@@ -2867,3 +3191,55 @@ def test_v2_rag_empty_knowledge_base_returns_actionable_error_code() -> None:
     detail_response = client.get(f"/api/v2/conversations/{body['conversation_id']}", headers=headers)
     assert detail_response.status_code == 200
     assert [message["role"] for message in detail_response.json()["messages"]] == ["user", "assistant"]
+
+
+def test_v2_rag_broad_document_explanation_uses_all_indexed_documents() -> None:
+    headers = auth_headers_v2("rag-explain-all-owner")
+    kb_response = client.post(
+        "/api/v2/knowledge-bases",
+        headers=headers,
+        json={"name": "课程资料知识库", "description": "测试文档级讲解"},
+    )
+    assert kb_response.status_code == 201
+    kb_id = kb_response.json()["id"]
+
+    uploads = [
+        ("algorithm-notes.md", "# 算法设计\n\n这份文档介绍分治算法、动态规划和复杂度分析。"),
+        ("database-notes.md", "# 数据库系统\n\n这份文档讲解关系模型、事务隔离和索引优化。"),
+        ("network-notes.md", "# 计算机网络\n\n这份文档说明 TCP 拥塞控制、路由协议和 HTTP 缓存。"),
+    ]
+    file_ids: list[str] = []
+    for filename, content in uploads:
+        response = client.post(
+            "/api/v2/files/upload",
+            headers=headers,
+            data={"folder_id": "personal-root", "tags": "rag"},
+            files={"file": (filename, content.encode(), "text/markdown")},
+        )
+        assert response.status_code == 201
+        file_ids.append(response.json()["id"])
+
+    batch_response = client.post(
+        f"/api/v2/knowledge-bases/{kb_id}/files:batch-add",
+        headers=headers,
+        json={"file_ids": file_ids},
+    )
+    assert batch_response.status_code == 200
+    assert len(batch_response.json()["added"]) == 3
+
+    qa_response = client.post(
+        "/api/v2/qa/query",
+        headers=headers,
+        json={"kb_id": kb_id, "question": "讲解这些文档", "top_k": 1},
+    )
+
+    assert qa_response.status_code == 200
+    body = qa_response.json()
+    assert body["error_code"] is None
+    assert {citation["file_id"] for citation in body["citations"]} == set(file_ids)
+    assert "algorithm-notes.md" in body["answer"]
+    assert "database-notes.md" in body["answer"]
+    assert "network-notes.md" in body["answer"]
+    assert "动态规划" in body["answer"]
+    assert "事务隔离" in body["answer"]
+    assert "拥塞控制" in body["answer"]

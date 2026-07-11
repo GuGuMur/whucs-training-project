@@ -31,8 +31,13 @@ def test_export_openapi_writes_v2_contract(tmp_path) -> None:
     assert "delete" in paths["/api/v2/conversations/{conversation_id}"]
     assert "/api/v2/tools" in paths
     assert "/api/v2/agents/tasks" in paths
+    assert "get" in paths["/api/v2/agents/tasks"]
+    assert "post" in paths["/api/v2/agents/tasks"]
+    assert "/api/v2/agents/tasks/plan" in paths
+    assert "/api/v2/agents/tasks/stream" in paths
     assert "/api/v2/agents/tasks/{task_id}" in paths
     assert "/api/v2/agents/tasks/{task_id}/continue" in paths
+    assert "/api/v2/agents/tasks/{task_id}/cancel" in paths
     assert "/api/v2/workflows" in paths
     assert "/api/v2/notifications" in paths
     assert "/api/v2/permissions/rules" in paths

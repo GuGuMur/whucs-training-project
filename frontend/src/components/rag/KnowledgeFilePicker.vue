@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
-import { FilePlus2, FileX2 } from '@lucide/vue'
+import { FilePlus2, FileX2, FileText } from '@lucide/vue'
 
 import type {
   WorkspaceFile,
@@ -35,13 +35,6 @@ const documentFileIds = computed(() => new Set(props.documents.map((document) =>
 const addableFiles = computed(() =>
   props.files.filter((file) => file.parse_status === 'indexed' && !documentFileIds.value.has(file.id)),
 )
-const removableDocuments = computed(() => props.documents)
-
-const desktopColumns = computed(() => [
-  { key: 'name', title: '文件' },
-  { key: 'parseStatus', title: '解析状态' },
-  { key: 'tags', title: '标签' },
-])
 
 function toggleSelected(list: string[], id: string) {
   return list.includes(id) ? list.filter((item) => item !== id) : [...list, id]
@@ -67,13 +60,6 @@ function submitBatchRemove() {
   selectedRemoveFileIds.value = []
 }
 
-function parseStatusLabel(status: WorkspaceFile['parse_status']) {
-  if (status === 'indexed') return '已解析'
-  if (status === 'parsing') return '解析中'
-  if (status === 'failed') return '解析失败'
-  return '等待解析'
-}
-
 function indexStatusLabel(status: WorkspaceKnowledgeDocument['index_status']) {
   if (status === 'indexed') return '已索引'
   if (status === 'indexing') return '索引中'
@@ -89,99 +75,78 @@ function statusType(status: string) {
 </script>
 
 <template>
-  <section class="grid gap-4" aria-label="知识库文件管理">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="min-w-0">
-        <h2 class="m-0 text-ink text-16px font-750">文件入库</h2>
-        <p class="m-0 mt-1 text-sub text-12px">选择已解析文件批量加入或移出当前知识库</p>
-      </div>
-      <div class="flex gap-2">
+  <section class="grid gap-3" aria-label="知识库文件管理">
+    <!-- Addable files -->
+    <div v-if="addableFiles.length" class="rounded-2 bg-#F7F9FC p-3">
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <p class="m-0 text-ink text-13px font-700">可入库文件</p>
         <NButton
           data-testid="batch-add-files"
           type="primary"
-          size="small"
+          size="tiny"
           :disabled="!activeKbId || !selectedAddFileIds.length"
           :loading="adding"
           @click="submitBatchAdd"
         >
-          <template #icon><NIcon aria-hidden="true"><FilePlus2 /></NIcon></template>
-          批量加入
+          <template #icon><NIcon :size="12"><FilePlus2 /></NIcon></template>
+          加入知识库
         </NButton>
+      </div>
+      <div class="grid gap-1.5 max-h-240px overflow-auto">
+        <button
+          v-for="file in addableFiles" :key="file.id" type="button"
+          :data-testid="`select-file-${file.id}`"
+          class="w-full flex items-center gap-2 rounded-1.5 border px-2.5 py-1.5 text-left text-13px transition-colors"
+          :class="selectedAddFileIds.includes(file.id) ? 'border-primary bg-primary/8' : 'border-transparent bg-white hover:bg-muted'"
+          @click="toggleAddFile(file.id)"
+        >
+          <NIcon :size="13" color="var(--sub-color)"><FileText /></NIcon>
+          <span class="flex-1 truncate text-ink">{{ file.name }}</span>
+          <span class="text-sub text-11px shrink-0">{{ file.type }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Indexed documents -->
+    <div>
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <div class="flex items-center gap-2">
+          <p class="m-0 text-ink text-13px font-700">已入库文件</p>
+          <NTag size="tiny" round :bordered="false">{{ documents.length }}</NTag>
+        </div>
         <NButton
+          v-if="selectedRemoveFileIds.length"
           data-testid="batch-remove-files"
-          secondary
-          size="small"
-          :disabled="!activeKbId || !selectedRemoveFileIds.length"
+          type="error"
+          size="tiny"
           :loading="removing || loading"
           @click="submitBatchRemove"
         >
-          <template #icon><NIcon aria-hidden="true"><FileX2 /></NIcon></template>
-          批量移除
+          <template #icon><NIcon :size="12"><FileX2 /></NIcon></template>
+          移出 {{ selectedRemoveFileIds.length }} 个
         </NButton>
       </div>
-    </div>
-
-    <div class="hidden md:block">
-      <NDataTable :columns="desktopColumns" :data="addableFiles" size="small" :pagination="false" />
-    </div>
-
-    <div class="grid gap-2">
-      <div class="flex items-center justify-between gap-3">
-        <h3 class="m-0 text-ink text-14px font-700">可加入文件</h3>
-        <NTag size="small" round :bordered="false">{{ addableFiles.length }} 个</NTag>
-      </div>
-      <NEmpty v-if="!addableFiles.length" size="small" description="暂无可加入的已解析文件" />
-      <button
-        v-for="file in addableFiles"
-        v-else
-        :key="file.id"
-        type="button"
-        :data-testid="`select-file-${file.id}`"
-        class="w-full border rounded-2 px-3 py-2 text-left transition-colors"
-        :class="selectedAddFileIds.includes(file.id) ? 'border-primary bg-#EEF5FF' : 'border-line bg-surface hover:bg-muted'"
-        @click="toggleAddFile(file.id)"
-      >
-        <div class="flex items-center justify-between gap-3">
-          <div class="min-w-0">
-            <p class="m-0 truncate text-ink text-13px font-700">{{ file.name }}</p>
-            <p class="m-0 mt-0.5 text-sub text-12px">{{ file.tags.join(' / ') || '无标签' }}</p>
-          </div>
-          <NTag size="small" round :bordered="false" :type="statusType(file.parse_status)">
-            {{ parseStatusLabel(file.parse_status) }}
-          </NTag>
-        </div>
-      </button>
-    </div>
-
-    <div class="grid gap-2">
-      <div class="flex items-center justify-between gap-3">
-        <h3 class="m-0 text-ink text-14px font-700">已入库文件</h3>
-        <NTag size="small" round :bordered="false">{{ removableDocuments.length }} 个</NTag>
-      </div>
-      <NEmpty v-if="!removableDocuments.length" size="small" description="当前知识库暂无文件" />
-      <button
-        v-for="document in removableDocuments"
-        v-else
-        :key="document.id"
-        type="button"
-        :data-testid="`select-document-${document.file_id}`"
-        class="w-full border rounded-2 px-3 py-2 text-left transition-colors"
-        :class="selectedRemoveFileIds.includes(document.file_id) ? 'border-danger bg-#FFF1F2' : 'border-line bg-#F8FAFD hover:bg-muted'"
-        @click="toggleRemoveFile(document.file_id)"
-      >
-        <div class="flex items-center justify-between gap-3">
-          <div class="min-w-0">
-            <p class="m-0 truncate text-ink text-13px font-700">{{ document.file_name }}</p>
-            <p class="m-0 mt-0.5 text-sub text-12px">
-              {{ document.chunk_count }} 片段
+      <NEmpty v-if="!documents.length" size="small" description="上传文件后将自动入库，或点击「重建索引」" />
+      <div v-else class="grid gap-1.5 max-h-320px overflow-auto">
+        <button
+          v-for="document in documents" :key="document.id" type="button"
+          :data-testid="`select-document-${document.file_id}`"
+          class="w-full flex items-center gap-2 rounded-1.5 border px-2.5 py-1.5 text-left text-13px transition-colors"
+          :class="selectedRemoveFileIds.includes(document.file_id) ? 'border-danger bg-danger/8' : 'border-transparent bg-#F8FAFD hover:bg-muted'"
+          @click="toggleRemoveFile(document.file_id)"
+        >
+          <NIcon :size="13" color="var(--sub-color)"><FileText /></NIcon>
+          <div class="flex-1 min-w-0">
+            <p class="m-0 truncate text-ink font-550">{{ document.file_name }}</p>
+            <p class="m-0 text-sub text-11px">{{ document.chunk_count }} 片段
               <span v-if="document.error_message"> · {{ document.error_message }}</span>
             </p>
           </div>
-          <NTag size="small" round :bordered="false" :type="statusType(document.index_status)">
+          <NTag size="tiny" round :bordered="false" :type="statusType(document.index_status)">
             {{ indexStatusLabel(document.index_status) }}
           </NTag>
-        </div>
-      </button>
+        </button>
+      </div>
     </div>
   </section>
 </template>

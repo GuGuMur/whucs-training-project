@@ -29,6 +29,12 @@ def upgrade() -> None:
 
     op.add_column("knowledge_documents", sa.Column("version_sha", sa.String(length=64), nullable=False, server_default=""))
     op.add_column("knowledge_documents", sa.Column("error_message", sa.Text(), nullable=False, server_default=""))
+    op.add_column("knowledge_documents", sa.Column("content_text", sa.Text(), nullable=False, server_default=""))
+    op.add_column("knowledge_documents", sa.Column("summary", sa.Text(), nullable=False, server_default=""))
+    op.add_column("knowledge_documents", sa.Column("keywords", sa.Text(), nullable=False, server_default="[]"))
+    op.add_column("knowledge_documents", sa.Column("outline", sa.Text(), nullable=False, server_default="[]"))
+    op.add_column("knowledge_documents", sa.Column("char_count", sa.Integer(), nullable=False, server_default="0"))
+    op.add_column("knowledge_documents", sa.Column("token_count", sa.Integer(), nullable=False, server_default="0"))
 
     op.create_table(
         "knowledge_conversations",
@@ -82,6 +88,12 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_knowledge_conversations_kb_id"), table_name="knowledge_conversations")
     op.drop_table("knowledge_conversations")
 
+    op.drop_column("knowledge_documents", "token_count")
+    op.drop_column("knowledge_documents", "char_count")
+    op.drop_column("knowledge_documents", "outline")
+    op.drop_column("knowledge_documents", "keywords")
+    op.drop_column("knowledge_documents", "summary")
+    op.drop_column("knowledge_documents", "content_text")
     op.drop_column("knowledge_documents", "error_message")
     op.drop_column("knowledge_documents", "version_sha")
 

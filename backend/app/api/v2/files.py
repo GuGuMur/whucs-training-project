@@ -62,7 +62,7 @@ async def upload_file(
     user: Annotated[UserPublic, Depends(current_user)],
     svc: WorkspaceServiceDB = Depends(get_svc),
     file: Annotated[UploadFile, File()] = None,
-    folder_id: Annotated[str, Form()] = "personal-root",
+    folder_id: Annotated[str, Form()] = "",
     tags: Annotated[str | None, Form()] = None,
 ) -> FileItem:
     content = await file.read()

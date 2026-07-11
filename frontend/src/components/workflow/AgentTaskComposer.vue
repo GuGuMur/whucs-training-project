@@ -3,6 +3,7 @@ import { computed, shallowRef } from 'vue'
 import { Bot, Send } from '@lucide/vue'
 
 import type {
+  WorkspaceAgentPlanPreview,
   WorkspaceAgentTaskContinueInput,
   WorkspaceAgentTaskInput,
   WorkspaceFile,
@@ -14,15 +15,19 @@ const props = withDefaults(defineProps<{
   files?: WorkspaceFile[]
   knowledgeBases?: WorkspaceKnowledgeBase[]
   loading?: boolean
+  planPreview?: WorkspaceAgentPlanPreview | null
 }>(), {
   clarificationQuestion: '',
   files: () => [],
   knowledgeBases: () => [],
   loading: false,
+  planPreview: null,
 })
 
 const emit = defineEmits<{
   continue: [payload: WorkspaceAgentTaskContinueInput]
+  preview: [payload: WorkspaceAgentTaskInput]
+  stream: [payload: WorkspaceAgentTaskInput]
   submit: [payload: WorkspaceAgentTaskInput]
 }>()
 
@@ -30,6 +35,7 @@ const taskText = shallowRef('')
 const selectedKbId = shallowRef<string | null>(null)
 const selectedFileIds = shallowRef<string[]>([])
 const clarificationInput = shallowRef('')
+const streamOutput = shallowRef(true)
 
 const kbOptions = computed(() =>
   props.knowledgeBases.map((kb) => ({ label: kb.name, value: kb.id })),
@@ -38,14 +44,30 @@ const fileOptions = computed(() =>
   props.files.map((file) => ({ label: file.name, value: file.id })),
 )
 
-function submitTask() {
+function buildPayload(): WorkspaceAgentTaskInput | null {
   const task = taskText.value.trim()
-  if (!task) return
-  emit('submit', {
+  if (!task) return null
+  return {
     contextFileIds: selectedFileIds.value,
     kbId: selectedKbId.value,
     task,
-  })
+  }
+}
+
+function previewTask() {
+  const payload = buildPayload()
+  if (!payload) return
+  emit('preview', payload)
+}
+
+function confirmTask() {
+  const payload = buildPayload()
+  if (!payload) return
+  if (streamOutput.value) {
+    emit('stream', payload)
+  } else {
+    emit('submit', payload)
+  }
   taskText.value = ''
 }
 
@@ -80,10 +102,39 @@ function submitClarification() {
         placeholder="可选上下文文件"
       />
     </div>
-    <NButton type="primary" :disabled="!taskText.trim()" :loading="loading" @click="submitTask">
-      <template #icon><NIcon aria-hidden="true"><Send /></NIcon></template>
-      执行任务
-    </NButton>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <NSwitch v-model:value="streamOutput" :disabled="loading" />
+        <span class="text-sub text-13px">流式输出</span>
+      </div>
+      <NButton type="primary" :disabled="!taskText.trim()" :loading="loading" @click="previewTask">
+        <template #icon><NIcon aria-hidden="true"><Send /></NIcon></template>
+        预览计划
+      </NButton>
+    </div>
+
+    <NAlert
+      v-if="planPreview"
+      :type="planPreview.risk_level === 'high' ? 'error' : planPreview.risk_level === 'medium' ? 'warning' : 'info'"
+      :bordered="false"
+    >
+      <div class="grid gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <strong>{{ planPreview.intent || '直接回答' }}</strong>
+          <NTag size="small" round :bordered="false">{{ planPreview.risk_level }}</NTag>
+          <span>{{ planPreview.risk_reason }}</span>
+        </div>
+        <div v-if="planPreview.steps?.length" class="grid gap-1">
+          <div v-for="step in planPreview.steps" :key="`${step.tool_name}-${step.rationale}`" class="rounded-1 bg-#F8FAFD px-2 py-1 text-12px">
+            <strong>{{ step.tool_name }}</strong>
+            <span class="ml-2 text-sub">{{ step.rationale || step.risk_reason }}</span>
+          </div>
+        </div>
+        <NButton type="primary" :loading="loading" @click="confirmTask">
+          {{ streamOutput ? '确认并流式执行' : '确认执行' }}
+        </NButton>
+      </div>
+    </NAlert>
 
     <NAlert v-if="clarificationQuestion" type="warning" :bordered="false">
       {{ clarificationQuestion }}

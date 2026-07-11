@@ -10,5 +10,12 @@ from app.repositories.knowledge import (
     KnowledgeDocumentRepository,
     KnowledgeMessageRepository,
 )
-from app.repositories.workflow import WorkflowRepository
+from app.repositories.workflow import (
+    AgentMessageRepository,
+    AgentPlanRevisionRepository,
+    AgentTaskRepository,
+    AgentTaskStepRepository,
+    AgentToolCallRepository,
+    WorkflowRepository,
+)
 from app.repositories.general import PermissionRepository, NotificationRepository, AuditLogRepository, ConversationRepository, MultipartUploadRepository

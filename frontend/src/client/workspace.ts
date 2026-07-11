@@ -58,19 +58,27 @@ import {
 import {
   batchAddKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchAddPost,
   batchRemoveKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchRemovePost,
+  cancelAgentTaskApiV2AgentsTasksTaskIdCancelPost,
   continueAgentTaskApiV2AgentsTasksTaskIdContinuePost,
   deleteKnowledgeConversationApiV2ConversationsConversationIdDelete,
   getAgentTaskApiV2AgentsTasksTaskIdGet,
   knowledgeConversationDetailApiV2ConversationsConversationIdGet,
   knowledgeConversationsApiV2KnowledgeBasesKbIdConversationsGet,
+  listAgentTasksApiV2AgentsTasksGet,
+  previewAgentPlanApiV2AgentsTasksPlanPost,
   reindexKnowledgeBaseApiV2KnowledgeBasesKbIdReindexPost,
   reparseFileApiV2FilesFileIdReparsePost,
   toolsApiV2ToolsGet,
 } from '@/client/generated/sdk.gen'
 import type {
   AgentStep as GeneratedAgentStep,
+  AgentMessage,
+  AgentPlanPreviewResponse,
+  AgentPlanRevision,
   AgentTaskContinueRequest,
+  AgentTaskListResponse,
   AgentTaskResponse,
+  AgentToolCall,
   AuditLogEntry,
   Citation,
   FileCopyRequest,
@@ -135,8 +143,13 @@ import type {
 } from '@/client/generated'
 
 export type AgentStep = GeneratedAgentStep
+export type WorkspaceAgentMessage = AgentMessage
+export type WorkspaceAgentPlanPreview = AgentPlanPreviewResponse
+export type WorkspaceAgentPlanRevision = AgentPlanRevision
 export type WorkspaceAgentTask = AgentTaskResponse
+export type WorkspaceAgentTaskListResponse = AgentTaskListResponse
 export type WorkspaceAgentTaskStatus = AgentTaskResponse['status']
+export type WorkspaceAgentToolCall = AgentToolCall
 export type WorkspaceFile = FileItem
 export type WorkspaceFileAnnotation = FileAnnotationItem
 export type WorkspaceFileAnnotationReply = FileAnnotationReplyItem
@@ -189,6 +202,22 @@ export interface WorkspaceFileUploadInput {
   file: File
   folderId: string
   tags: string[]
+}
+export interface WorkspaceFileBatchUploadInput {
+  files: File[]
+  folderId: string
+  tags: string[]
+}
+export interface WorkspaceFileUploadResult {
+  file: WorkspaceFile | null
+  filename: string
+  success: boolean
+  error?: string
+}
+export interface WorkspaceFileBatchUploadResult {
+  results: WorkspaceFileUploadResult[]
+  successCount: number
+  failCount: number
 }
 export interface WorkspaceMultipartUploadInput extends WorkspaceFileUploadInput {
   chunkSize?: number
@@ -314,6 +343,13 @@ export interface WorkspaceAgentTaskInput {
 }
 export interface WorkspaceAgentTaskContinueInput {
   inputs?: AgentTaskContinueRequest['inputs']
+  message?: AgentTaskContinueRequest['message']
+}
+export interface WorkspaceAgentStreamEvent {
+  type: 'step' | 'plan' | 'call' | 'observe' | 'answer' | 'done' | 'error'
+  step?: AgentStep
+  task?: AgentTaskResponse
+  message?: string
 }
 export type {
   AuditLogEntry,
@@ -486,10 +522,42 @@ export async function createAgentTask(
   return response.data
 }
 
+export async function previewAgentPlan(
+  token: string,
+  payload: WorkspaceAgentTaskInput,
+): Promise<AgentPlanPreviewResponse> {
+  const response = await previewAgentPlanApiV2AgentsTasksPlanPost({
+    body: {
+      context_file_ids: payload.contextFileIds ?? [],
+      kb_id: payload.kbId ?? null,
+      task: payload.task,
+    },
+    headers: createAuthorizationHeader(token),
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
 export async function getAgentTask(token: string, taskId: string): Promise<AgentTaskResponse> {
   const response = await getAgentTaskApiV2AgentsTasksTaskIdGet({
     headers: createAuthorizationHeader(token),
     path: { task_id: taskId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function listAgentTasks(token: string): Promise<AgentTaskListResponse> {
+  const response = await listAgentTasksApiV2AgentsTasksGet({
+    headers: createAuthorizationHeader(token),
   })
 
   if (response.error) {
@@ -507,7 +575,21 @@ export async function continueAgentTask(
   const response = await continueAgentTaskApiV2AgentsTasksTaskIdContinuePost({
     body: {
       inputs: payload.inputs ?? {},
+      message: payload.message ?? null,
     },
+    headers: createAuthorizationHeader(token),
+    path: { task_id: taskId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
+export async function cancelAgentTask(token: string, taskId: string): Promise<AgentTaskResponse> {
+  const response = await cancelAgentTaskApiV2AgentsTasksTaskIdCancelPost({
     headers: createAuthorizationHeader(token),
     path: { task_id: taskId },
   })
@@ -771,6 +853,143 @@ export async function askWorkspaceQuestion(
   }
 
   return response.data
+}
+
+// ── Streaming Q&A ──
+
+export interface WorkspaceStreamEvent {
+  type: 'token' | 'citations' | 'done' | 'error'
+  content?: string
+  citations?: Array<{
+    file_id: string
+    document_id: string
+    chunk_id?: string
+    title: string
+    page_no?: number
+    paragraph_no?: number
+    snippet: string
+  }>
+  conversation_id?: string
+  message_id?: string
+  message?: string
+}
+
+export async function* askWorkspaceQuestionStream(
+  token: string,
+  payload: WorkspaceQuestionInput,
+): AsyncGenerator<WorkspaceStreamEvent> {
+  const response = await fetch('/api/v2/qa/query/stream', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      conversation_id: payload.conversationId ?? null,
+      kb_id: payload.kbId,
+      question: payload.question,
+      top_k: payload.topK ?? 8,
+      stream: true,
+    }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error')
+    throw new Error(`Stream request failed: ${response.status} ${errorText}`)
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error('ReadableStream not supported')
+  }
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const event: WorkspaceStreamEvent = JSON.parse(line.slice(6))
+            yield event
+            if (event.type === 'done' || event.type === 'error') {
+              return
+            }
+          } catch {
+            // Skip unparseable lines
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}
+
+export async function* streamAgentTask(
+  token: string,
+  payload: WorkspaceAgentTaskInput,
+): AsyncGenerator<WorkspaceAgentStreamEvent> {
+  const response = await fetch('/api/v2/agents/tasks/stream', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      context_file_ids: payload.contextFileIds ?? [],
+      kb_id: payload.kbId ?? null,
+      task: payload.task,
+    }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error')
+    throw new Error(`Agent stream request failed: ${response.status} ${errorText}`)
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error('ReadableStream not supported')
+  }
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const event: WorkspaceAgentStreamEvent = JSON.parse(line.slice(6))
+            yield event
+            if (event.type === 'done' || event.type === 'error') {
+              return
+            }
+          } catch {
+            // Skip unparseable lines
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
 }
 
 export async function listWorkspaceTeams(token: string): Promise<TeamListResponse> {
@@ -1075,6 +1294,36 @@ export async function uploadWorkspaceFile(token: string, payload: WorkspaceFileU
   }
 
   return response.data
+}
+
+export async function uploadWorkspaceFiles(
+  token: string,
+  payload: WorkspaceFileBatchUploadInput,
+): Promise<WorkspaceFileBatchUploadResult> {
+  const results = await Promise.allSettled(
+    payload.files.map((file) =>
+      uploadWorkspaceFile(token, { file, folderId: payload.folderId, tags: payload.tags }),
+    ),
+  )
+
+  const uploadResults: WorkspaceFileUploadResult[] = results.map((r, i) => {
+    const filename = payload.files[i]?.name ?? `file-${i}`
+    if (r.status === 'fulfilled') {
+      return { file: r.value, filename, success: true }
+    }
+    return {
+      file: null,
+      filename,
+      success: false,
+      error: r.reason instanceof Error ? r.reason.message : String(r.reason),
+    }
+  })
+
+  return {
+    results: uploadResults,
+    successCount: uploadResults.filter((r) => r.success).length,
+    failCount: uploadResults.filter((r) => !r.success).length,
+  }
 }
 
 export async function initWorkspaceMultipartUpload(

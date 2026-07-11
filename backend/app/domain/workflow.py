@@ -26,8 +26,27 @@ class AgentTaskRequest(BaseModel):
     context_file_ids: list[str] = Field(default_factory=list)
 
 
+class AgentPlanPreviewStep(BaseModel):
+    tool_name: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    rationale: str = ""
+    risk_level: Literal["low", "medium", "high"] = "low"
+    risk_reason: str = ""
+
+
+class AgentPlanPreviewResponse(BaseModel):
+    intent: str
+    missing_fields: list[str] = Field(default_factory=list)
+    answer_strategy: str = "direct"
+    risk_level: Literal["low", "medium", "high"] = "low"
+    risk_reason: str = ""
+    requires_confirmation: bool = False
+    steps: list[AgentPlanPreviewStep] = Field(default_factory=list)
+
+
 class AgentTaskContinueRequest(BaseModel):
     inputs: dict[str, Any] = Field(default_factory=dict)
+    message: str | None = Field(default=None, min_length=1, max_length=4000)
 
 
 class AgentStep(BaseModel):
@@ -43,13 +62,44 @@ class AgentStep(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class AgentMessage(BaseModel):
+    id: str
+    role: Literal["user", "assistant", "system"]
+    content: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentToolCall(BaseModel):
+    id: str
+    tool_name: str
+    input_json: dict[str, Any] = Field(default_factory=dict)
+    output_json: dict[str, Any] = Field(default_factory=dict)
+    status: Literal["success", "failed", "needs_clarification"] = "success"
+    error_message: str | None = None
+    latency_ms: int = 0
+
+
+class AgentPlanRevision(BaseModel):
+    id: str
+    revision_no: int
+    reason: str
+    plan_json: dict[str, Any] = Field(default_factory=dict)
+
+
 class AgentTaskResponse(BaseModel):
     id: str
     task: str
-    status: Literal["queued", "running", "completed", "failed", "needs_clarification"]
+    status: Literal["queued", "running", "completed", "failed", "needs_clarification", "cancelled"]
     steps: list[AgentStep]
     final_answer: str
     result_view: dict[str, Any] = Field(default_factory=dict)
+    messages: list[AgentMessage] = Field(default_factory=list)
+    tool_calls: list[AgentToolCall] = Field(default_factory=list)
+    plan_revisions: list[AgentPlanRevision] = Field(default_factory=list)
+
+
+class AgentTaskListResponse(BaseModel):
+    items: list[AgentTaskResponse]
 
 
 WorkflowNodeType = Literal["trigger", "tool",

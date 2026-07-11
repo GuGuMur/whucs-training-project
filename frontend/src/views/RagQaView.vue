@@ -39,6 +39,9 @@ const {
   knowledgeMessagesByConversationId,
   knowledgeOperationLoading,
   reindexingKnowledgeBaseId,
+  streamingAnswer,
+  isStreaming,
+  streamingCitations,
 } = storeToRefs(knowledge)
 
 const { isMobileLayout } = useWorkspaceLayoutMode()
@@ -47,7 +50,7 @@ const layout = computed(() => (isMobileLayout.value ? MobileWorkspaceLayout : De
 
 const managerVisible = shallowRef(false)
 const editingKnowledgeBase = shallowRef<WorkspaceKnowledgeBase | null>(null)
-const activeWorkTab = shallowRef<'files' | 'conversations'>('files')
+const activeWorkTab = shallowRef<'files' | 'conversations'>('conversations')
 
 const activeConversations = computed(() =>
   activeKnowledgeBaseId.value
@@ -202,6 +205,27 @@ async function reindexActiveKnowledgeBase() {
         </div>
 
         <NTabs v-model:value="activeWorkTab" type="line" animated>
+          <NTabPane name="conversations" tab="对话">
+            <div class="pt-2">
+              <KnowledgeConversationPanel
+                :active-conversation-id="activeConversationId"
+                :active-kb-id="activeKnowledgeBaseId"
+                :asking="askingQuestion"
+                :conversations="activeConversations"
+                :deleting-conversation-id="deletingConversationId"
+                :is-streaming="isStreaming"
+                :loading="conversationLoading"
+                :messages="activeMessages"
+                :streaming-answer="streamingAnswer"
+                :streaming-citations="streamingCitations"
+                @ask-question="askQuestion"
+                @ask-question-stream="(p) => knowledge.askKnowledgeQuestionStream(p)"
+                @delete-conversation="deleteConversation"
+                @select-conversation="selectConversation"
+                @start-new-conversation="startNewConversation"
+              />
+            </div>
+          </NTabPane>
           <NTabPane name="files" tab="文件管理">
             <div class="pt-2">
               <KnowledgeFilePicker
@@ -216,24 +240,6 @@ async function reindexActiveKnowledgeBase() {
               />
             </div>
           </NTabPane>
-
-          <NTabPane name="conversations" tab="对话记录">
-            <div class="pt-2">
-              <KnowledgeConversationPanel
-                :active-conversation-id="activeConversationId"
-                :active-kb-id="activeKnowledgeBaseId"
-                :asking="askingQuestion"
-                :conversations="activeConversations"
-                :deleting-conversation-id="deletingConversationId"
-                :loading="conversationLoading"
-                :messages="activeMessages"
-                @ask-question="askQuestion"
-                @delete-conversation="deleteConversation"
-                @select-conversation="selectConversation"
-                @start-new-conversation="startNewConversation"
-              />
-            </div>
-          </NTabPane>
         </NTabs>
       </NCard>
     </div>
@@ -243,6 +249,7 @@ async function reindexActiveKnowledgeBase() {
         :knowledge-base="editingKnowledgeBase"
         :loading="knowledgeOperationLoading || deletingKnowledgeBaseId === editingKnowledgeBase?.id"
         :mode="managerMode"
+        :teams="workspace.teams"
         @archive="archiveKnowledgeBase"
         @create="createKnowledgeBase"
         @delete="deleteKnowledgeBase"

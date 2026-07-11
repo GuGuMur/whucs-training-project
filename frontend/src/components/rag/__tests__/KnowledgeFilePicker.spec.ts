@@ -72,7 +72,7 @@ describe('KnowledgeFilePicker', () => {
     expect(wrapper.emitted('batch-remove')).toEqual([[['file-course']]])
   })
 
-  it('shows parse and index status labels for transparency', () => {
+  it('shows index status labels for documents', () => {
     const wrapper = shallowMount(KnowledgeFilePicker, {
       props: {
         activeKbId: 'kb-course',
@@ -81,7 +81,6 @@ describe('KnowledgeFilePicker', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('已解析')
     expect(wrapper.text()).toContain('索引失败')
     expect(wrapper.text()).toContain('解析失败')
   })

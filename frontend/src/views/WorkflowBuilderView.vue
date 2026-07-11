@@ -36,6 +36,7 @@ import { useWorkspaceNavigation } from '@/composables/useWorkspaceNavigation'
 import DesktopWorkspaceLayout from '@/layouts/DesktopWorkspaceLayout.vue'
 import MobileWorkspaceLayout from '@/layouts/MobileWorkspaceLayout.vue'
 import AgentExecutionTimeline from '@/components/workflow/AgentExecutionTimeline.vue'
+import AgentTaskDetailPanel from '@/components/workflow/AgentTaskDetailPanel.vue'
 import AgentTaskComposer from '@/components/workflow/AgentTaskComposer.vue'
 import ToolCatalogPanel from '@/components/workflow/ToolCatalogPanel.vue'
 import ToolResultViewer from '@/components/workflow/ToolResultViewer.vue'
@@ -95,7 +96,10 @@ const {
   executionSteps,
   finalAnswer,
   loading: agentLoading,
+  isStreaming: agentStreaming,
+  planPreview,
   resultView,
+  taskHistory,
   tools: agentTools,
 } = storeToRefs(agent)
 const { isMobileLayout } = useWorkspaceLayoutMode()
@@ -220,6 +224,9 @@ const validationSummary = computed(() => (validationIssues.value.length === 0 ? 
 onMounted(() => {
   void workspace.loadWorkspace()
   void agent.loadTools()
+  void agent.loadTaskHistory().catch(() => {
+    message.warning('历史任务加载失败，可继续创建新任务')
+  })
   nextTick(() => {
     flow.fitView({ padding: 0.25 })
     window.setTimeout(() => flow.fitView({ padding: 0.25 }), 120)
@@ -379,7 +386,7 @@ async function singleStep() {
       status: task.status,
       remaining: task.status === 'needs_clarification' ? 1 : 0,
     }
-    executionProgress.value = task.status === 'completed' ? 100 : 50
+    executionProgress.value = task.status === 'completed' || task.status === 'cancelled' ? 100 : 50
     message.success(task.status === 'needs_clarification' ? '需要补充参数' : '智能体调试已执行')
   } catch { message.error('单步调试失败') }
 }
@@ -394,19 +401,53 @@ function resetRunState() {
 async function submitAgentTask(payload: { task: string; kbId?: string | null; contextFileIds?: string[] }) {
   try {
     await agent.createTask(payload)
-    executionProgress.value = activeTask.value?.status === 'completed' ? 100 : 50
+    executionProgress.value = activeTask.value?.status === 'completed' || activeTask.value?.status === 'cancelled' ? 100 : 50
   } catch {
     message.error('智能体任务执行失败')
   }
 }
 
-async function continueActiveAgentTask(payload: { inputs?: Record<string, unknown> }) {
+async function previewAgentTask(payload: { task: string; kbId?: string | null; contextFileIds?: string[] }) {
+  try {
+    await agent.previewTaskPlan(payload)
+  } catch {
+    message.error('智能体计划预览失败')
+  }
+}
+
+async function streamAgentTaskAction(payload: { task: string; kbId?: string | null; contextFileIds?: string[] }) {
+  try {
+    await agent.createTaskStream(payload)
+    executionProgress.value = activeTask.value?.status === 'completed' || activeTask.value?.status === 'cancelled' ? 100 : 75
+  } catch {
+    message.error('智能体流式执行失败')
+  }
+}
+
+async function continueActiveAgentTask(payload: { inputs?: Record<string, unknown>; message?: string | null }) {
   if (!activeTask.value) return
   try {
     await agent.continueTask(activeTask.value.id, payload)
-    executionProgress.value = activeTask.value?.status === 'completed' ? 100 : 75
+    executionProgress.value = activeTask.value?.status === 'completed' || activeTask.value?.status === 'cancelled' ? 100 : 75
   } catch {
     message.error('智能体任务继续执行失败')
+  }
+}
+
+async function loadAgentTask(taskId: string) {
+  try {
+    await agent.loadTask(taskId)
+  } catch {
+    message.error('历史任务加载失败')
+  }
+}
+
+async function cancelAgentTask(taskId: string) {
+  try {
+    await agent.cancelTask(taskId)
+    executionProgress.value = 100
+  } catch {
+    message.error('任务取消失败')
   }
 }
 
@@ -512,6 +553,14 @@ function startDebugResize(event: MouseEvent) {
             <NTag :type="hasBlockingIssue ? 'error' : 'success'" round>{{ hasBlockingIssue ? '待修复' : '可执行' }}</NTag>
           </div>
 
+          <section class="agent-composer-panel" aria-label="自然语言工具流">
+            <AgentTaskComposer :clarification-question="clarificationQuestion" :files="files"
+              :knowledge-bases="knowledgeBases" :loading="agentLoading || agentStreaming" :plan-preview="planPreview"
+              @continue="continueActiveAgentTask" @preview="previewAgentTask"
+              @stream="streamAgentTaskAction"
+              @submit="submitAgentTask" />
+          </section>
+
           <div class="canvas-area" :style="canvasAreaStyle" @drop="onDrop" @dragover.prevent>
             <VueFlow v-model:nodes="nodes" v-model:edges="edges" :default-viewport="{ zoom: 0.92, x: 40, y: 28 }"
               :fit-view-on-init="true" class="workflow-canvas" @node-click="onNodeClick">
@@ -612,14 +661,19 @@ function startDebugResize(event: MouseEvent) {
                 <NEmpty v-else description="选择一个节点查看参数" />
               </NCard>
 
-              <NCard size="small" :bordered="false" class="builder-card grow-card">
-                <AgentTaskComposer :clarification-question="clarificationQuestion" :files="files"
-                  :knowledge-bases="knowledgeBases" :loading="agentLoading" @continue="continueActiveAgentTask"
-                  @submit="submitAgentTask" />
-              </NCard>
-
               <NCard size="small" :bordered="false" class="builder-card">
                 <ToolCatalogPanel :tools="agentTools" />
+              </NCard>
+
+              <NCard size="small" :bordered="false" class="builder-card grow-card">
+                <AgentTaskDetailPanel
+                  :active-task="activeTask"
+                  :loading="agentLoading"
+                  :task-history="taskHistory"
+                  @cancel="cancelAgentTask"
+                  @continue="continueActiveAgentTask"
+                  @select-task="loadAgentTask"
+                />
               </NCard>
 
               <NCard size="small" :bordered="false" class="builder-card">
@@ -727,6 +781,14 @@ function startDebugResize(event: MouseEvent) {
   border: 1px solid #e8eef6;
   border-radius: 8px;
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
+}
+
+.agent-composer-panel {
+  margin: 12px 12px 0;
+  padding: 12px;
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  background: #f8fafd;
 }
 
 .title-input {

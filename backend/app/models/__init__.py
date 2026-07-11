@@ -10,5 +10,5 @@ from app.models.knowledge import (
     KnowledgeDocument,
     KnowledgeMessage,
 )
-from app.models.workflow import Workflow
+from app.models.workflow import AgentMessage, AgentPlanRevision, AgentTask, AgentTaskStep, AgentToolCall, Workflow
 from app.models.general import PermissionRule, Notification, AuditLog, Conversation, MultipartUpload, ShareLink, FileAnnotation, DeletedFile

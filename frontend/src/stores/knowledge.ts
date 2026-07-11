@@ -5,6 +5,8 @@ import { requireAccessToken, resolveOptionalAccessToken } from '@/auth'
 import {
   addKnowledgeDocument,
   askWorkspaceQuestion,
+  askWorkspaceQuestionStream,
+  type WorkspaceStreamEvent,
   batchAddKnowledgeFiles,
   batchRemoveKnowledgeFiles,
   createKnowledgeBase,
@@ -47,6 +49,11 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
   const deletingConversationId = shallowRef<string | null>(null)
   const reindexingKnowledgeBaseId = shallowRef<string | null>(null)
   const conversationLoading = shallowRef(false)
+
+  // Streaming state
+  const streamingAnswer = shallowRef('')
+  const isStreaming = shallowRef(false)
+  const streamingCitations = shallowRef<WorkspaceStreamEvent['citations']>([])
 
   const errorMessage = shallowRef('')
 
@@ -377,6 +384,104 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     }
   }
 
+  async function askKnowledgeQuestionStream(payload: WorkspaceQuestionInput) {
+    const accessToken = requireAccessToken()
+    const nextPayload: WorkspaceQuestionInput = {
+      conversationId: payload.conversationId ?? activeConversationId.value,
+      kbId: payload.kbId,
+      question: payload.question.trim(),
+      topK: payload.topK ?? 8,
+    }
+
+    isStreaming.value = true
+    streamingAnswer.value = ''
+    streamingCitations.value = []
+    errorMessage.value = ''
+
+    // Prepend user message optimistically
+    const convId = nextPayload.conversationId ?? `pending-${Date.now()}`
+    const tempUserMsg: WorkspaceKnowledgeMessage = {
+      id: `temp-user-${Date.now()}`,
+      conversation_id: convId,
+      role: 'user',
+      content: nextPayload.question,
+      citations: [],
+      created_at: new Date().toISOString(),
+    }
+    const existing = knowledgeMessagesByConversationId.value[convId] ?? []
+    knowledgeMessagesByConversationId.value = {
+      ...knowledgeMessagesByConversationId.value,
+      [convId]: [...existing, tempUserMsg],
+    }
+
+    try {
+      for await (const event of askWorkspaceQuestionStream(accessToken, nextPayload)) {
+        switch (event.type) {
+          case 'token':
+            streamingAnswer.value += event.content || ''
+            break
+          case 'citations':
+            streamingCitations.value = event.citations || []
+            break
+          case 'done':
+            {
+              const finalConversationId = event.conversation_id || convId
+              const pendingMessages = knowledgeMessagesByConversationId.value[convId] ?? []
+              const existingFinalMessages = finalConversationId === convId
+                ? pendingMessages
+                : knowledgeMessagesByConversationId.value[finalConversationId] ?? []
+              const normalizedPendingMessages = pendingMessages.map((message) => ({
+                ...message,
+                conversation_id: finalConversationId,
+              }))
+              const finalMessages = finalConversationId === convId
+                ? existingFinalMessages
+                : [...existingFinalMessages, ...normalizedPendingMessages]
+              const streamCitations = normalizeStreamCitations(streamingCitations.value)
+
+              activeConversationId.value = finalConversationId
+              activeKnowledgeBaseId.value = payload.kbId
+              // Append final assistant message with citation cards preserved.
+              const finalMsg: WorkspaceKnowledgeMessage = {
+                id: event.message_id || `msg-${Date.now()}`,
+                conversation_id: finalConversationId,
+                role: 'assistant',
+                content: streamingAnswer.value,
+                citations: streamCitations,
+                created_at: new Date().toISOString(),
+              }
+              const nextMessagesByConversationId = {
+                ...knowledgeMessagesByConversationId.value,
+                [finalConversationId]: [...finalMessages, finalMsg],
+              }
+              if (finalConversationId !== convId) {
+                delete nextMessagesByConversationId[convId]
+              }
+              knowledgeMessagesByConversationId.value = nextMessagesByConversationId
+              narrative.value = {
+                ...narrative.value,
+                answer: streamingAnswer.value,
+                citations: streamCitations,
+              }
+            }
+            // Refresh conversation list
+            await loadKnowledgeConversations(payload.kbId, accessToken)
+            streamingAnswer.value = ''
+            streamingCitations.value = []
+            break
+          case 'error':
+            errorMessage.value = event.message || '流式回答生成失败'
+            break
+        }
+      }
+    } catch (error) {
+      errorMessage.value = '流式问答连接失败，请稍后重试'
+      throw error
+    } finally {
+      isStreaming.value = false
+    }
+  }
+
   async function selectKnowledgeBase(kbId: string) {
     if (!knowledgeBases.value.some((kb) => kb.id === kbId)) {
       return
@@ -513,6 +618,18 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     return Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)))
   }
 
+  function normalizeStreamCitations(citations: WorkspaceStreamEvent['citations'] = []) {
+    return citations.map((citation, index) => ({
+      chunk_id: citation.chunk_id || `stream-citation-${index + 1}`,
+      document_id: citation.document_id,
+      file_id: citation.file_id,
+      page_no: citation.page_no ?? 1,
+      paragraph_no: citation.paragraph_no ?? 1,
+      snippet: citation.snippet,
+      title: citation.title,
+    }))
+  }
+
   function upsertConversation(
     conversations: WorkspaceKnowledgeConversation[],
     conversation: WorkspaceKnowledgeConversation,
@@ -547,6 +664,9 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     deletingConversationId,
     reindexingKnowledgeBaseId,
     conversationLoading,
+    streamingAnswer,
+    isStreaming,
+    streamingCitations,
     errorMessage,
     // computed
     activeKnowledgeBase,
@@ -572,6 +692,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     deleteKnowledgeConversation: deleteKnowledgeConversationAction,
     deleteKnowledgeConversationAction,
     askKnowledgeQuestion,
+    askKnowledgeQuestionStream,
     selectKnowledgeBase,
     startNewConversation,
     setSelectedFileIds,

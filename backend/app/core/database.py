@@ -49,6 +49,12 @@ def _ensure_sqlite_schema(conn) -> None:
     doc_additions = {
         "version_sha": "ALTER TABLE knowledge_documents ADD COLUMN version_sha VARCHAR(64) DEFAULT '' NOT NULL",
         "error_message": "ALTER TABLE knowledge_documents ADD COLUMN error_message TEXT DEFAULT '' NOT NULL",
+        "content_text": "ALTER TABLE knowledge_documents ADD COLUMN content_text TEXT DEFAULT '' NOT NULL",
+        "summary": "ALTER TABLE knowledge_documents ADD COLUMN summary TEXT DEFAULT '' NOT NULL",
+        "keywords": "ALTER TABLE knowledge_documents ADD COLUMN keywords TEXT DEFAULT '[]' NOT NULL",
+        "outline": "ALTER TABLE knowledge_documents ADD COLUMN outline TEXT DEFAULT '[]' NOT NULL",
+        "char_count": "ALTER TABLE knowledge_documents ADD COLUMN char_count INTEGER DEFAULT 0 NOT NULL",
+        "token_count": "ALTER TABLE knowledge_documents ADD COLUMN token_count INTEGER DEFAULT 0 NOT NULL",
     }
     for column, statement in doc_additions.items():
         if column not in doc_columns:

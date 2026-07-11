@@ -54,6 +54,7 @@ import {
   updateWorkspaceWorkflow,
   uploadWorkspaceMultipartFile,
   uploadWorkspaceFile,
+  uploadWorkspaceFiles,
   validateWorkspaceWorkflow,
   type AgentStep,
   type WorkspaceFile,
@@ -66,6 +67,8 @@ import {
   type WorkspaceFileFilters,
   type WorkspaceFileUpdateInput,
   type WorkspaceFileUploadInput,
+  type WorkspaceFileBatchUploadInput,
+  type WorkspaceFileBatchUploadResult,
   type WorkspaceShareLink,
   type WorkspaceShareLinkCreateInput,
   type WorkspaceMultipartUploadInput,
@@ -156,7 +159,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const activeWorkflowExecution = shallowRef<WorkspaceWorkflowExecution | null>(null);
   const loading = shallowRef(false);
   const folderTreeLoading = shallowRef(false);
-  const activeFolderId = shallowRef<string | null>("personal-root");
+  const activeFolderId = shallowRef<string | null>(null);
   const creatingFolder = shallowRef(false);
   const updatingFolderId = shallowRef<string | null>(null);
   const deletingFolderId = shallowRef<string | null>(null);
@@ -454,6 +457,35 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       insertFileIntoSnapshot(uploaded);
       apiState.value = "live";
       return uploaded;
+    } catch (error) {
+      errorMessage.value = "文件上传失败，请检查文件和权限后重试";
+      throw error;
+    } finally {
+      uploadingFile.value = false;
+    }
+  }
+
+  async function uploadFiles(payload: WorkspaceFileBatchUploadInput): Promise<WorkspaceFileBatchUploadResult> {
+    const accessToken = requireAccessToken();
+
+    uploadingFile.value = true;
+    errorMessage.value = "";
+    try {
+      const result = await uploadWorkspaceFiles(accessToken, payload);
+      // Insert all successful files into snapshot
+      for (const r of result.results) {
+        if (r.success && r.file) {
+          insertFileIntoSnapshot(r.file);
+        }
+      }
+      if (result.successCount > 0) {
+        fileFilters.value = { ...emptyFileFilters };
+        apiState.value = "live";
+      }
+      if (result.failCount > 0) {
+        errorMessage.value = `${result.successCount} 个文件上传成功，${result.failCount} 个失败`;
+      }
+      return result;
     } catch (error) {
       errorMessage.value = "文件上传失败，请检查文件和权限后重试";
       throw error;
@@ -779,9 +811,13 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     errorMessage.value = "";
     try {
       const response = await listWorkspaceTeamMessages(accessToken, teamId);
+      // Don't replace with empty — preserves messages during race conditions
+      const items = response.items.length > 0
+        ? response.items
+        : (teamMessagesById.value[teamId] ?? []);
       teamMessagesById.value = {
         ...teamMessagesById.value,
-        [teamId]: [...response.items],
+        [teamId]: items,
       };
       apiState.value = "live";
       return response;
@@ -1822,6 +1858,18 @@ export const useWorkspaceStore = defineStore("workspace", () => {
             notifications.value = [newNotif, ...notifications.value];
             syncUnreadNotificationSummary((snapshot.value.summary.unread_notifications ?? 0) + 1);
           }
+          if (payload.event === "team_message" && payload.data) {
+            // Real-time team chat: append new message to local state
+            const msg = payload.data as { id: string; team_id: string; content: string; sender_name: string; sender_id: number; message_type: string; created_at: string };
+            const existing = teamMessagesById.value[msg.team_id] ?? [];
+            // Avoid duplicates (e.g. if sender's own message was already optimistically added)
+            if (!existing.some(m => m.id === msg.id)) {
+              teamMessagesById.value = {
+                ...teamMessagesById.value,
+                [msg.team_id]: [...existing, msg],
+              };
+            }
+          }
         } catch {
           /* ignore malformed messages */
         }
@@ -1959,6 +2007,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     updatingFolderId,
     uploadLargeFile,
     uploadFile,
+    uploadFiles,
     uploadingFile,
     validateWorkflow,
     versionFileId,

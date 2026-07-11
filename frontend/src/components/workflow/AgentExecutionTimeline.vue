@@ -39,6 +39,33 @@ function formatJson(value: unknown) {
   if (!value || typeof value !== 'object') return ''
   return JSON.stringify(value, null, 2)
 }
+
+function metadataValue(step: AgentStep, key: string) {
+  const metadata = step.metadata
+  if (!metadata || typeof metadata !== 'object') return null
+  return (metadata as Record<string, unknown>)[key]
+}
+
+function plannedTools(step: AgentStep) {
+  const input = step.input_json
+  if (!input || typeof input !== 'object') return []
+  const planned = (input as Record<string, unknown>).planned_tools
+  if (!Array.isArray(planned)) return []
+  return planned
+    .map((item) => {
+      if (!Array.isArray(item)) return ''
+      return typeof item[0] === 'string' ? item[0] : ''
+    })
+    .filter(Boolean)
+}
+
+function outputSummary(value: unknown) {
+  if (!value || typeof value !== 'object') return ''
+  const record = value as Record<string, unknown>
+  const keys = Object.keys(record)
+  if (!keys.length) return ''
+  return keys.slice(0, 4).map((key) => `${key}: ${String(record[key]).slice(0, 48)}`).join('，')
+}
 </script>
 
 <template>
@@ -61,8 +88,22 @@ function formatJson(value: unknown) {
           </NTag>
           <strong class="text-ink text-13px">{{ step.title }}</strong>
           <NTag v-if="step.tool_name" size="small" round :bordered="false">工具: {{ step.tool_name }}</NTag>
+          <NTag v-if="metadataValue(step, 'retry_count')" size="small" round :bordered="false" type="warning">
+            重试 {{ metadataValue(step, 'retry_count') }}
+          </NTag>
+          <NTag v-if="metadataValue(step, 'latency_ms')" size="small" round :bordered="false">
+            {{ metadataValue(step, 'latency_ms') }} ms
+          </NTag>
         </div>
         <p class="m-0 mt-2 text-ink text-13px leading-[1.65]">{{ step.content }}</p>
+        <div v-if="plannedTools(step).length" class="mt-2 flex flex-wrap gap-1">
+          <NTag v-for="tool in plannedTools(step)" :key="tool" size="small" round :bordered="false" type="success">
+            {{ tool }}
+          </NTag>
+        </div>
+        <p v-if="outputSummary(step.output_json)" class="m-0 mt-2 text-#475569 text-12px leading-[1.55]">
+          输出摘要：{{ outputSummary(step.output_json) }}
+        </p>
         <pre v-if="formatJson(step.input_json)" class="mt-2 overflow-auto rounded-1 bg-#F8FAFD p-2 text-11px">{{ formatJson(step.input_json) }}</pre>
         <pre v-if="formatJson(step.output_json)" class="mt-2 overflow-auto rounded-1 bg-#F8FAFD p-2 text-11px">{{ formatJson(step.output_json) }}</pre>
         <p v-if="step.error_message" class="m-0 mt-2 text-danger text-12px">{{ step.error_message }}</p>

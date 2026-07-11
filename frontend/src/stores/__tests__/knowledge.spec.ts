@@ -372,4 +372,49 @@ describe('knowledge store refactor actions', () => {
     expect(knowledge.narrative.answer).toContain('平时成绩')
     expect(knowledge.narrative.citations[0]?.title).toBe('课程大纲.md')
   })
+
+  it('keeps citation cards after streaming answer completes', async () => {
+    saveSession()
+    vi.spyOn(workspaceClient, 'listKnowledgeConversations').mockResolvedValue({ items: [] })
+    vi.spyOn(workspaceClient, 'askWorkspaceQuestionStream').mockImplementation(async function* () {
+      yield {
+        type: 'citations',
+        citations: [
+          {
+            chunk_id: 'chunk-course',
+            document_id: 'doc-course',
+            file_id: 'file-course',
+            page_no: 2,
+            paragraph_no: 3,
+            snippet: '课程考核包含平时作业和期末考试。',
+            title: '课程大纲.md',
+          },
+        ],
+      }
+      yield { type: 'token', content: '课程考核包含平时作业和期末考试。' }
+      yield { type: 'token', content: '[来源 1]' }
+      yield { type: 'done', conversation_id: 'conv-course', message_id: 'msg-assistant' }
+    })
+    const knowledge = useKnowledgeStore()
+
+    await knowledge.askKnowledgeQuestionStream({
+      kbId: 'kb-course',
+      question: '讲解这些文件',
+      topK: 8,
+    })
+
+    const messages = knowledge.knowledgeMessagesByConversationId['conv-course'] ?? []
+    const assistant = messages.find((message) => message.role === 'assistant')
+
+    expect(Object.keys(knowledge.knowledgeMessagesByConversationId).some((key) => key.startsWith('pending-'))).toBe(false)
+    expect(messages[0]?.role).toBe('user')
+    expect(assistant?.content).toContain('[来源 1]')
+    expect(assistant?.citations?.[0]).toMatchObject({
+      chunk_id: 'chunk-course',
+      page_no: 2,
+      paragraph_no: 3,
+      title: '课程大纲.md',
+    })
+    expect(knowledge.narrative.citations[0]?.title).toBe('课程大纲.md')
+  })
 })

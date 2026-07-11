@@ -22,7 +22,11 @@ class KnowledgeBaseRepository:
 class KnowledgeDocumentRepository:
     def __init__(self, session: AsyncSession): self._s = session
     async def list_by_kb(self, kb_id: str) -> list[KnowledgeDocument]:
-        r = await self._s.execute(select(KnowledgeDocument).where(KnowledgeDocument.kb_id == kb_id))
+        r = await self._s.execute(
+            select(KnowledgeDocument)
+            .where(KnowledgeDocument.kb_id == kb_id)
+            .order_by(KnowledgeDocument.updated_at, KnowledgeDocument.id)
+        )
         return list(r.scalars().all())
     async def create(self, doc: KnowledgeDocument) -> KnowledgeDocument: self._s.add(doc); await self._s.flush(); return doc
     async def get_by_id(self, did: str) -> KnowledgeDocument | None: return await self._s.get(KnowledgeDocument, did)

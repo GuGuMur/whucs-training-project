@@ -34,8 +34,84 @@ class ParsedDocument:
     segments: list[ParsedSegment]
 
 
+def clean_text(text: str) -> str:
+    """Remove noise patterns from parsed document text before chunking.
+
+    Handles: SimpRead/transcoder attribution lines, horizontal rules,
+    excess blank lines, and inline URLs that add noise to embeddings.
+    """
+    lines = text.split("\n")
+    cleaned: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        # Skip transcoder attribution lines
+        if any(noise in stripped for noise in [
+            "本文由", "转码， 原文地址", "原文地址",
+            "简悦 SimpRead", "SimpRead",
+        ]):
+            continue
+        # Skip horizontal-rule lines (3+ repeated dashes/stars/underscores)
+        if re.match(r"^[-*_]{3,}$", stripped):
+            continue
+        # Skip lines that are just "..." or similar
+        if re.match(r"^[\.．。]{2,}$", stripped):
+            continue
+        # Clean inline markdown URLs: keep link text, strip URL
+        stripped = re.sub(r"\[([^\]]*)\]\(https?://[^\)]+\)", r"\1", stripped)
+        # Clean bare zhihu search URLs
+        stripped = re.sub(r"https?://[^\s]*zhidao\.zhihu\.com[^\s]*", "", stripped)
+        stripped = stripped.strip()
+        if stripped:
+            cleaned.append(stripped)
+    # Collapse multiple blank lines
+    result = "\n".join(cleaned)
+    result = re.sub(r"\n{3,}", "\n\n", result)
+    return result.strip()
+
+
+def chunk_paragraphs(text: str, target_size: int = 600) -> list[str]:
+    """Split text into paragraph-aware chunks, merging short adjacent
+    paragraphs to reach target_size while keeping headings with content.
+
+    Produces chunks that are self-contained and meaningful, unlike
+    raw character-window chunking which can split mid-sentence.
+    """
+    if not text.strip():
+        return []
+    # Split on paragraph boundaries (one or more blank lines)
+    raw_paragraphs = re.split(r"\n\s*\n", text.strip())
+    paragraphs = [p.strip() for p in raw_paragraphs if p.strip()]
+    if not paragraphs:
+        return []
+
+    chunks: list[str] = []
+    buf = ""
+    for para in paragraphs:
+        is_heading = para.startswith("#") or (
+            len(para) < 60 and not para.endswith("。") and "\n" not in para
+        )
+
+        if is_heading and buf and len(buf) > target_size // 2:
+            # Heading starts a new chunk if buffer already has substance
+            chunks.append(buf.strip())
+            buf = para
+        elif buf and len(buf) + len(para) + 1 > target_size and not is_heading:
+            # Buffer is full, start new chunk
+            chunks.append(buf.strip())
+            buf = para
+        else:
+            # Merge into current buffer
+            buf = f"{buf}\n\n{para}" if buf else para
+
+    if buf.strip():
+        chunks.append(buf.strip())
+    return chunks
+
+
 def chunk_text(text: str, chunk_size: int = 512, overlap: int = 128) -> list[str]:
-    """Split text into overlapping chunks using sliding window (FR-K04)."""
+    """Split text into overlapping chunks using sliding window (FR-K04).
+    Prefer chunk_paragraphs() for document indexing — this is kept for
+    backward compatibility with existing callers."""
     if not text.strip():
         return []
     chunks: list[str] = []

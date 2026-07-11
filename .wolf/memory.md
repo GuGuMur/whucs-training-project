@@ -823,3 +823,187 @@
 | 03:46 | Completed remaining RAG pipeline/error-state cleanup | extracted `backend/app/services/rag_pipeline.py`, added `QAResponse.error_code` for empty/unindexed/no-match states, regenerated frontend client, and re-ran full verification: backend 92 passed; frontend 67 tests passed; type-check/build/hygiene passed | ~12000 |
 | 03:58 | Refined RAG page conversation UX | softened KB selector rows, moved file management/conversations into tabs, added new/continue/delete conversation flow with backend deletion endpoint; backend 92 passed, frontend 69 tests passed, type-check/build/hygiene passed | ~14000 |
 | 04:11 | Fixed RAG team/personal file scope isolation | team KB rejects personal files with `KB_FILE_SCOPE_MISMATCH`, frontend picker filters files by active KB scope; backend 93 passed, frontend 70 tests passed, type-check/build/hygiene passed | ~10000 |
+| 04:47 | Planned personal-folder and complete tool-flow implementation | saved `docs/superpowers/plans/2026-07-11-folder-agent-flow-completion.md`; added task plan phases for personal root hardening, persistent multi-step tool-flow backend, Web UI, and 10+ case system evaluation | planning |
+| 05:02 | Implemented personal-folder and v2 tool-flow completion slice | per-user roots on tree load, upload/multipart root normalization, DB-persisted agent tasks/steps, ordered multi-tool execution, course JSON data source, mixed/chart result UI, and 10-case system evaluation; backend 99 passed, frontend 72 passed, build/hygiene passed | ~30000 |
+| 05:14 | Completed v2 workflow legacy tool cleanup | removed DB service legacy agent helper dispatch, routed v2 workflow tool nodes through `ToolRegistry`, migrated templates to registered tool names, fixed deterministic LLM fallback tests, and verified backend 100 passed/frontend 72 passed/build/hygiene passed | ~18000 |
+| 05:22 | Planned production-grade LLM Agent tool-flow | saved `docs/superpowers/plans/2026-07-11-production-llm-agent-tool-flow.md`; added task plan phases for LLM tool-calling, iterative loop, real tool expansion, memory, UI, security, and 25-case evaluation | planning |
+
+## Session: 2026-07-10 04:18
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 04:21 | Created ../.claude/plans/imperative-growing-raven.md | — | ~600 |
+| 04:23 | Edited backend/app/services/workspace_db.py | modified _ensure_personal_root() | ~118 |
+| 04:23 | Edited backend/app/services/workspace_db.py | 2→2 lines | ~43 |
+| 04:23 | Edited backend/app/services/workspace_db.py | 2→2 lines | ~37 |
+| 04:23 | Edited backend/app/services/workspace_db.py | modified upload_file() | ~72 |
+| 04:23 | Edited backend/app/services/workspace_db.py | modified create_folder() | ~292 |
+| 04:24 | Edited backend/app/services/workspace_db.py | modified update_folder() | ~608 |
+| 04:24 | Edited backend/app/services/workspace_db.py | modified delete_folder_tree() | ~422 |
+| 04:26 | Session end: 8 writes across 2 files (imperative-growing-raven.md, workspace_db.py) | 13 reads | ~47698 tok |
+| 04:32 | Created frontend/src/components/files/CategorySidebar.vue | — | ~3055 |
+| 04:32 | Edited frontend/src/components/files/FileWorkbench.vue | CSS: folderId | ~60 |
+| 04:33 | Edited frontend/src/components/files/FileWorkbench.vue | CSS: folderId, name | ~50 |
+| 04:33 | Edited frontend/src/components/files/FileWorkbench.vue | 7→10 lines | ~133 |
+| 04:33 | Edited frontend/src/views/FileManagerView.vue | CSS: fid | ~80 |
+| 04:33 | Edited frontend/src/views/FileManagerView.vue | CSS: fid, name | ~71 |
+| 04:34 | Edited frontend/src/components/files/CategorySidebar.vue | modified toggleExpand() | ~52 |
+| 04:33 | Rewrote CategorySidebar.vue with folder create/rename/delete UI | frontend/src/components/files/CategorySidebar.vue | added + button, inline rename input, context menu with NDropdown, delete confirmation modal | ~800 |
+| 04:35 | Session end: 15 writes across 5 files (imperative-growing-raven.md, workspace_db.py, CategorySidebar.vue, FileWorkbench.vue, FileManagerView.vue) | 14 reads | ~51299 tok |
+| 04:43 | Edited backend/app/api/v2/files.py | inline fix | ~13 |
+| 04:44 | Edited frontend/src/components/files/FileUploadModal.vue | CSS: activeFolderId | ~67 |
+| 04:44 | Edited frontend/src/components/files/FileUploadModal.vue | added 2 condition(s) | ~194 |
+| 04:44 | Edited frontend/src/components/files/FileWorkbench.vue | 5→5 lines | ~61 |
+| 04:46 | Session end: 19 writes across 7 files (imperative-growing-raven.md, workspace_db.py, CategorySidebar.vue, FileWorkbench.vue, FileManagerView.vue) | 17 reads | ~60340 tok |
+| 04:48 | Edited backend/app/services/workspace_db.py | _merge_heading_segments() → chunk_text() | ~160 |
+| 04:48 | Edited backend/app/services/workspace_db.py | _merge_heading_segments() → chunk_text() | ~223 |
+| 04:49 | Edited backend/app/domain/knowledge.py | inline fix | ~14 |
+| 04:50 | Session end: 22 writes across 8 files (imperative-growing-raven.md, workspace_db.py, CategorySidebar.vue, FileWorkbench.vue, FileManagerView.vue) | 23 reads | ~66952 tok |
+| 04:53 | Edited backend/app/services/parser.py | modified clean_text() | ~966 |
+| 04:53 | Edited backend/app/services/workspace_db.py | 11→12 lines | ~175 |
+| 04:54 | Edited backend/app/services/workspace_db.py | 2→3 lines | ~61 |
+| 04:54 | Edited backend/app/services/workspace_db.py | expanded (+24 lines) | ~433 |
+| 04:54 | Edited backend/app/services/llm.py | expanded (+12 lines) | ~229 |
+| 04:56 | Session end: 27 writes across 10 files (imperative-growing-raven.md, workspace_db.py, CategorySidebar.vue, FileWorkbench.vue, FileManagerView.vue) | 23 reads | ~71751 tok |
+
+## Session: 2026-07-10 04:58
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 04:59 | Created ../.claude/plans/imperative-growing-raven.md | — | ~1016 |
+| 05:00 | Edited backend/app/services/llm.py | modified generate_rag_answer_stream() | ~490 |
+| 05:00 | Edited backend/app/services/workspace_db.py | modified answer_question_stream() | ~1864 |
+| 05:01 | Edited backend/app/services/workspace_db.py | modified _stream_llm() | ~282 |
+| 05:01 | Created ../.claude/plans/serialized-percolating-popcorn.md | — | ~1146 |
+| 05:01 | Edited backend/app/api/v2/knowledge.py | added 1 import(s) | ~30 |
+| 05:01 | Edited backend/app/api/v2/knowledge.py | modified qa_query_stream() | ~165 |
+| 05:02 | Edited frontend/src/client/workspace.ts | added error handling | ~564 |
+| 05:02 | Edited frontend/src/stores/knowledge.ts | 3→5 lines | ~33 |
+| 05:02 | Edited frontend/src/stores/knowledge.ts | 3→8 lines | ~77 |
+| 05:02 | Edited frontend/src/stores/knowledge.ts | added error handling | ~796 |
+| 05:02 | Edited frontend/src/stores/knowledge.ts | 2→5 lines | ~30 |
+| 05:02 | Edited frontend/src/stores/knowledge.ts | 2→3 lines | ~24 |
+| 05:03 | Edited frontend/src/components/rag/KnowledgeConversationPanel.vue | added 1 condition(s) | ~731 |
+| 05:03 | Edited frontend/src/components/rag/KnowledgeConversationPanel.vue | expanded (+29 lines) | ~674 |
+| 05:03 | Edited frontend/src/components/rag/KnowledgeConversationPanel.vue | "!activeKbId || asking || " → "!activeKbId || asking || " | ~19 |
+| 05:04 | Edited frontend/src/views/RagQaView.vue | 3→6 lines | ~38 |
+| 05:04 | Edited frontend/src/client/workspace.ts | expanded (+16 lines) | ~156 |
+| 05:04 | Edited frontend/src/views/RagQaView.vue | 13→17 lines | ~238 |
+| 05:04 | Edited frontend/src/client/workspace.ts | added 1 condition(s) | ~267 |
+| 05:04 | Edited frontend/src/components/rag/KnowledgeConversationPanel.vue | 2→2 lines | ~32 |
+| 05:04 | Edited frontend/src/stores/workspace.ts | 2→3 lines | ~23 |
+| 05:05 | Edited frontend/src/stores/workspace.ts | 1→3 lines | ~32 |
+| 05:05 | Edited frontend/src/stores/workspace.ts | added 3 condition(s) | ~442 |
+| 05:05 | Edited frontend/src/stores/workspace.ts | 2→3 lines | ~16 |
+| 05:05 | Edited frontend/src/components/files/FileUploadModal.vue | CSS: files | ~37 |
+| 05:05 | Edited frontend/src/components/files/FileUploadModal.vue | modified handleSubmit() | ~108 |
+| 05:05 | Edited frontend/src/components/files/FileUploadModal.vue | 1→2 lines | ~10 |
+| 05:05 | Edited frontend/src/components/files/FileUploadModal.vue | 6→6 lines | ~62 |
+| 05:06 | Edited frontend/src/components/files/FileUploadModal.vue | CSS: hover | ~155 |
+| 05:06 | Edited frontend/src/components/files/FileUploadModal.vue | CSS: bytes | ~67 |
+| 05:06 | Edited frontend/src/components/files/FileWorkbench.vue | 1→2 lines | ~29 |
+| 05:06 | Edited frontend/src/components/files/FileWorkbench.vue | 2→3 lines | ~31 |
+| 05:06 | Edited frontend/src/components/rag/__tests__/KnowledgeConversationPanel.spec.ts | 25→25 lines | ~201 |
+| 05:06 | Edited frontend/src/components/files/FileWorkbench.vue | CSS: files, folderId, tags | ~40 |
+| 05:07 | Edited frontend/src/views/FileManagerView.vue | 1→2 lines | ~29 |
+| 05:07 | Session end: 36 writes across 13 files (imperative-growing-raven.md, llm.py, workspace_db.py, serialized-percolating-popcorn.md, knowledge.py) | 13 reads | ~69386 tok |
+| 05:07 | Edited frontend/src/views/FileManagerView.vue | 1→2 lines | ~44 |
+| 05:07 | Edited frontend/src/client/workspace.ts | added optional chaining | ~112 |
+| 05:08 | Implemented multi-file upload: added WorkspaceFileBatchUploadInput/Result types + uploadWorkspaceFiles() client adapter, uploadFiles() store action, FileUploadModal :max=20 + file list, FileWorkbench/FileManagerView wiring | 5 files | all 72 tests pass, type-check clean | ~350 tok |
+| 05:08 | Session end: 38 writes across 13 files (imperative-growing-raven.md, llm.py, workspace_db.py, serialized-percolating-popcorn.md, knowledge.py) | 13 reads | ~69740 tok |
+| 05:16 | Session end: 38 writes across 13 files (imperative-growing-raven.md, llm.py, workspace_db.py, serialized-percolating-popcorn.md, knowledge.py) | 22 reads | ~80262 tok |
+| 05:31 | Completed production LLM agent Phase 32: added `AgentPlanner`/`ToolCallingLLM`, planner JSON models, JSON repair, tool allowlist filtering, deterministic fallback, executor integration, and planner tests | `backend/app/services/agent_planner.py`, `backend/app/services/agent_executor.py`, `backend/tests/test_agent_planner.py` | planner tests 6 passed; focused v2 agent/tool API tests 5 passed; noted SQLite lock from parallel pytest and reran serially | ~900 tok |
+| 05:42 | Completed production LLM agent Phase 33 main loop: bounded executor loop, revision planning after failed/empty tool results, max tool call/retry/runtime guards, and executor tests | `backend/app/services/agent_executor.py`, `backend/app/services/agent_planner.py`, `backend/tests/test_agent_executor.py` | executor tests 3 passed; planner tests 6 passed; cancel API remains follow-up | ~650 tok |
+| 05:58 | Completed Phase 33 cancel API/client/store: backend cancel route/status/persisted step/audit, regenerated OpenAPI client, workspace adapter, Pinia cancelTask, cancelled progress handling | backend/frontend agent files | backend focused tests 10 passed; frontend agent store 4 passed; type-check passed | ~700 tok |
+| 06:08 | Completed Phase 34 real tools: `rag_query`, `file_metadata_query`, whitelisted `database_query`, configured-provider `weather_lookup`, fallback planner routing, executor result views, and tool tests | backend tool/planner/executor files | backend focused tests 16 passed | ~700 tok |
+| 06:14 | Completed Phase 35 agent memory: persisted messages, tool-call snapshots, and plan revisions; continue accepts follow-up messages and injects recent history, prior tool observations, and bounded older-history summary | backend/frontend agent files | backend focused tests 20 passed; frontend agent store 4 passed; type-check passed | ~900 tok |
+| 06:26 | Advanced Phase 36 agent UI: added persisted task-history API/client/store loading and `AgentTaskDetailPanel` for messages, tool calls, plan revisions, follow-up, cancel, and history selection | backend/frontend agent files | backend focused tests 5 passed; frontend workflow/agent tests 10 passed; type-check passed | ~800 tok |
+| 06:34 | Completed Phase 37 tool-flow security/ops: registry role allowlists, file/KB preflight checks, tool audit hooks, config validation, structured latency logging, and latency metadata in agent steps | backend tool-flow files | backend focused tests 18 passed | ~750 tok |
+| 06:41 | Completed Phase 38 evaluation: added deterministic 25-case agent acceptance suite and refreshed evaluation report with completion/tool/argument/grounding/latency metrics and known limitations | backend/tests/test_agent_evaluation.py, docs report | agent focused suite 23 passed | ~650 tok |
+| 06:43 | Completed risk-confirmation slice: `/agents/tasks/plan` previews planned tools and risk, frontend agent store/composer shows confirm-before-run UI for medium/high risk plans | backend/frontend agent files | backend preview tests 12 passed; frontend agent tests 6 passed; type-check passed | ~650 tok |
+| 06:46 | Completed agent SSE slice: `/agents/tasks/stream` emits plan/call/observe/answer/done/error events, frontend stream generator/store/UI button wired | backend/frontend agent files | backend SSE tests 6 passed; frontend agent tests 7 passed; type-check passed | ~600 tok |
+
+## Session: 2026-07-10 05:50
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 06:02 | Edited backend/app/services/workspace_db.py | modified list_teams() | ~205 |
+| 06:02 | Edited backend/app/services/workspace_db.py | modified get_team_detail() | ~130 |
+| 06:02 | Edited backend/app/services/workspace_db.py | 2→2 lines | ~52 |
+| 06:02 | Edited backend/app/services/workspace_db.py | modified _ensure_team_member() | ~487 |
+| 06:03 | Edited backend/app/services/workspace_db.py | modified _ensure_team_admin() | ~522 |
+| 06:03 | Edited backend/app/services/workspace_db.py | modified update_team() | ~354 |
+| 06:04 | Session end: 6 writes across 1 files (workspace_db.py) | 12 reads | ~63998 tok |
+| 06:08 | Session end: 6 writes across 1 files (workspace_db.py) | 12 reads | ~63998 tok |
+| 06:11 | Session end: 6 writes across 1 files (workspace_db.py) | 15 reads | ~101281 tok |
+| 06:12 | Edited backend/app/services/workspace_db.py | 8→10 lines | ~160 |
+| 06:19 | Session end: 7 writes across 1 files (workspace_db.py) | 16 reads | ~101887 tok |
+| 06:20 | Edited ppt/index.html | inline fix | ~43 |
+| 06:20 | Edited ppt/index.html | 3→3 lines | ~100 |
+| 06:20 | Edited ppt/index.html | 5→5 lines | ~198 |
+| 06:20 | Edited ppt/index.html | 4→4 lines | ~111 |
+| 06:21 | Session end: 11 writes across 2 files (workspace_db.py, index.html) | 16 reads | ~116376 tok |
+| 06:28 | Edited ppt/index.html | 18→18 lines | ~506 |
+| 06:28 | Edited ppt/index.html | 25→25 lines | ~558 |
+| 06:28 | Edited ppt/index.html | 19→19 lines | ~429 |
+| 06:28 | Edited ppt/index.html | 6→6 lines | ~343 |
+| 06:28 | Edited ppt/index.html | 6→6 lines | ~325 |
+| 06:29 | Edited ppt/index.html | 4→4 lines | ~214 |
+| 06:29 | Edited ppt/index.html | 23→23 lines | ~555 |
+| 06:29 | Session end: 18 writes across 2 files (workspace_db.py, index.html) | 16 reads | ~119866 tok |
+| 06:54 | Edited backend/app/services/workspace_db.py | modified join_team() | ~267 |
+| 06:54 | Edited backend/app/services/workspace_db.py | 2→1 lines | ~23 |
+| 07:02 | Session end: 20 writes across 2 files (workspace_db.py, index.html) | 18 reads | ~125167 tok |
+| 10:36 | Edited frontend/src/client/generated/client.gen.ts | added error handling | ~240 |
+| 10:36 | Session end: 21 writes across 3 files (workspace_db.py, index.html, client.gen.ts) | 22 reads | ~126937 tok |
+| 10:45 | Created backend/app/api/v2/ws.py | — | ~400 |
+| 10:46 | Edited backend/app/api/v2/__init__.py | added 1 import(s) | ~140 |
+| 10:46 | Edited backend/app/services/workspace_db.py | modified create_team_message() | ~319 |
+| 10:46 | Edited frontend/src/stores/workspace.ts | added 2 condition(s) | ~367 |
+| 10:51 | Session end: 25 writes across 6 files (workspace_db.py, index.html, client.gen.ts, ws.py, __init__.py) | 25 reads | ~129617 tok |
+| 10:53 | Created backend/app/api/v2/ws.py | — | ~448 |
+| 10:54 | Edited backend/app/services/workspace_db.py | 9→9 lines | ~121 |
+| 10:54 | Edited frontend/src/views/TeamChatView.vue | inline fix | ~22 |
+| 10:55 | Edited frontend/src/views/TeamChatView.vue | CSS: _pollTimer | ~178 |
+| 10:55 | Edited frontend/src/views/TeamChatView.vue | modified if() | ~245 |
+| 11:00 | Session end: 30 writes across 7 files (workspace_db.py, index.html, client.gen.ts, ws.py, __init__.py) | 30 reads | ~137721 tok |
+| 11:06 | Fixed RAG retrieval/context quality and citation anchor rendering; added focused backend/frontend tests. | `backend/app/services/rag_pipeline.py`, `backend/app/services/llm.py`, `frontend/src/composables/useMarkdown.ts`, `frontend/src/components/rag/KnowledgeConversationPanel.vue`, tests | RAG backend/frontend focused tests passed; frontend type-check still blocked by existing TeamChat/workspace typing errors. |
+| 11:14 | Tightened RAG overview prompt and citation compatibility after live output rendered bare `来源 1` and refused to explain a single file. | `backend/app/services/llm.py`, `backend/app/services/rag_pipeline.py`, `frontend/src/composables/useMarkdown.ts`, tests | Backend RAG/LLM tests passed; frontend RAG markdown/component tests passed; type-check still blocked by existing TeamChat/workspace typing errors. |
+| 11:46 | Fixed streaming RAG citation cards disappearing after `done` by preserving SSE citations on the final assistant message and migrating pending conversation messages. | `backend/app/services/workspace_db.py`, `frontend/src/client/workspace.ts`, `frontend/src/stores/knowledge.ts`, `frontend/src/components/rag/KnowledgeConversationPanel.vue`, tests | Frontend RAG tests passed; backend RAG/LLM/API slice passed; type-check still blocked by existing TeamChat/workspace typing errors. |
+| 11:15 | Edited frontend/src/views/TeamChatView.vue | 3→3 lines | ~43 |
+| 11:15 | Edited frontend/src/stores/workspace.ts | added nullish coalescing | ~108 |
+| 11:15 | Edited frontend/src/views/TeamChatView.vue | CSS: NSpin | ~24 |
+| 11:16 | Edited frontend/src/views/TeamChatView.vue | 2→3 lines | ~11 |
+| 11:16 | Session end: 34 writes across 7 files (workspace_db.py, index.html, client.gen.ts, ws.py, __init__.py) | 30 reads | ~138060 tok |
+| 11:27 | Created frontend/src/components/rag/KnowledgeFilePicker.vue | — | ~1438 |
+| 11:28 | Edited frontend/src/views/RagQaView.vue | CSS: sidebar, Main | ~739 |
+| 11:28 | Edited frontend/src/views/RagQaView.vue | 3→2 lines | ~32 |
+| 11:28 | Edited frontend/src/views/RagQaView.vue | modified selectConversation() | ~52 |
+| 11:28 | Edited frontend/src/views/RagQaView.vue | 2→3 lines | ~52 |
+| 11:29 | Edited frontend/src/views/RagQaView.vue | CSS: v-model | ~813 |
+| 11:29 | Edited frontend/src/views/RagQaView.vue | modified selectConversation() | ~73 |
+| 11:29 | Edited frontend/src/components/rag/__tests__/KnowledgeFilePicker.spec.ts | 13→12 lines | ~120 |
+| 11:30 | Edited frontend/src/components/rag/KnowledgeFilePicker.vue | 1→3 lines | ~49 |
+| 11:30 | Session end: 43 writes across 10 files (workspace_db.py, index.html, client.gen.ts, ws.py, __init__.py) | 32 reads | ~145542 tok |
+| 11:32 | Edited frontend/src/views/RagQaView.vue | 4→5 lines | ~63 |
+| 11:32 | Edited frontend/src/components/rag/KnowledgeBaseManager.vue | CSS: teams, label, value | ~148 |
+| 11:32 | Edited frontend/src/components/rag/KnowledgeBaseManager.vue | expanded (+6 lines) | ~73 |
+| 11:32 | Edited frontend/src/components/rag/KnowledgeBaseManager.vue | 19→20 lines | ~142 |
+| 11:33 | Edited frontend/src/components/rag/KnowledgeBaseManager.vue | 5→4 lines | ~24 |
+| 11:34 | Session end: 48 writes across 11 files (workspace_db.py, index.html, client.gen.ts, ws.py, __init__.py) | 33 reads | ~147256 tok |
+| 11:36 | Edited ppt/index.html | 15→20 lines | ~375 |
+| 11:36 | Edited ppt/index.html | removed 20 lines | ~13 |
+| 11:36 | Edited frontend/src/components/files/CategorySidebar.vue | inline fix | ~40 |
+| 11:37 | Session end: 51 writes across 12 files (workspace_db.py, index.html, client.gen.ts, ws.py, __init__.py) | 34 reads | ~150440 tok |
+| 11:37 | Edited ppt/index.html | — | ~0 |
+| 11:37 | Edited ppt/index.html | reduced (-14 lines) | ~411 |
+| 11:37 | Edited ppt/index.html | expanded (+20 lines) | ~540 |
+| 11:38 | Edited ppt/index.html | 04 → 03 | ~21 |
+| 11:38 | Edited ppt/index.html | 12 → 11 | ~20 |
+| 11:38 | Session end: 56 writes across 12 files (workspace_db.py, index.html, client.gen.ts, ws.py, __init__.py) | 34 reads | ~150976 tok |
+| 11:39 | Edited frontend/src/views/TeamChatView.vue | added optional chaining | ~115 |
+| 11:40 | Edited frontend/src/views/TeamChatView.vue | added 1 condition(s) | ~143 |
+| 11:40 | Edited frontend/src/views/TeamChatView.vue | modified sendMessage() | ~77 |
+| 11:40 | Edited frontend/src/views/TeamChatView.vue | loadWorkspace() → loadTeams() | ~75 |
+| 11:40 | Session end: 60 writes across 12 files (workspace_db.py, index.html, client.gen.ts, ws.py, __init__.py) | 34 reads | ~151419 tok |
+| 11:48 | Session end: 60 writes across 12 files (workspace_db.py, index.html, client.gen.ts, ws.py, __init__.py) | 34 reads | ~151419 tok |

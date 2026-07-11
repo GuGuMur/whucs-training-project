@@ -104,10 +104,16 @@ from app.domain.team import (
     TeamUpdate,
 )
 from app.domain.workflow import (
+    AgentMessage,
+    AgentPlanPreviewResponse,
+    AgentPlanPreviewStep,
+    AgentPlanRevision,
     AgentStep,
     AgentTaskContinueRequest,
+    AgentTaskListResponse,
     AgentTaskRequest,
     AgentTaskResponse,
+    AgentToolCall,
     ToolDefinition,
     ToolListResponse,
     WorkflowCreate,

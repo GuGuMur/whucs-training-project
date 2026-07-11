@@ -4,7 +4,7 @@
 Build a frontend-backend separated, well-structured intelligent file management and agent collaboration platform based on the documents under `report/`.
 
 ## Current Phase
-Phase 35 — OCR + Reranker (complete) — All planned phases finished 🎉
+Phase 33 — Iterative Agent Loop (next)
 
 ## Phases
 
@@ -243,6 +243,87 @@ Phase 35 — OCR + Reranker (complete) — All planned phases finished 🎉
 - [x] Add explicit RAG no-result/index-state error codes: `KB_EMPTY`, `KB_FILE_NOT_INDEXED`, and `KB_NO_MATCH`.
 - [x] Full verification: backend `92 passed, 3 warnings`; frontend `67` unit tests passed; frontend type-check and production build passed; JSON and diff hygiene passed.
 - **Status:** complete; transitional workspace-store compatibility remains intentionally because legacy workspace panels still consume it.
+
+### Phase 29: Personal Folder Baseline Hardening
+- [x] Add backend coverage proving initial users get per-user personal root folders.
+- [x] Normalize missing or legacy file upload folder ids to `personal-root-{user.id}`.
+- [x] Complete multipart upload using real chunks and the normal upload path.
+- [x] Cover personal folder create, rename, move, delete, root protection, and file rehome behavior.
+- [x] Verify frontend file manager create/rename/delete/upload flows do not depend on a global `personal-root`.
+- **Status:** complete
+
+### Phase 30: Complete Tool-Flow Backend
+- [x] Persist agent tasks/steps instead of process-memory dictionaries.
+- [x] Replace single-tool routing with ordered multi-step planning and execution.
+- [x] Move tool data sources out of inline mock/hardcoded runtime data.
+- [x] Add clarification resume, retry/fallback, and structured result-view contracts.
+- [x] Remove or isolate legacy placeholder agent helper paths.
+- **Status:** complete
+
+### Phase 31: Tool-Flow Web UI And System Evaluation
+- [x] Extend workflow result UI for multi-step traces and text/table/chart/mixed results.
+- [x] Add frontend tests for multi-tool mixed and chart result states.
+- [x] Add 10+ backend system test cases with completion-rate and tool-selection-accuracy metrics.
+- [x] Document typical successful and failed cases under `docs/superpowers/reports/`.
+- [x] Run backend/frontend full verification, build, JSON validation, and diff hygiene.
+- **Status:** mostly complete; persisted task-history listing endpoint remains a follow-up if required by the UI.
+
+### Phase 32: LLM Tool-Calling Contract
+- [x] Define strict JSON schema for LLM planner output.
+- [x] Implement `ToolCallingLLM` around existing OpenAI-compatible config.
+- [x] Add deterministic fallback planner for CI/no-key local runs.
+- [x] Add tests for plan parsing, invalid JSON repair, missing-field clarification, and no-key fallback.
+- **Status:** complete
+
+### Phase 33: Iterative Agent Loop
+- [x] Refactor `AgentExecutor` into a bounded plan-call-observe-revise loop.
+- [x] Add max tool calls, retry limits, and timeout behavior.
+- [x] Persist plan revisions, tool calls, observations, and final answer through existing agent step persistence.
+- [x] Add cancel behavior and API route.
+- **Status:** complete
+
+### Phase 34: Real Tool Expansion
+- [x] Add `rag_query`, `database_query`, `weather_lookup`, and `file_metadata_query` as configured/permissioned tools.
+- [x] Keep existing calculator, file content search, CSV analysis, and course lookup.
+- [x] Add schema, permission, and result-view mapping for every tool.
+- **Status:** complete
+
+### Phase 35: Agent Memory And Multi-Turn Conversation
+- [x] Store user/assistant messages per task.
+- [x] Continue tasks with follow-up questions and prior observations.
+- [x] Summarize long histories before sending to LLM.
+- [x] Return persisted task detail with messages, tool-call snapshots, and plan revisions from create/continue APIs.
+- **Status:** complete; task detail now includes messages, tool-call snapshots, and plan revisions.
+
+### Phase 36: Web UI Upgrade
+- [x] Add task history list, active task detail, continue/cancel controls.
+- [x] Show LLM-generated plan, tool arguments, retries, latency, and output summaries.
+- [x] Add plan preview and confirmation before executing medium/high risk tool plans.
+- [x] Add streaming plan/tool/final-answer event UI through the agent SSE event-stream contract.
+- **Status:** complete
+
+### Phase 37: Security And Operations
+- [x] Enforce access checks before every tool call.
+- [x] Add role/tool allowlists, audit logs, config validation, and structured metrics.
+- **Status:** complete
+
+### Phase 38: Evaluation And Acceptance
+- [x] Expand system evaluation to at least 25 cases.
+- [x] Track completion rate, tool selection accuracy, argument accuracy, citation rate, and latency.
+- [x] Document success/failure examples and known limitations.
+- **Status:** complete
+
+### Phase 39: RAG Backend Document-Level Context Refactor
+- [x] Add regression tests for broad document-explanation prompts such as “讲解这些文档”, “总结知识库所有文件”, and “分别说明每个文档讲了什么”.
+- [x] Extend knowledge document storage with cleaned full text, outline/section metadata, document summary, keywords, token/character counts, and indexing diagnostics.
+- [x] Replace query-only top-k chunk prompting with an intent-aware context planner that supports targeted QA, single-document explanation, multi-document overview, comparison, and report modes.
+- [x] Add a document-level retriever path that can enumerate readable indexed documents and assemble map-reduce summaries before final answer generation.
+- [x] Move full-document fallback out of `WorkspaceServiceDB.answer_question()` into `RagPipeline`, and make stream/non-stream use the same context-building code.
+- [x] Redesign LLM prompt inputs from `list[str] snippets` into structured context blocks with document cards, selected sections, citations, and explicit answer policy.
+- [x] Add no-result behavior that distinguishes empty KB, unindexed files, weak retrieval for broad prompts, and real no-match cases.
+- [x] Reindex existing documents through the new pipeline and add OpenAPI-compatible diagnostics without breaking the current `QAResponse` citation contract.
+- [x] Run backend focused RAG tests, full backend tests, OpenAPI export, and frontend client generation if schemas change.
+- **Status:** complete; existing already-indexed rows without `content_text` still fall back to stored chunks until reindexed.
 
 ## Key Questions
 1. Which report requirements define the initial MVP? Answer: section 7.1 of `report/requirements/requirements_specification.md`.

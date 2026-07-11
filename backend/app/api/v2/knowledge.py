@@ -1,12 +1,15 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response, status
+from fastapi.responses import StreamingResponse
 
 from app.api.v2._deps import get_svc, current_user
 from app.domain.schemas import (
     AgentTaskContinueRequest,
+    AgentTaskListResponse,
     AgentTaskRequest,
     AgentTaskResponse,
+    AgentPlanPreviewResponse,
     KnowledgeBaseCreate,
     KnowledgeBaseListResponse,
     KnowledgeBasePublic,
@@ -173,6 +176,23 @@ async def qa_query(
     return await svc.answer_question(payload, user)
 
 
+@router.post("/qa/query/stream")
+async def qa_query_stream(
+    payload: QARequest,
+    user: Annotated[UserPublic, Depends(current_user)],
+    svc: WorkspaceServiceDB = Depends(get_svc),
+):
+    return StreamingResponse(
+        svc.answer_question_stream(payload, user),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @router.get("/tools", response_model=ToolListResponse)
 async def tools(
     user: Annotated[UserPublic, Depends(current_user)],
@@ -188,6 +208,40 @@ async def create_agent_task(
     svc: WorkspaceServiceDB = Depends(get_svc),
 ) -> AgentTaskResponse:
     return await svc.create_agent_task(payload, user)
+
+
+@router.post("/agents/tasks/plan", response_model=AgentPlanPreviewResponse)
+async def preview_agent_plan(
+    payload: AgentTaskRequest,
+    user: Annotated[UserPublic, Depends(current_user)],
+    svc: WorkspaceServiceDB = Depends(get_svc),
+) -> AgentPlanPreviewResponse:
+    return await svc.preview_agent_plan(payload, user)
+
+
+@router.post("/agents/tasks/stream")
+async def stream_agent_task(
+    payload: AgentTaskRequest,
+    user: Annotated[UserPublic, Depends(current_user)],
+    svc: WorkspaceServiceDB = Depends(get_svc),
+):
+    return StreamingResponse(
+        svc.stream_agent_task(payload, user),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.get("/agents/tasks", response_model=AgentTaskListResponse)
+async def list_agent_tasks(
+    user: Annotated[UserPublic, Depends(current_user)],
+    svc: WorkspaceServiceDB = Depends(get_svc),
+) -> AgentTaskListResponse:
+    return await svc.list_agent_tasks(user)
 
 
 @router.get("/agents/tasks/{task_id}", response_model=AgentTaskResponse)
@@ -207,3 +261,12 @@ async def continue_agent_task(
     svc: WorkspaceServiceDB = Depends(get_svc),
 ) -> AgentTaskResponse:
     return await svc.continue_agent_task(task_id, payload, user)
+
+
+@router.post("/agents/tasks/{task_id}/cancel", response_model=AgentTaskResponse)
+async def cancel_agent_task(
+    task_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+    svc: WorkspaceServiceDB = Depends(get_svc),
+) -> AgentTaskResponse:
+    return await svc.cancel_agent_task(task_id, user)

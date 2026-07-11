@@ -20,7 +20,7 @@ class QARequest(BaseModel):
     kb_id: str
     conversation_id: str | None = None
     question: str = Field(min_length=1)
-    top_k: int = Field(default=5, ge=1, le=20)
+    top_k: int = Field(default=8, ge=1, le=30)
     stream: bool = False
     report_mode: bool = False
 
@@ -94,6 +94,9 @@ class KnowledgeDocumentPublic(BaseModel):
     index_status: KnowledgeIndexStatus
     chunk_count: int
     error_message: str | None = None
+    summary: str | None = None
+    char_count: int = 0
+    token_count: int = 0
     updated_at: datetime
 
 

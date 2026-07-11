@@ -15,12 +15,21 @@ const steps: AgentStep[] = [
   {
     content: '调用课程查询工具。',
     input_json: { query: '高等数学' },
-    output_json: { time: '周一' },
+    metadata: { latency_ms: 32, retry_count: 1 },
+    output_json: { room: 'A101', time: '周一' },
     phase: 'call',
     status: 'success',
     title: '查询课程',
     tool_name: 'course_lookup',
     type: 'action',
+  },
+  {
+    content: '规划调用顺序。',
+    input_json: { planned_tools: [['course_lookup', { query: '高等数学' }], ['calculator', { expression: '1 + 1' }]] },
+    phase: 'plan',
+    status: 'success',
+    title: '规划步骤',
+    type: 'thought',
   },
   {
     content: '缺少课程名称。',
@@ -42,7 +51,11 @@ describe('AgentExecutionTimeline', () => {
     expect(wrapper.text()).toContain('调用')
     expect(wrapper.text()).toContain('观察')
     expect(wrapper.text()).toContain('course_lookup')
+    expect(wrapper.text()).toContain('calculator')
     expect(wrapper.text()).toContain('高等数学')
+    expect(wrapper.text()).toContain('32 ms')
+    expect(wrapper.text()).toContain('重试 1')
+    expect(wrapper.text()).toContain('输出摘要')
     expect(wrapper.text()).toContain('course_name is required')
     expect(wrapper.text()).toContain('需要补充')
   })

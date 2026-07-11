@@ -1,0 +1,26 @@
+[
+  {
+    "code": "CS101",
+    "name": "算法设计",
+    "teacher": "王老师",
+    "credits": 3,
+    "semester": "2026 春季",
+    "source": "local_course_catalog"
+  },
+  {
+    "code": "CS204",
+    "name": "数据库系统",
+    "teacher": "李老师",
+    "credits": 3,
+    "semester": "2026 春季",
+    "source": "local_course_catalog"
+  },
+  {
+    "code": "AI301",
+    "name": "机器学习",
+    "teacher": "陈老师",
+    "credits": 2,
+    "semester": "2026 秋季",
+    "source": "local_course_catalog"
+  }
+]

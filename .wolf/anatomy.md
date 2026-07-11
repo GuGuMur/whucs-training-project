@@ -1,12 +1,14 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T17:45:35.753Z
-> Files: 187 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-11T03:40:18.744Z
+> Files: 197 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../.claude/plans/
 
 - `eventual-rolling-stardust.md` — Phase 25: Document Parser Integration & Verification (~591 tok)
+- `imperative-growing-raven.md` — Streaming RAG Q&A with Incremental Markdown Rendering (~953 tok)
 - `replicated-weaving-curry.md` — Plan: Auto-Index, RAG Chat Redesign, Workflow Templates (~1825 tok)
+- `serialized-percolating-popcorn.md` — Plan: Multiple File Upload Support (Frontend) (~1075 tok)
 
 ## ./
 
@@ -84,16 +86,17 @@
 
 ## backend/app/api/v2/
 
-- `__init__.py` (~230 tok)
+- `__init__.py` (~253 tok)
 - `_deps.py` — WorkspaceServiceDB factory (get_svc) and current_user JWT dependency (~450 tok)
 - `admin.py` — API: 6 endpoints (~730 tok)
 - `auth.py` — API: 5 endpoints (~684 tok)
-- `files.py` — API: 24 endpoints (~3024 tok)
+- `files.py` — API: 24 endpoints (~3020 tok)
 - `folders.py` — API: 4 endpoints (~463 tok)
 - `general.py` — API: 2 endpoints, workspace snapshot and health (~250 tok)
-- `knowledge.py` — API: 9 endpoints (~1041 tok)
+- `knowledge.py` — API: 20 endpoints (~2298 tok)
 - `teams.py` — API: 12 endpoints (~1334 tok)
 - `workflow.py` — API: 6 endpoints (~721 tok)
+- `ws.py` — v2 WebSocket endpoint for real-time team chat, notifications, and activity. (~448 tok)
 
 ## backend/app/core/
 
@@ -106,7 +109,7 @@
 - `common.py` — Pydantic: ErrorResponse (~700 tok)
 - `file.py` — Pydantic: FileItem (~1156 tok)
 - `folder.py` — Pydantic: FolderItem (~206 tok)
-- `knowledge.py` — Pydantic: Citation (~512 tok)
+- `knowledge.py` — Pydantic: Citation (~1058 tok)
 - `schemas.py` — Backward-compatible re-exports from domain-specific schema modules. (~773 tok)
 - `team.py` — Pydantic: TeamMessageCreate (~666 tok)
 - `workflow.py` — Pydantic: ToolDefinition (~1076 tok)
@@ -119,10 +122,10 @@
 ## backend/app/services/
 
 - `embedding.py` — Semantic embedding service wrapping sentence-transformers. (~576 tok)
-- `llm.py` — LLM service — OpenAI-compatible multi-provider with graceful fallback. (~1408 tok)
-- `parser.py` — Multi-format document text extraction for the knowledge-base pipeline. (~2386 tok)
+- `llm.py` — LLM service — OpenAI-compatible multi-provider with graceful fallback. (~1824 tok)
+- `parser.py` — Multi-format document text extraction for the knowledge-base pipeline. (~3201 tok)
 - `websocket_manager.py` — WebSocket connection manager for real-time push. (~424 tok)
-- `workspace_db.py` — WorkspaceService backed by SQLAlchemy — full DB migration. (~24506 tok)
+- `workspace_db.py` — WorkspaceService backed by SQLAlchemy — full DB migration. (~38001 tok)
 - `workspace.py` — WorkspaceError: register_user, register_user_db, login_user (~37009 tok)
 
 ## backend/tests/
@@ -209,22 +212,34 @@
 
 ## frontend/src/client/
 
-- `workspace.ts` — Exports AgentStep, WorkspaceFile, WorkspaceFileAnnotation, WorkspaceFileAnnotationReply + 64 more (~10042 tok)
+- `workspace.ts` — Exports AgentStep, WorkspaceAgentTask, WorkspaceAgentTaskStatus, WorkspaceFile + 72 more (~12718 tok)
 
 ## frontend/src/client/generated/
 
-- `client.gen.ts` — The `createClientConfig()` function will be called on client initialization (~352 tok)
+- `client.gen.ts` — The `createClientConfig()` function will be called on client initialization (~452 tok)
 
 ## frontend/src/components/files/
 
-- `CategorySidebar.vue` — Vue: setup (~1161 tok)
+- `CategorySidebar.vue` — Vue: setup (~3065 tok)
 - `FileDrawer.vue` — File operation drawer for preview/edit, rename/move/copy/tags, versions, file-specific permission rule creation/deletion, and annotations (~4200 tok)
 - `FileDropdown.vue` — Row action popover for download, preview/edit, rename/move/copy/tags, reparse loading, annotations, permissions, versions, and delete (~1500 tok)
-- `FileWorkbench.vue` — File manager presenter composing category sidebar, search toolbar, desktop/mobile file rows, upload modal, drawer orchestration, permission/version/content event forwarding, and reparse row state (~5200 tok)
+- `FileUploadModal.vue` — Vue: setup (~1457 tok)
+- `FileWorkbench.vue` — Vue: setup (~4871 tok)
 
 ## frontend/src/components/files/__tests__/
 
 - `FileWorkbench.spec.ts` — Blackbox component tests for dropdown reparse forwarding, preview content-load events, and reparse loading state propagation (~450 tok)
+
+## frontend/src/components/rag/
+
+- `KnowledgeBaseManager.vue` — Vue: setup (~1223 tok)
+- `KnowledgeConversationPanel.vue` — Vue: setup (~2636 tok)
+- `KnowledgeFilePicker.vue` — Vue: setup (~1465 tok)
+
+## frontend/src/components/rag/__tests__/
+
+- `KnowledgeConversationPanel.spec.ts` — Declares conversation (~1057 tok)
+- `KnowledgeFilePicker.spec.ts` — createFile: createDocument (~732 tok)
 
 ## frontend/src/components/team/
 
@@ -266,10 +281,10 @@
 ## frontend/src/stores/
 
 - `auth.ts` — Exports LoginCredentials, RegisterCredentials, useAuthStore (~1666 tok)
-- `knowledge.ts` — Exports useKnowledgeStore (~2431 tok)
+- `knowledge.ts` — Exports useKnowledgeStore (~6682 tok)
 - `permissions.ts` — Exports usePermissionsStore (~1040 tok)
 - `workflowStore.ts` — Pinia setup store for workflow lifecycle with local state (activeWorkflowId, validation, execution, operationLoading, workflows list), computed activeWorkflow, and actions (list/create/update/validate/publish/execute) calling workspace client API with requireAccessToken (~3400 tok)
-- `workspace.ts` — Exports WorkspaceApiState, useWorkspaceStore (~19422 tok)
+- `workspace.ts` — Exports WorkspaceApiState, useWorkspaceStore (~19975 tok)
 
 ## frontend/src/stores/__tests__/
 
@@ -277,12 +292,12 @@
 
 ## frontend/src/views/
 
-- `FileManagerView.vue` — Vue: setup (~1112 tok)
+- `FileManagerView.vue` — Vue: setup (~1447 tok)
 - `LoginView.vue` — Vue: setup (~1080 tok)
 - `PermissionAuditView.vue` — Vue: setup (~901 tok)
 - `ProfileView.vue` — Vue: setup (~1263 tok)
-- `RagQaView.vue` — Vue: setup (~2026 tok)
-- `TeamChatView.vue` — Vue: all, setup (~6138 tok)
+- `RagQaView.vue` — Vue: setup (~2455 tok)
+- `TeamChatView.vue` — Vue: all, setup (~6340 tok)
 - `WorkflowBuilderView.vue` — Vue: setup (~8725 tok)
 - `WorkspaceView.vue` — Vue: setup (~3403 tok)
 
@@ -295,6 +310,10 @@
 ## frontend/tests/
 
 - `frontendArchitecture.spec.ts` — Declares srcRoot (~845 tok)
+
+## ppt/
+
+- `index.html` — 智能文件工作空间平台 · 项目进度汇报 (~13828 tok)
 
 ## references/
 

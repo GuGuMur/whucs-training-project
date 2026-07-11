@@ -39,6 +39,12 @@ class KnowledgeDocument(Base):
     version_sha: Mapped[str] = mapped_column(String(64), default="")
     index_status: Mapped[str] = mapped_column(String(16), default="indexed")  # queued/indexed/failed
     error_message: Mapped[str] = mapped_column(Text, default="")
+    content_text: Mapped[str] = mapped_column(Text, default="")
+    summary: Mapped[str] = mapped_column(Text, default="")
+    keywords: Mapped[str] = mapped_column(Text, default="[]")
+    outline: Mapped[str] = mapped_column(Text, default="[]")
+    char_count: Mapped[int] = mapped_column(Integer, default=0)
+    token_count: Mapped[int] = mapped_column(Integer, default=0)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 

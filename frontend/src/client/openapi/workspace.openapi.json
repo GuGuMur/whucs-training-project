@@ -1,6 +1,157 @@
 {
   "components": {
     "schemas": {
+      "AgentMessage": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "assistant",
+              "system"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "content"
+        ],
+        "title": "AgentMessage",
+        "type": "object"
+      },
+      "AgentPlanPreviewResponse": {
+        "properties": {
+          "answer_strategy": {
+            "default": "direct",
+            "title": "Answer Strategy",
+            "type": "string"
+          },
+          "intent": {
+            "title": "Intent",
+            "type": "string"
+          },
+          "missing_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Fields",
+            "type": "array"
+          },
+          "requires_confirmation": {
+            "default": false,
+            "title": "Requires Confirmation",
+            "type": "boolean"
+          },
+          "risk_level": {
+            "default": "low",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Risk Level",
+            "type": "string"
+          },
+          "risk_reason": {
+            "default": "",
+            "title": "Risk Reason",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/AgentPlanPreviewStep"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "intent"
+        ],
+        "title": "AgentPlanPreviewResponse",
+        "type": "object"
+      },
+      "AgentPlanPreviewStep": {
+        "properties": {
+          "arguments": {
+            "additionalProperties": true,
+            "title": "Arguments",
+            "type": "object"
+          },
+          "rationale": {
+            "default": "",
+            "title": "Rationale",
+            "type": "string"
+          },
+          "risk_level": {
+            "default": "low",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Risk Level",
+            "type": "string"
+          },
+          "risk_reason": {
+            "default": "",
+            "title": "Risk Reason",
+            "type": "string"
+          },
+          "tool_name": {
+            "title": "Tool Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool_name"
+        ],
+        "title": "AgentPlanPreviewStep",
+        "type": "object"
+      },
+      "AgentPlanRevision": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "plan_json": {
+            "additionalProperties": true,
+            "title": "Plan Json",
+            "type": "object"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "revision_no": {
+            "title": "Revision No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision_no",
+          "reason"
+        ],
+        "title": "AgentPlanRevision",
+        "type": "object"
+      },
       "AgentStep": {
         "properties": {
           "content": {
@@ -97,9 +248,38 @@
             "additionalProperties": true,
             "title": "Inputs",
             "type": "object"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
           }
         },
         "title": "AgentTaskContinueRequest",
+        "type": "object"
+      },
+      "AgentTaskListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentTaskResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AgentTaskListResponse",
         "type": "object"
       },
       "AgentTaskRequest": {
@@ -144,6 +324,20 @@
             "title": "Id",
             "type": "string"
           },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/AgentMessage"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "plan_revisions": {
+            "items": {
+              "$ref": "#/components/schemas/AgentPlanRevision"
+            },
+            "title": "Plan Revisions",
+            "type": "array"
+          },
           "result_view": {
             "additionalProperties": true,
             "title": "Result View",
@@ -155,7 +349,8 @@
               "running",
               "completed",
               "failed",
-              "needs_clarification"
+              "needs_clarification",
+              "cancelled"
             ],
             "title": "Status",
             "type": "string"
@@ -170,6 +365,13 @@
           "task": {
             "title": "Task",
             "type": "string"
+          },
+          "tool_calls": {
+            "items": {
+              "$ref": "#/components/schemas/AgentToolCall"
+            },
+            "title": "Tool Calls",
+            "type": "array"
           }
         },
         "required": [
@@ -180,6 +382,60 @@
           "final_answer"
         ],
         "title": "AgentTaskResponse",
+        "type": "object"
+      },
+      "AgentToolCall": {
+        "properties": {
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "input_json": {
+            "additionalProperties": true,
+            "title": "Input Json",
+            "type": "object"
+          },
+          "latency_ms": {
+            "default": 0,
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "output_json": {
+            "additionalProperties": true,
+            "title": "Output Json",
+            "type": "object"
+          },
+          "status": {
+            "default": "success",
+            "enum": [
+              "success",
+              "failed",
+              "needs_clarification"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tool_name": {
+            "title": "Tool Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tool_name"
+        ],
+        "title": "AgentToolCall",
         "type": "object"
       },
       "AuditLogEntry": {
@@ -278,7 +534,7 @@
             "type": "string"
           },
           "folder_id": {
-            "default": "personal-root",
+            "default": "",
             "title": "Folder Id",
             "type": "string"
           },
@@ -1500,6 +1756,11 @@
       },
       "KnowledgeDocumentPublic": {
         "properties": {
+          "char_count": {
+            "default": 0,
+            "title": "Char Count",
+            "type": "integer"
+          },
           "chunk_count": {
             "title": "Chunk Count",
             "type": "integer"
@@ -1540,6 +1801,22 @@
           "kb_id": {
             "title": "Kb Id",
             "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "token_count": {
+            "default": 0,
+            "title": "Token Count",
+            "type": "integer"
           },
           "updated_at": {
             "format": "date-time",
@@ -2140,8 +2417,8 @@
             "type": "boolean"
           },
           "top_k": {
-            "default": 5,
-            "maximum": 20.0,
+            "default": 8,
+            "maximum": 30.0,
             "minimum": 1.0,
             "title": "Top K",
             "type": "integer"
@@ -3593,6 +3870,50 @@
   "openapi": "3.1.0",
   "paths": {
     "/api/v2/agents/tasks": {
+      "get": {
+        "operationId": "list_agent_tasks_api_v2_agents_tasks_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTaskListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Agent Tasks"
+      },
       "post": {
         "operationId": "create_agent_task_api_v2_agents_tasks_post",
         "parameters": [
@@ -3648,6 +3969,116 @@
         "summary": "Create Agent Task"
       }
     },
+    "/api/v2/agents/tasks/plan": {
+      "post": {
+        "operationId": "preview_agent_plan_api_v2_agents_tasks_plan_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentTaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPlanPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Agent Plan"
+      }
+    },
+    "/api/v2/agents/tasks/stream": {
+      "post": {
+        "operationId": "stream_agent_task_api_v2_agents_tasks_stream_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentTaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Agent Task"
+      }
+    },
     "/api/v2/agents/tasks/{task_id}": {
       "get": {
         "operationId": "get_agent_task_api_v2_agents_tasks__task_id__get",
@@ -3701,6 +4132,61 @@
           }
         },
         "summary": "Get Agent Task"
+      }
+    },
+    "/api/v2/agents/tasks/{task_id}/cancel": {
+      "post": {
+        "operationId": "cancel_agent_task_api_v2_agents_tasks__task_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Agent Task"
       }
     },
     "/api/v2/agents/tasks/{task_id}/continue": {
@@ -6712,6 +7198,60 @@
           }
         },
         "summary": "Qa Query"
+      }
+    },
+    "/api/v2/qa/query/stream": {
+      "post": {
+        "operationId": "qa_query_stream_api_v2_qa_query_stream_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QARequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Qa Query Stream"
       }
     },
     "/api/v2/teams": {

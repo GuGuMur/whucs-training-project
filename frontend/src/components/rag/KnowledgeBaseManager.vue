@@ -7,15 +7,23 @@ import type {
   WorkspaceKnowledgeBaseUpdateInput,
 } from '@/client/workspace'
 
+interface TeamOption { id: string; name: string; role: string; member_count: number; unread_count: number }
+
 const props = withDefaults(defineProps<{
   knowledgeBase?: WorkspaceKnowledgeBase | null
   loading?: boolean
   mode?: 'create' | 'edit'
+  teams?: TeamOption[]
 }>(), {
   knowledgeBase: null,
   loading: false,
   mode: 'create',
+  teams: () => [],
 })
+
+const teamOptions = computed(() =>
+  props.teams.map((t) => ({ label: t.name, value: t.id })),
+)
 
 const emit = defineEmits<{
   archive: [kbId: string]
@@ -98,8 +106,14 @@ function submit() {
             <NRadioButton value="team">团队</NRadioButton>
           </NRadioGroup>
         </NFormItem>
-        <NFormItem v-if="form.scopeType === 'team'" label="团队 ID">
-          <NInput v-model:value="form.scopeId" placeholder="team id" />
+        <NFormItem v-if="form.scopeType === 'team'" label="选择团队">
+          <NSelect
+            v-model:value="form.scopeId"
+            :options="teamOptions"
+            placeholder="选择目标团队"
+            filterable
+            clearable
+          />
         </NFormItem>
         <NFormItem label="更新策略">
           <NRadioGroup v-model:value="form.freshnessPolicy" button-style="solid">

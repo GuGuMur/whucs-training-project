@@ -5,6 +5,116 @@ export type ClientOptions = {
 };
 
 /**
+ * AgentMessage
+ */
+export type AgentMessage = {
+    /**
+     * Content
+     */
+    content: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Metadata
+     */
+    metadata?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Role
+     */
+    role: 'user' | 'assistant' | 'system';
+};
+
+/**
+ * AgentPlanPreviewResponse
+ */
+export type AgentPlanPreviewResponse = {
+    /**
+     * Answer Strategy
+     */
+    answer_strategy?: string;
+    /**
+     * Intent
+     */
+    intent: string;
+    /**
+     * Missing Fields
+     */
+    missing_fields?: Array<string>;
+    /**
+     * Requires Confirmation
+     */
+    requires_confirmation?: boolean;
+    /**
+     * Risk Level
+     */
+    risk_level?: 'low' | 'medium' | 'high';
+    /**
+     * Risk Reason
+     */
+    risk_reason?: string;
+    /**
+     * Steps
+     */
+    steps?: Array<AgentPlanPreviewStep>;
+};
+
+/**
+ * AgentPlanPreviewStep
+ */
+export type AgentPlanPreviewStep = {
+    /**
+     * Arguments
+     */
+    arguments?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Rationale
+     */
+    rationale?: string;
+    /**
+     * Risk Level
+     */
+    risk_level?: 'low' | 'medium' | 'high';
+    /**
+     * Risk Reason
+     */
+    risk_reason?: string;
+    /**
+     * Tool Name
+     */
+    tool_name: string;
+};
+
+/**
+ * AgentPlanRevision
+ */
+export type AgentPlanRevision = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Plan Json
+     */
+    plan_json?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Reason
+     */
+    reason: string;
+    /**
+     * Revision No
+     */
+    revision_no: number;
+};
+
+/**
  * AgentStep
  */
 export type AgentStep = {
@@ -66,6 +176,20 @@ export type AgentTaskContinueRequest = {
     inputs?: {
         [key: string]: unknown;
     };
+    /**
+     * Message
+     */
+    message?: string | null;
+};
+
+/**
+ * AgentTaskListResponse
+ */
+export type AgentTaskListResponse = {
+    /**
+     * Items
+     */
+    items: Array<AgentTaskResponse>;
 };
 
 /**
@@ -99,6 +223,14 @@ export type AgentTaskResponse = {
      */
     id: string;
     /**
+     * Messages
+     */
+    messages?: Array<AgentMessage>;
+    /**
+     * Plan Revisions
+     */
+    plan_revisions?: Array<AgentPlanRevision>;
+    /**
      * Result View
      */
     result_view?: {
@@ -107,7 +239,7 @@ export type AgentTaskResponse = {
     /**
      * Status
      */
-    status: 'queued' | 'running' | 'completed' | 'failed' | 'needs_clarification';
+    status: 'queued' | 'running' | 'completed' | 'failed' | 'needs_clarification' | 'cancelled';
     /**
      * Steps
      */
@@ -116,6 +248,48 @@ export type AgentTaskResponse = {
      * Task
      */
     task: string;
+    /**
+     * Tool Calls
+     */
+    tool_calls?: Array<AgentToolCall>;
+};
+
+/**
+ * AgentToolCall
+ */
+export type AgentToolCall = {
+    /**
+     * Error Message
+     */
+    error_message?: string | null;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Input Json
+     */
+    input_json?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Latency Ms
+     */
+    latency_ms?: number;
+    /**
+     * Output Json
+     */
+    output_json?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Status
+     */
+    status?: 'success' | 'failed' | 'needs_clarification';
+    /**
+     * Tool Name
+     */
+    tool_name: string;
 };
 
 /**
@@ -932,6 +1106,10 @@ export type KnowledgeDocumentListResponse = {
  */
 export type KnowledgeDocumentPublic = {
     /**
+     * Char Count
+     */
+    char_count?: number;
+    /**
      * Chunk Count
      */
     chunk_count: number;
@@ -959,6 +1137,14 @@ export type KnowledgeDocumentPublic = {
      * Kb Id
      */
     kb_id: string;
+    /**
+     * Summary
+     */
+    summary?: string | null;
+    /**
+     * Token Count
+     */
+    token_count?: number;
     /**
      * Updated At
      */
@@ -2194,6 +2380,37 @@ export type WorkspaceSnapshot = {
     workflows: Array<WorkflowDefinition>;
 };
 
+export type ListAgentTasksApiV2AgentsTasksGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/agents/tasks';
+};
+
+export type ListAgentTasksApiV2AgentsTasksGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListAgentTasksApiV2AgentsTasksGetError = ListAgentTasksApiV2AgentsTasksGetErrors[keyof ListAgentTasksApiV2AgentsTasksGetErrors];
+
+export type ListAgentTasksApiV2AgentsTasksGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: AgentTaskListResponse;
+};
+
+export type ListAgentTasksApiV2AgentsTasksGetResponse = ListAgentTasksApiV2AgentsTasksGetResponses[keyof ListAgentTasksApiV2AgentsTasksGetResponses];
+
 export type CreateAgentTaskApiV2AgentsTasksPostData = {
     body: AgentTaskRequest;
     headers?: {
@@ -2224,6 +2441,66 @@ export type CreateAgentTaskApiV2AgentsTasksPostResponses = {
 };
 
 export type CreateAgentTaskApiV2AgentsTasksPostResponse = CreateAgentTaskApiV2AgentsTasksPostResponses[keyof CreateAgentTaskApiV2AgentsTasksPostResponses];
+
+export type PreviewAgentPlanApiV2AgentsTasksPlanPostData = {
+    body: AgentTaskRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/agents/tasks/plan';
+};
+
+export type PreviewAgentPlanApiV2AgentsTasksPlanPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PreviewAgentPlanApiV2AgentsTasksPlanPostError = PreviewAgentPlanApiV2AgentsTasksPlanPostErrors[keyof PreviewAgentPlanApiV2AgentsTasksPlanPostErrors];
+
+export type PreviewAgentPlanApiV2AgentsTasksPlanPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: AgentPlanPreviewResponse;
+};
+
+export type PreviewAgentPlanApiV2AgentsTasksPlanPostResponse = PreviewAgentPlanApiV2AgentsTasksPlanPostResponses[keyof PreviewAgentPlanApiV2AgentsTasksPlanPostResponses];
+
+export type StreamAgentTaskApiV2AgentsTasksStreamPostData = {
+    body: AgentTaskRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/agents/tasks/stream';
+};
+
+export type StreamAgentTaskApiV2AgentsTasksStreamPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StreamAgentTaskApiV2AgentsTasksStreamPostError = StreamAgentTaskApiV2AgentsTasksStreamPostErrors[keyof StreamAgentTaskApiV2AgentsTasksStreamPostErrors];
+
+export type StreamAgentTaskApiV2AgentsTasksStreamPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type GetAgentTaskApiV2AgentsTasksTaskIdGetData = {
     body?: never;
@@ -2260,6 +2537,42 @@ export type GetAgentTaskApiV2AgentsTasksTaskIdGetResponses = {
 };
 
 export type GetAgentTaskApiV2AgentsTasksTaskIdGetResponse = GetAgentTaskApiV2AgentsTasksTaskIdGetResponses[keyof GetAgentTaskApiV2AgentsTasksTaskIdGetResponses];
+
+export type CancelAgentTaskApiV2AgentsTasksTaskIdCancelPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Task Id
+         */
+        task_id: string;
+    };
+    query?: never;
+    url: '/api/v2/agents/tasks/{task_id}/cancel';
+};
+
+export type CancelAgentTaskApiV2AgentsTasksTaskIdCancelPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CancelAgentTaskApiV2AgentsTasksTaskIdCancelPostError = CancelAgentTaskApiV2AgentsTasksTaskIdCancelPostErrors[keyof CancelAgentTaskApiV2AgentsTasksTaskIdCancelPostErrors];
+
+export type CancelAgentTaskApiV2AgentsTasksTaskIdCancelPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: AgentTaskResponse;
+};
+
+export type CancelAgentTaskApiV2AgentsTasksTaskIdCancelPostResponse = CancelAgentTaskApiV2AgentsTasksTaskIdCancelPostResponses[keyof CancelAgentTaskApiV2AgentsTasksTaskIdCancelPostResponses];
 
 export type ContinueAgentTaskApiV2AgentsTasksTaskIdContinuePostData = {
     body: AgentTaskContinueRequest;
@@ -4126,6 +4439,35 @@ export type QaQueryApiV2QaQueryPostResponses = {
 };
 
 export type QaQueryApiV2QaQueryPostResponse = QaQueryApiV2QaQueryPostResponses[keyof QaQueryApiV2QaQueryPostResponses];
+
+export type QaQueryStreamApiV2QaQueryStreamPostData = {
+    body: QaRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/qa/query/stream';
+};
+
+export type QaQueryStreamApiV2QaQueryStreamPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type QaQueryStreamApiV2QaQueryStreamPostError = QaQueryStreamApiV2QaQueryStreamPostErrors[keyof QaQueryStreamApiV2QaQueryStreamPostErrors];
+
+export type QaQueryStreamApiV2QaQueryStreamPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type ListTeamsApiV2TeamsGetData = {
     body?: never;

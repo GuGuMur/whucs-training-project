@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能文件工作空间平台 · 项目进度汇报</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@300;400;500;600&family=Noto+Serif+SC:wght@300;400;500;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1a2e1f;--ink-rgb:26,46,31;--paper:#f5f1e8;--paper-rgb:245,241,232;--paper-tint:#ece7da;--ink-tint:#253d2c;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+    --serif-en:"Playfair Display","Source Serif 4",Georgia,serif;
+    --serif-body-en:"Source Serif 4",Georgia,serif;
+    --serif-zh:"Noto Serif SC",source-han-serif-sc,serif;
+    --sans-zh:"Noto Sans SC",source-han-sans-sc,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--ink);color:var(--paper);font-family:var(--sans-zh);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  canvas.bg{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;display:block;transition:opacity 1.2s ease}
+  canvas#bg-light{opacity:0}canvas#bg-dark{opacity:1}
+  body.light-bg canvas#bg-light{opacity:1}body.light-bg canvas#bg-dark{opacity:0}
+  body.low-power canvas.bg{display:none!important}
+  #deck{position:fixed;inset:0;width:10000vw;height:100vh;display:flex;flex-wrap:nowrap;transition:transform .9s cubic-bezier(.77,0,.175,1);z-index:10;will-change:transform}
+  .slide{width:100vw;height:100vh;flex:0 0 100vw;position:relative;padding:4vh 6vw 8vh 6vw;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
+  .slide.light{color:var(--ink);background:var(--paper)}
+  .slide.dark{color:var(--paper);background:var(--ink)}
+  .slide::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;transition:background .7s ease}
+  .slide.light::before{background:rgba(var(--paper-rgb),.78);backdrop-filter:blur(3px)}
+  .slide.dark::before{background:rgba(var(--ink-rgb),.78);backdrop-filter:blur(3px)}
+  .slide.hero.light::before{background:rgba(var(--paper-rgb),.16);backdrop-filter:none}
+  .slide.hero.dark::before{background:rgba(var(--ink-rgb),.12);backdrop-filter:none}
+  .slide.hero::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none}
+  .slide.hero.light::after{background:linear-gradient(180deg,rgba(var(--paper-rgb),.28) 0%,rgba(var(--paper-rgb),0) 14%,rgba(var(--paper-rgb),0) 86%,rgba(var(--paper-rgb),.28) 100%)}
+  .slide.hero.dark::after{background:linear-gradient(180deg,rgba(var(--ink-rgb),.32) 0%,rgba(var(--ink-rgb),0) 14%,rgba(var(--ink-rgb),0) 86%,rgba(var(--ink-rgb),.32) 100%)}
+  .chrome{display:flex;justify-content:space-between;align-items:flex-start;font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;opacity:.7}
+  .foot{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.55}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;opacity:.6;margin-bottom:2.6vh}
+  .display{font-family:var(--serif-en);font-weight:700;font-size:11vw;line-height:.92;letter-spacing:-.025em}
+  .display-zh{font-family:var(--serif-zh);font-weight:700;font-size:7.8vw;line-height:1.04;letter-spacing:-.005em}
+  .h1-zh{font-family:var(--serif-zh);font-weight:700;font-size:4.6vw;line-height:1.12;letter-spacing:-.005em}
+  .h2-zh{font-family:var(--serif-zh);font-weight:600;font-size:2.4vw;line-height:1.2;letter-spacing:0}
+  .h3-zh{font-family:var(--serif-zh);font-weight:500;font-size:1.9vw;line-height:1.35}
+  .body-zh{font-family:var(--sans-zh);font-weight:400;font-size:max(15px,1.22vw);line-height:1.75;opacity:.82;letter-spacing:.01em}
+  .lead{font-family:var(--serif-zh);font-weight:400;font-size:1.55vw;line-height:1.5;opacity:.86}
+  .meta{font-family:var(--mono);font-size:max(11px,.88vw);letter-spacing:.16em;text-transform:uppercase;opacity:.6}
+  .big-num{font-family:var(--serif-en);font-weight:800;font-size:10vw;line-height:.85;letter-spacing:-.03em;font-feature-settings:"tnum"}
+  .mid-num{font-family:var(--serif-en);font-weight:700;font-size:5.5vw;line-height:.88;letter-spacing:-.02em;font-feature-settings:"tnum"}
+  .ghost{font-family:var(--serif-en);font-weight:900;font-size:34vw;line-height:.8;opacity:.06;letter-spacing:-.04em;position:absolute;font-feature-settings:"tnum"}
+  em{font-style:italic;font-family:var(--serif-en)}
+  .en{font-family:var(--serif-en);font-style:italic;font-weight:500}
+  .col{display:flex;flex-direction:column;gap:2.4vh}
+  .row{display:flex;align-items:center;gap:2vw}
+  .grid-6{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:2vh 5vw;flex:1;align-content:center;padding:1vh 0}
+  .grid-4{display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,1fr);gap:2vh 4vw;flex:1;align-content:center}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:2vw;flex:1;align-content:center}
+  .fill{flex:1}
+  .center{align-items:center;justify-content:center;text-align:center}
+  .bottom-left{position:absolute;left:6vw;bottom:9vh;max-width:50vw}
+  .stat{display:flex;flex-direction:column;gap:1vh;align-items:flex-start}
+  .stat .n{font-family:var(--serif-en);font-weight:800;font-size:7.5vw;line-height:.88;letter-spacing:-.03em;font-feature-settings:"tnum"}
+  .stat .l{font-family:var(--sans-zh);font-size:max(13px,1.05vw);opacity:.7;margin-top:1vh;font-weight:400;line-height:1.5}
+  .stat .m{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;opacity:.5;margin-bottom:.2vh}
+  .callout{padding:2vh 2vw;border-left:3px solid currentColor;position:relative;font-family:var(--serif-zh);font-size:max(15px,1.2vw);line-height:1.55;opacity:.92}
+  .slide.light .callout{background:rgba(var(--ink-rgb),.05)}
+  .slide.dark .callout{background:rgba(var(--paper-rgb),.06)}
+  .callout .cite{display:block;margin-top:1.6vh;font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;opacity:.6}
+  .callout .q-big{font-family:var(--serif-zh);font-weight:600;font-size:max(17px,1.6vw);line-height:1.42}
+  .plat{display:flex;flex-direction:column;justify-content:flex-end;padding:2vh 0;border-top:1px solid currentColor;border-color:rgba(127,127,127,.35)}
+  .plat .name{font-family:var(--serif-zh);font-weight:700;font-size:1.4vw;margin-bottom:.6vh}
+  .plat .nb{font-family:var(--serif-en);font-weight:700;font-size:2.4vw;letter-spacing:-.02em;line-height:1;font-feature-settings:"tnum"}
+  .plat .sub{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;opacity:.55;margin-top:.6vh}
+  .rowline{display:grid;grid-template-columns:1fr 2fr 1fr;gap:1.5vw;padding:1.6vh 0;border-top:1px solid currentColor;align-items:center;border-color:rgba(127,127,127,.25)}
+  .rowline:last-child{border-bottom:1px solid currentColor;border-color:rgba(127,127,127,.25)}
+  .rowline .k{font-family:var(--serif-zh);font-weight:700;font-size:1.7vw}
+  .rowline .v{font-family:var(--sans-zh);font-weight:400;font-size:max(14px,1.2vw);opacity:.85;line-height:1.55}
+  .rowline .m{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;opacity:.6;justify-self:end}
+  .pillar{display:flex;flex-direction:column;gap:1.2vh}
+  .pillar .ic{font-family:var(--serif-en);font-style:italic;font-size:2.6vw;opacity:.45;font-weight:400}
+  .pillar .ic svg{width:2.8vw;height:2.8vw;stroke-width:1.2;opacity:.7}
+  .pillar .t{font-family:var(--serif-zh);font-weight:700;font-size:2.4vw;line-height:1.1}
+  .pillar .d{font-family:var(--sans-zh);font-weight:400;font-size:max(13px,1vw);opacity:.76;line-height:1.6}
+  .sign{font-family:var(--serif-en);font-style:italic;font-weight:500;font-size:1.4vw;opacity:.7}
+  .hi{position:relative;display:inline}
+  .slide.dark .hi::after{content:"";position:absolute;left:-.1em;right:-.1em;bottom:-.05em;height:.28em;background:rgba(var(--paper-rgb),.15);z-index:-1}
+  .slide.light .hi::after{content:"";position:absolute;left:-.1em;right:-.1em;bottom:-.05em;height:.28em;background:rgba(var(--ink-rgb),.08);z-index:-1}
+  .ico{width:1em;height:1em;display:inline-block;vertical-align:-.12em;stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+  .ico-lg,.ico-md,.ico-sm{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
+  .ico-lg{width:2.6vw;height:2.6vw;stroke-width:1.2;display:inline-block}
+  .ico-md{width:1.8vw;height:1.8vw;stroke-width:1.3;display:inline-block;vertical-align:-.4em}
+  .ico-sm{width:1.1vw;height:1.1vw;stroke-width:1.4;display:inline-block;vertical-align:-.15em;opacity:.7}
+  .img-slot{border:1.5px dashed rgba(127,127,127,.4);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1vh;padding:2vh 2vw;font-family:var(--mono);font-size:10px;letter-spacing:.28em;text-transform:uppercase;opacity:.55;position:relative;aspect-ratio:16/9;width:100%;max-height:56vh;margin-inline:auto;box-sizing:border-box}
+  .img-slot::before{content:"";position:absolute;inset:8px;border:1px solid currentColor;opacity:.2}
+  .frame-img{overflow:hidden;position:relative;background:rgba(0,0,0,.04);box-sizing:border-box;width:100%;border-radius:4px}
+  .slide.dark .frame-img{background:rgba(255,255,255,.04)}
+  .frame-img > img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+  .frame-img.fit-contain > img{object-fit:contain;object-position:center center}
+  .frame-img.r-16x9{aspect-ratio:16/9;max-height:64vh}
+  .frame-img.r-16x10{aspect-ratio:16/10;max-height:56vh}
+  .frame-img.r-4x3{aspect-ratio:4/3;max-height:56vh}
+  .frame-img.r-3x2{aspect-ratio:3/2;max-height:46vh}
+  .frame-img.r-3x4{aspect-ratio:3/4;max-height:60vh}
+  .frame-img.r-1x1{aspect-ratio:1/1;max-height:50vh}
+  .frame-img.h-16{height:16vh}.frame-img.h-18{height:18vh}.frame-img.h-22{height:22vh}.frame-img.h-26{height:26vh}.frame-img.h-28{height:28vh}
+  .frame-cap{display:flex;justify-content:space-between;align-items:baseline;gap:1vw;margin-top:.8vh;font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;opacity:.72}
+  .frame-cap .pf{font-family:var(--serif-zh);font-weight:600;font-size:max(13px,1vw);letter-spacing:.04em;text-transform:none;opacity:.94}
+  .frame-cap .nb{font-family:var(--serif-en);font-style:italic;font-size:max(15px,1.2vw);letter-spacing:.02em;text-transform:none;opacity:.88}
+  .frame-cap .idx{font-family:var(--mono);opacity:.5}
+  figure.tile{display:flex;flex-direction:column;margin:0;min-width:0}
+  figure.tile > .frame-img{flex:0 0 auto}
+  #nav{position:fixed;left:50%;bottom:2.6vh;transform:translateX(-50%);z-index:30;display:flex;gap:10px;padding:8px 14px;border-radius:999px;background:rgba(0,0,0,.18);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  #nav .dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.3);cursor:pointer;transition:all .3s ease;border:0;padding:0}
+  #nav .dot:hover{background:rgba(255,255,255,.5);transform:scale(1.15)}
+  #nav .dot.active{background:rgba(255,255,255,.95);width:22px;border-radius:999px}
+  body.light-bg #nav{background:rgba(255,255,255,.25)}
+  body.light-bg #nav .dot{background:rgba(var(--ink-rgb),.25)}
+  body.light-bg #nav .dot.active{background:rgba(var(--ink-rgb),.9)}
+  #hint{position:fixed;bottom:3vh;right:3vw;z-index:30;font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;opacity:.4;mix-blend-mode:difference;color:#aaa}
+  body.low-power #hint{opacity:.72;color:var(--paper);mix-blend-mode:normal}
+  body.light-bg.low-power #hint{color:var(--ink)}
+  .frame{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .frame.grid-2-7-5,.frame.grid-2-6-6,.frame.grid-2-8-4,.frame.grid-3-3,.frame.grid-6{display:grid}
+  .h-hero{font-family:var(--serif-zh);font-weight:900;font-size:9vw;line-height:.96;letter-spacing:-.02em}
+  .h-xl{font-family:var(--serif-zh);font-weight:700;font-size:5.5vw;line-height:1.08;letter-spacing:-.01em}
+  .h-sub{font-family:var(--serif-zh);font-weight:500;font-size:2.4vw;line-height:1.25;letter-spacing:0;opacity:.7}
+  .h-md{font-family:var(--serif-zh);font-weight:600;font-size:2.1vw;line-height:1.3}
+  .h-hero-en,.h-xl-en{font-family:var(--serif-en);letter-spacing:-.025em}
+  .lead{font-family:var(--serif-zh);font-weight:400;font-size:1.55vw;line-height:1.5;opacity:.86}
+  .meta-row{display:flex;gap:1.2em;align-items:baseline;flex-wrap:wrap;font-family:var(--mono);font-size:max(12px,.92vw);letter-spacing:.16em;text-transform:uppercase;opacity:.6}
+  .stat-card{display:flex;flex-direction:column;gap:.6vh;align-items:flex-start;padding-top:1.2vh;border-top:1px solid currentColor;border-color:rgba(127,127,127,.3)}
+  .stat-card .stat-label{font-family:var(--mono);font-size:max(9px,.7vw);letter-spacing:.22em;text-transform:uppercase;opacity:.55}
+  .stat-card .stat-nb{font-family:var(--serif-en);font-weight:800;font-size:4.4vw;line-height:.9;letter-spacing:-.03em;font-feature-settings:"tnum";margin-top:.3vh}
+  .stat-card .stat-nb .stat-unit{font-family:var(--serif-zh);font-weight:500;font-size:.38em;letter-spacing:0;opacity:.72;margin-left:.14em}
+  .stat-card .stat-note{font-family:var(--sans-zh);font-weight:400;font-size:max(12px,.95vw);line-height:1.4;opacity:.72;margin-top:.4vh}
+  .grid-4 .stat-card .stat-nb{font-size:4.4vw}
+  .grid-3 .stat-card .stat-nb{font-size:6.8vw}
+  .pipeline-section{margin-top:2.8vh;padding-top:1.8vh;border-top:1px dashed rgba(127,127,127,.32)}
+  .pipeline-section:first-of-type{border-top:0;padding-top:0;margin-top:1.5vh}
+  .pipeline-label{font-family:var(--mono);font-size:max(10px,.78vw);letter-spacing:.22em;text-transform:uppercase;opacity:.62;margin-bottom:1.6vh}
+  .pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:1vw}
+  .pipeline[data-cols="3"]{grid-template-columns:repeat(3,1fr)}
+  .pipeline[data-cols="4"]{grid-template-columns:repeat(4,1fr)}
+  .pipeline[data-cols="6"]{grid-template-columns:repeat(6,1fr)}
+  .step{display:flex;flex-direction:column;gap:.6vh;padding-top:1vh;border-top:1px solid currentColor;border-color:rgba(127,127,127,.35)}
+  .step-nb{font-family:var(--serif-en);font-style:italic;font-weight:500;font-size:1vw;opacity:.45}
+  .step-title{font-family:var(--sans-zh);font-weight:700;font-size:1.35vw;letter-spacing:.01em;line-height:1.2}
+  .step-desc{font-family:var(--sans-zh);font-weight:400;font-size:max(11px,.85vw);line-height:1.35;opacity:.72}
+  .grid-2-7-5{display:grid;grid-template-columns:7fr 5fr;gap:2.5vw 2.5vh;align-items:start}
+  .grid-2-6-6{display:grid;grid-template-columns:1fr 1fr;gap:2.5vw 2.5vh;align-items:start}
+  .grid-2-8-4{display:grid;grid-template-columns:8fr 4fr;gap:2.5vw 2.5vh;align-items:start}
+  .grid-3-3{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:minmax(0,1fr);gap:1.8vh 1.5vw}
+  figure.frame-img{margin:0;display:flex;flex-direction:column;min-width:0}
+  .img-cap{display:block;margin-top:.8vh;font-family:var(--mono);font-size:max(10px,.8vw);letter-spacing:.22em;text-transform:uppercase;opacity:.6}
+  .callout-src{display:block;margin-top:1.6vh;font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;opacity:.6}
+  .chrome{font-family:var(--mono);font-size:max(11px,.78vw);letter-spacing:.2em;text-transform:uppercase;opacity:.62}
+  .foot{font-family:var(--mono);font-size:max(11px,.78vw);letter-spacing:.18em;text-transform:uppercase;opacity:.5}
+  .rule{width:100%;height:1px;background:currentColor;opacity:.25;margin:3vh 0}
+  .tag{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;padding:6px 14px;border:1px solid currentColor;opacity:.85}
+  [data-anim]{opacity:1}
+  body.motion-ready [data-anim]{opacity:0}
+  body.motion-ready [data-anim="left"]{transform:translateX(-24px)}
+  body.motion-ready [data-anim="right"]{transform:translateX(24px)}
+  body.motion-ready [data-anim="line"]{opacity:0;transform:translateY(10px)}
+  body.motion-ready [data-animate="pipeline"] [data-anim]{opacity:.15}
+  body.low-power #deck{transition:none!important}
+  body.low-power *{animation:none!important;transition:none!important}
+  body.low-power [data-anim]{opacity:1!important;transform:none!important}
+  @media (max-width:900px){
+    .display{font-size:16vw}.display-zh{font-size:12vw}.h1-zh{font-size:6.5vw}.h-hero{font-size:14vw}.h-xl{font-size:9vw}
+    .pipeline{grid-template-columns:repeat(2,1fr)}.grid-2-7-5,.grid-2-6-6,.grid-2-8-4{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<script>
+(function(){
+  var KEY='guizang-ppt-low-power',reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,stored=localStorage.getItem(KEY);
+  window.__lowPowerMode=stored==='1'||(stored===null&&reduced);
+  function updateHint(){var h=document.getElementById('hint');if(h) h.textContent='← → 翻页 · B '+(window.__lowPowerMode?'动态':'静态')+' · ESC 索引'}
+  window.__setLowPowerMode=function(on,opts){
+    window.__lowPowerMode=!!on;document.body.classList.toggle('low-power',window.__lowPowerMode);
+    if(opts&&opts.persist!==false) localStorage.setItem(KEY,window.__lowPowerMode?'1':'0');
+    if(window.__lowPowerMode&&document.getAnimations) document.getAnimations().forEach(function(a){a.cancel()});
+    updateHint();dispatchEvent(new CustomEvent('ppt-low-power-change',{detail:{on:window.__lowPowerMode}}));
+    if(window.__playSlide) window.__playSlide(window.__currentSlideIndex||0);
+  };
+  document.body.classList.toggle('low-power',window.__lowPowerMode);
+  addEventListener('DOMContentLoaded',updateHint,{once:true});
+})();
+</script>
+<canvas id="bg-dark" class="bg"></canvas>
+<canvas id="bg-light" class="bg"></canvas>
+<div id="hint">← → 翻页 · B 静态 · ESC 索引</div>
+<div id="deck">
+
+<!-- ====== 01: COVER ====== -->
+<section class="slide hero dark">
+  <div class="chrome"><div>WHUCS · 毕业设计开发汇报</div><div>2026.07.11</div></div>
+  <div class="frame" style="display:grid; gap:4vh; align-content:center; min-height:82vh">
+    <h1 class="h-hero" style="font-size:7.5vw" data-anim>基于大模型的</h1>
+    <h2 class="h-sub" data-anim>智能文件管理与智能体协同平台</h2>
+    <h3 class="h-md" style="opacity:.6; margin-top:1.5vh" data-anim>开发汇报</h3>
+    <div style="margin-top:6vh; display:flex; flex-direction:column; gap:2vh; font-family:var(--serif-zh)">
+      <div data-anim style="display:flex; gap:2vw; align-items:baseline">
+        <span style="font-family:var(--mono); font-size:13px; letter-spacing:.2em; opacity:.5; text-transform:uppercase">汇报人</span>
+        <span style="font-size:2vw; font-weight:500; border-bottom:1px solid currentColor; padding-bottom:.3vh; min-width:12vw; opacity:.5">________</span>
+      </div>
+      <div data-anim style="display:flex; gap:2vw; align-items:baseline">
+        <span style="font-family:var(--mono); font-size:13px; letter-spacing:.2em; opacity:.5; text-transform:uppercase">指导老师</span>
+        <span style="font-size:2vw; font-weight:500; border-bottom:1px solid currentColor; padding-bottom:.3vh; min-width:12vw; opacity:.5">________</span>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div>基于大模型的智能文件管理与智能体协同平台</div><div>— 2026.07 —</div></div>
+</section>
+
+<!-- ====== 02: BACKGROUND & GOALS ====== -->
+<section class="slide light">
+  <div class="chrome"><div>项目概述 · Overview</div><div>02 / 12</div></div>
+  <div class="frame" style="padding-top:3vh">
+    <div class="kicker" data-anim>背景与目标</div>
+    <h2 class="h-xl" data-anim>为什么做这个平台</h2>
+    <p class="lead" style="margin-bottom:2vh; max-width:70vw" data-anim>
+      传统网盘只解决"存储与同步"，普通 AI 问答缺少对文件体系、团队权限和多步骤任务的持续感知。本平台以<span class="hi">文件管理为基础、知识检索为核心、智能体为自动化入口</span>。
+    </p>
+    <div class="grid-3" style="margin-top:2.5vh">
+      <div class="pillar" data-anim>
+        <div class="ic"><i data-lucide="users" class="ico-lg"></i></div>
+        <div class="t" style="font-size:1.4vw">五类用户</div>
+        <div class="d">学生个人 / 课程小组 / 团队管理员 / 系统管理员 / 科研团队</div>
+      </div>
+      <div class="pillar" data-anim>
+        <div class="ic"><i data-lucide="target" class="ico-lg"></i></div>
+        <div class="t" style="font-size:1.4vw">六大业务目标</div>
+        <div class="d">文件管理 · RAG 问答 · Agent 编排 · 工具流 · 团队协作 · 权限审计</div>
+      </div>
+      <div class="pillar" data-anim>
+        <div class="ic"><i data-lucide="layers" class="ico-lg"></i></div>
+        <div class="t" style="font-size:1.4vw">七层架构</div>
+        <div class="d">表现层 → API 层 → 领域服务 → AI 能力 → 异步任务 → 存储层</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div>五类目标用户 · 六大业务目标 · 七大功能模块</div><div>Overview</div></div>
+</section>
+
+<!-- ====== 04: SYSTEM ARCHITECTURE ====== -->
+<section class="slide light">
+  <div class="chrome"><div>系统架构 · Architecture</div><div>03 / 12</div></div>
+  <div class="frame grid-2-8-4" style="padding-top:3vh">
+    <div>
+      <div class="kicker" data-anim>系统设计</div>
+      <h2 class="h-xl" style="font-size:4.6vw" data-anim>六层体系架构</h2>
+      <p class="lead" style="margin-top:1.5vh; margin-bottom:2vh" data-anim>
+        前后端分离、领域模块化、异步任务驱动。权限前置，AI 能力可降级。
+      </p>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">表现层</div><div class="v" style="font-size:max(13px,1.05vw)">Vue 3 + Pinia + Naive UI + Vue Flow + UnoCSS</div><div class="m">FE</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">API 层</div><div class="v" style="font-size:max(13px,1.05vw)">FastAPI v2 + JWT + RBAC + OpenAPI→hey-api</div><div class="m">Gateway</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">服务层</div><div class="v" style="font-size:max(13px,1.05vw)">RAG Pipeline · Agent Executor · Tool Registry · LLM</div><div class="m">Domain</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">AI 层</div><div class="v" style="font-size:max(13px,1.05vw)">LangChain · FAISS · sentence-transformers</div><div class="m">AI</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">任务层</div><div class="v" style="font-size:max(13px,1.05vw)">异步任务队列 — 解析/向量化/工作流调度</div><div class="m">Async</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">存储层</div><div class="v" style="font-size:max(13px,1.05vw)">MySQL · MinIO · FAISS/Milvus 向量索引</div><div class="m">Store</div></div>
+    </div>
+    <figure class="frame-img r-3x4 fit-contain" data-anim><img src="images/01-architecture.png" alt="系统体系架构"><figcaption class="img-cap">PlantUML · 系统体系架构图</figcaption></figure>
+  </div>
+  <div class="foot"><div>六层体系架构 · 五大架构原则</div><div>Architecture</div></div>
+</section>
+
+<!-- ====== 04: DOMAIN MODEL ====== -->
+<section class="slide dark">
+  <div class="chrome"><div>领域模型 · Domain Model</div><div>04 / 12</div></div>
+  <div class="frame grid-2-6-6" style="padding-top:2vh; gap:2vw">
+    <div>
+      <div class="kicker" data-anim>Core Domain Model</div>
+      <h2 class="h-xl" style="font-size:4.4vw" data-anim>核心领域</h2>
+      <p class="lead" style="margin-top:1vh; margin-bottom:1.5vh" data-anim>六大领域模块，清晰的边界与依赖关系。</p>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">User</div><div class="v" style="font-size:max(13px,1.05vw)">认证 / Token / 角色 / RBAC / 锁定 / 审计</div><div class="m">Auth</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">File</div><div class="v" style="font-size:max(13px,1.05vw)">上传 / 解析 / 版本 / 标签 / 文件夹树</div><div class="m">Storage</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">Knowledge</div><div class="v" style="font-size:max(13px,1.05vw)">知识库 / 文档 / 分块 / 嵌入 / FAISS</div><div class="m">RAG</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">Agent</div><div class="v" style="font-size:max(13px,1.05vw)">任务 / 步骤 / 工具注册 / ReAct / 结果</div><div class="m">Tool</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">Workflow</div><div class="v" style="font-size:max(13px,1.05vw)">DAG 定义 / 验证 / 发布 / 拓扑执行</div><div class="m">Orch.</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">Team</div><div class="v" style="font-size:max(13px,1.05vw)">团队 / 成员 / 角色 / 频道 / 通知</div><div class="m">Collab</div></div>
+    </div>
+    <figure class="frame-img r-4x3 fit-contain" data-anim><img src="images/10-domain-model.png" alt="核心领域类图"><figcaption class="img-cap">PlantUML · 核心领域类图</figcaption></figure>
+  </div>
+  <div class="foot"><div>领域驱动设计 · 六大领域模型</div><div>Domain Model</div></div>
+</section>
+
+<!-- ====== 05: FUNCTION HIERARCHY ====== -->
+<section class="slide dark">
+  <div class="chrome"><div>功能结构 · Functions</div><div>05 / 12</div></div>
+  <div class="frame grid-2-6-6" style="padding-top:2vh; gap:2vw">
+    <div>
+      <div class="kicker" data-anim>Seven Modules</div>
+      <h2 class="h-xl" style="font-size:4.4vw" data-anim>七大功能模块</h2>
+      <p class="lead" style="margin-top:1vh; margin-bottom:1.5vh; font-size:1.35vw" data-anim>
+        用户认证 · 文件管理 · RAG 知识库 · Agent 编排 · 工具流 · 团队协作 · 权限审计
+      </p>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1vh 1vw; flex:none">
+        <div class="step" data-anim><div class="step-nb">M1</div><div class="step-title">用户认证</div><div class="step-desc">JWT·RBAC·锁定</div></div>
+        <div class="step" data-anim><div class="step-nb">M2</div><div class="step-title">文件管理</div><div class="step-desc">CRUD·版本·标签</div></div>
+        <div class="step" data-anim><div class="step-nb">M3</div><div class="step-title">RAG 知识库</div><div class="step-desc">解析·嵌入·问答</div></div>
+        <div class="step" data-anim><div class="step-nb">M4</div><div class="step-title">Agent 编排</div><div class="step-desc">ReAct·工具注册</div></div>
+        <div class="step" data-anim><div class="step-nb">M5</div><div class="step-title">工具流</div><div class="step-desc">VueFlow·DAG</div></div>
+        <div class="step" data-anim><div class="step-nb">M6</div><div class="step-title">团队协作</div><div class="step-desc">聊天·批注·通知</div></div>
+        <div class="step" data-anim><div class="step-nb">M7</div><div class="step-title">权限审计</div><div class="step-desc">ACL·继承·日志</div></div>
+        <div class="step" data-anim><div class="step-nb">+</div><div class="step-title">更多</div><div class="step-desc">WS·SSE·流式</div></div>
+      </div>
+    </div>
+    <figure class="frame-img r-4x3 fit-contain" data-anim><img src="images/02-function-hierarchy.png" alt="系统功能层次结构图"><figcaption class="img-cap">PlantUML · 系统功能层次结构图</figcaption></figure>
+  </div>
+  <div class="foot"><div>七大功能模块 · 完整业务覆盖</div><div>Functions</div></div>
+</section>
+
+<!-- ====== 06: FILE MANAGEMENT ====== -->
+<section class="slide light">
+  <div class="chrome"><div>文件管理 · File Management</div><div>06 / 12</div></div>
+  <div class="frame" style="padding-top:2vh; flex:none">
+    <div class="kicker" data-anim>文件全生命周期</div>
+    <h2 class="h-xl" data-anim>文件全生命周期</h2>
+    <p class="lead" style="margin-bottom:1.5vh" data-anim>从上传到归档，10 项核心需求全覆盖。</p>
+    <div class="grid-3" style="flex:none; margin-top:1.5vh">
+      <div class="stat-card" data-anim><div class="stat-label">基础操作</div><div class="stat-nb" style="font-size:2.4vw">基础操作</div><div class="stat-note">上传/下载/删除/重命名/移动/复制 + 文件夹树</div></div>
+      <div class="stat-card" data-anim><div class="stat-label">高级特性</div><div class="stat-nb" style="font-size:2.4vw">高级特性</div><div class="stat-note">分片上传/断点续传 · SHA256 校验 · 版本控制与回滚</div></div>
+      <div class="stat-card" data-anim><div class="stat-label">扩展能力</div><div class="stat-nb" style="font-size:2.4vw">扩展能力</div><div class="stat-note">标签筛选 · 全文搜索 · 分享链接 · 回收站 · 备份</div></div>
+    </div>
+    <div class="pipeline" data-cols="6" style="margin-top:2vh; flex:none">
+      <div class="step" data-anim><div class="step-nb">01</div><div class="step-title">上传</div><div class="step-desc">分片/断点</div></div>
+      <div class="step" data-anim><div class="step-nb">02</div><div class="step-title">校验</div><div class="step-desc">SHA256</div></div>
+      <div class="step" data-anim><div class="step-nb">03</div><div class="step-title">解析</div><div class="step-desc">6 种格式</div></div>
+      <div class="step" data-anim><div class="step-nb">04</div><div class="step-title">索引</div><div class="step-desc">向量化</div></div>
+      <div class="step" data-anim><div class="step-nb">05</div><div class="step-title">管理</div><div class="step-desc">版本/标签</div></div>
+      <div class="step" data-anim><div class="step-nb">06</div><div class="step-title">归档</div><div class="step-desc">回收站</div></div>
+    </div>
+  </div>
+  <div class="foot"><div>文件管理 · 10 项核心需求</div><div>Files</div></div>
+</section>
+
+<!-- ====== 07: RAG ====== -->
+<section class="slide dark">
+  <div class="chrome"><div>RAG · 检索增强生成</div><div>07 / 12</div></div>
+  <div class="frame grid-2-6-6" style="padding-top:3vh; gap:2.5vw">
+    <div>
+      <div class="kicker" data-anim>检索增强生成</div>
+      <h2 class="h-xl" style="font-size:4.6vw" data-anim>知识库问答</h2>
+      <p class="lead" style="margin-top:1.5vh; margin-bottom:2vh" data-anim>
+        "总结所有用到显微镜的实验步骤"——跨文档语义检索与生成。
+      </p>
+      <div class="grid-4" style="gap:1.5vh 1.5vw">
+        <div class="pillar" data-anim><div class="ic"><i data-lucide="file-text" class="ico-lg"></i></div><div class="t" style="font-size:1.4vw">文档解析</div><div class="d">PDF/DOCX/PPTX/TXT/MD/CSV + OCR</div></div>
+        <div class="pillar" data-anim><div class="ic"><i data-lucide="scissors" class="ico-lg"></i></div><div class="t" style="font-size:1.4vw">智能分块</div><div class="d">chunk=512, overlap=128 滑动窗口</div></div>
+        <div class="pillar" data-anim><div class="ic"><i data-lucide="brain" class="ico-lg"></i></div><div class="t" style="font-size:1.4vw">向量嵌入</div><div class="d">MiniLM-L12-v2 · 384 维 · FAISS IP</div></div>
+        <div class="pillar" data-anim><div class="ic"><i data-lucide="search" class="ico-lg"></i></div><div class="t" style="font-size:1.4vw">语义检索</div><div class="d">Top-K 召回 → Reranker 精排 → 引用溯源</div></div>
+      </div>
+    </div>
+    <figure class="frame-img r-4x3 fit-contain" data-anim><img src="images/07-rag-pipeline.png" alt="文档解析与向量化流程图"><figcaption class="img-cap">PlantUML · 文档解析与向量化算法流程</figcaption></figure>
+  </div>
+  <div class="foot"><div>文档解析 · 向量嵌入 · 语义检索 · 引用溯源</div><div>RAG Pipeline</div></div>
+</section>
+
+<!-- ====== 08: AGENT TOOL FLOW ====== -->
+<section class="slide light">
+  <div class="chrome"><div>Agent 编排 · Agent Orchestration</div><div>08 / 12</div></div>
+  <div class="frame grid-2-6-6" style="padding-top:3vh; gap:2.5vw">
+    <div style="display:flex; flex-direction:column; gap:2vh">
+      <div>
+        <div class="kicker" data-anim>ReAct 执行模式</div>
+        <h2 class="h-xl" style="font-size:4.4vw" data-anim>智能体编排</h2>
+        <h3 class="h-md" style="opacity:.65; margin-top:1.5vh" data-anim>Thought → Action → Observation → Answer</h3>
+      </div>
+      <div class="pipeline" data-cols="5" style="margin-top:1.5vh">
+        <div class="step" data-anim><div class="step-nb">T</div><div class="step-title">思考</div><div class="step-desc">分析任务意图</div></div>
+        <div class="step" data-anim><div class="step-nb">A</div><div class="step-title">行动</div><div class="step-desc">选择工具调用</div></div>
+        <div class="step" data-anim><div class="step-nb">O</div><div class="step-title">观察</div><div class="step-desc">收集执行结果</div></div>
+        <div class="step" data-anim><div class="step-nb">→</div><div class="step-title">循环</div><div class="step-desc">ReAct 迭代</div></div>
+        <div class="step" data-anim><div class="step-nb">A</div><div class="step-title">回答</div><div class="step-desc">合成最终结果</div></div>
+      </div>
+      <div class="callout" data-anim><span class="q-big">支持多步工具调用、缺失参数澄清、超时重试、Schema 校验与降级处理</span><div class="callout-src">— AgentExecutor · 有界循环执行</div></div>
+    </div>
+    <figure class="frame-img r-4x3 fit-contain" data-anim><img src="images/05-agent-react.png" alt="Agent ReAct 时序图"><figcaption class="img-cap">PlantUML · Agent ReAct 工具调用时序图</figcaption></figure>
+  </div>
+  <div class="foot"><div>工具注册 · ReAct 循环 · 多步执行 · 结果视图</div><div>Agent Flow</div></div>
+</section>
+
+<!-- ====== 09: WORKFLOW BUILDER ====== -->
+<section class="slide dark">
+  <div class="chrome"><div>工具流 · Workflow Builder</div><div>09 / 12</div></div>
+  <div class="frame grid-2-6-6" style="padding-top:2vh; gap:2vw">
+    <div>
+      <div class="kicker" data-anim>可视化流程编排</div>
+      <h2 class="h-xl" style="font-size:4.4vw" data-anim>可视化工具流</h2>
+      <p class="lead" style="margin-top:1vh; margin-bottom:1.5vh; font-size:1.35vw" data-anim>
+        Vue Flow 拖拽式编辑器 + DAG 拓扑调度 + WebSocket 实时推送。
+      </p>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">编辑器</div><div class="v" style="font-size:max(13px,1.05vw)">Vue Flow 拖拽 / 连线 / 参数绑定 / 模板</div><div class="m">FE</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">校验</div><div class="v" style="font-size:max(13px,1.05vw)">DAG 环检测 / 孤立节点 / 缺失参数 / 权限</div><div class="m">Validate</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">调度</div><div class="v" style="font-size:max(13px,1.05vw)">拓扑排序 / 并行批次 / 失败策略</div><div class="m">Engine</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">调试</div><div class="v" style="font-size:max(13px,1.05vw)">单步执行 / 输入输出追踪 / 历史回放</div><div class="m">Debug</div></div>
+    </div>
+    <figure class="frame-img r-4x3 fit-contain" data-anim><img src="images/09-dag-flow.png" alt="工具流 DAG"><figcaption class="img-cap">PlantUML · DAG 校验与执行流程</figcaption></figure>
+  </div>
+  <div class="foot"><div>Vue Flow 编辑器 · DAG 调度 · 单步调试 · 执行历史</div><div>Workflow</div></div>
+</section>
+
+<!-- ====== 10: TEAM COLLABORATION ====== -->
+<section class="slide light">
+  <div class="chrome"><div>团队协作 · Team Collaboration</div><div>10 / 12</div></div>
+  <div class="frame" style="padding-top:3vh">
+    <div class="kicker" data-anim>团队协作能力</div>
+    <h2 class="h-xl" data-anim>团队协作体系</h2>
+    <p class="lead" style="margin-bottom:2vh" data-anim>从创建团队到权限审计，完整的多人协同闭环。</p>
+    <div class="grid-3-3" style="margin-top:2.5vh; gap:2vh 3vw">
+      <div class="pillar" data-anim><div class="ic"><i data-lucide="user-plus" class="ico-lg"></i></div><div class="t" style="font-size:1.4vw">成员管理</div><div class="d">创建团队 · 邀请成员 · 角色分配：管理员/成员/访客</div></div>
+      <div class="pillar" data-anim><div class="ic"><i data-lucide="folder-lock" class="ico-lg"></i></div><div class="t" style="font-size:1.4vw">团队文件夹</div><div class="d">团队文件与个人文件隔离 · 角色级读写控制</div></div>
+      <div class="pillar" data-anim><div class="ic"><i data-lucide="message-square" class="ico-lg"></i></div><div class="t" style="font-size:1.4vw">实时沟通</div><div class="d">群聊/私聊 · @提及 · WebSocket 推送 · 消息持久化</div></div>
+      <div class="pillar" data-anim><div class="ic"><i data-lucide="pen-line" class="ico-lg"></i></div><div class="t" style="font-size:1.4vw">文件批注</div><div class="d">批注/回复/删除 · 被@或收到回复产生通知</div></div>
+      <div class="pillar" data-anim><div class="ic"><i data-lucide="bell" class="ico-lg"></i></div><div class="t" style="font-size:1.4vw">通知系统</div><div class="d">邀请通知 · 批注通知 · 流程完成通知 · 已读/未读</div></div>
+      <div class="pillar" data-anim><div class="ic"><i data-lucide="activity" class="ico-lg"></i></div><div class="t" style="font-size:1.4vw">活动动态</div><div class="d">上传/删除/批注/流程执行等关键事件流</div></div>
+    </div>
+  </div>
+  <div class="foot"><div>团队管理 · 实时沟通 · 批注通知 · 活动动态</div><div>Collaboration</div></div>
+</section>
+
+<!-- ====== 12: PERMISSION & SECURITY ====== -->
+<section class="slide light">
+  <div class="chrome"><div>权限与安全 · Security</div><div>11 / 12</div></div>
+  <div class="frame grid-2-7-5" style="padding-top:3vh">
+    <div style="display:flex; flex-direction:column; justify-content:space-between; gap:2vh">
+      <div>
+        <div class="kicker" data-anim>安全架构</div>
+        <h2 class="h-xl" style="font-size:4.6vw" data-anim>权限与审计</h2>
+        <p class="lead" style="margin-top:1.5vh" data-anim>
+          权限前置，所有资源访问先过 JWT + RBAC + ACL。
+        </p>
+      </div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">认证</div><div class="v" style="font-size:max(13px,1.05vw)">JWT Access+Refresh 双令牌 · 5次锁定 · 审计</div><div class="m">Auth</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">RBAC</div><div class="v" style="font-size:max(13px,1.05vw)">系统角色 + 团队角色(管理员/成员/访客)</div><div class="m">Role</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">ACL</div><div class="v" style="font-size:max(13px,1.05vw)">资源级(不可见/只读/读写/管理) · 继承+覆盖 · 拒绝优先</div><div class="m">Perm</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">审计</div><div class="v" style="font-size:max(13px,1.05vw)">关键操作全记录 · 按用户/资源/时间过滤</div><div class="m">Audit</div></div>
+      <div class="callout" data-anim>
+        "权限前置：所有文件、知识库、团队、工具和流程资源访问都必须先经过 JWT 和 RBAC 校验。"
+        <div class="callout-src">— 架构原则 #1 · 权限前置</div>
+      </div>
+    </div>
+    <figure class="frame-img r-3x4 fit-contain" data-anim><img src="images/04-upload-sequence.png" alt="文件上传与知识库入库时序图"><figcaption class="img-cap">PlantUML · 文件上传与权限校验时序</figcaption></figure>
+  </div>
+  <div class="foot"><div>JWT 鉴权 · RBAC 角色 · ACL 权限 · 审计追踪</div><div>Security</div></div>
+</section>
+
+<!-- ====== CLOSING ====== -->
+<section class="slide hero dark">
+  <div class="chrome"><div>WHUCS · 毕业设计开发汇报</div><div>2026.07.11</div></div>
+  <div class="frame" style="display:grid; gap:4vh; align-content:center; min-height:82vh">
+    <h1 class="h-hero" style="font-size:7.5vw" data-anim>谢谢</h1>
+    <p class="lead" style="max-width:55vw" data-anim>基于大模型的智能文件管理与智能体协同平台</p>
+    <div style="margin-top:6vh; display:flex; flex-direction:column; gap:2vh; font-family:var(--serif-zh)">
+      <div data-anim style="display:flex; gap:2vw; align-items:baseline">
+        <span style="font-family:var(--mono); font-size:13px; letter-spacing:.2em; opacity:.5; text-transform:uppercase">汇报人</span>
+        <span style="font-size:2vw; font-weight:500; border-bottom:1px solid currentColor; padding-bottom:.3vh; min-width:12vw; opacity:.5">________</span>
+      </div>
+      <div data-anim style="display:flex; gap:2vw; align-items:baseline">
+        <span style="font-family:var(--mono); font-size:13px; letter-spacing:.2em; opacity:.5; text-transform:uppercase">指导老师</span>
+        <span style="font-size:2vw; font-weight:500; border-bottom:1px solid currentColor; padding-bottom:.3vh; min-width:12vw; opacity:.5">________</span>
+      </div>
+    </div>
+    <div style="margin-top:3vh; font-family:var(--mono); font-size:12px; letter-spacing:.18em; text-transform:uppercase; opacity:.4" data-anim>感谢聆听 · Questions &amp; Discussion</div>
+  </div>
+  <div class="foot"><div>基于大模型的智能文件管理与智能体协同平台</div><div>— 2026.07 —</div></div>
+</section>
+
+</div>
+<div id="nav"></div>
+<script>
+var VS='attribute vec2 position;void main(){gl_Position=vec4(position,0.0,1.0);}';
+var FS_DARK='precision highp float;\nuniform vec2 u_resolution;uniform float u_time;uniform vec2 u_mouse;\nvec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d){return a+b*cos(6.28318*(c*t+d));}\nvoid main(){\n  vec2 uv=gl_FragCoord.xy/u_resolution.xy;\n  vec2 p=uv*2.0-1.0;p.x*=u_resolution.x/u_resolution.y;\n  vec2 m=u_mouse*2.0-1.0;m.x*=u_resolution.x/u_resolution.y;\n  float md=length(p-m);\n  float mr=sin(md*15.0-u_time*4.0)*exp(-md*3.0);p+=mr*0.08;\n  vec2 p0=p;\n  for(float i=1.0;i<4.0;i++){\n    p.x+=0.1/i*sin(i*3.0*p.y+u_time*0.4)+0.05;\n    p.y+=0.1/i*cos(i*2.0*p.x+u_time*0.3)-0.05;\n  }\n  float r=length(p);float ang=atan(p.y,p.x);\n  vec3 a=vec3(0.12,0.12,0.13);\n  vec3 b=vec3(0.03,0.04,0.05);\n  vec3 c=vec3(1.0,1.0,1.0);\n  vec3 d=vec3(0.1,0.2,0.4);\n  vec3 col=palette(r*1.5+p0.x*0.5+u_time*0.1,a,b,c,d);\n  float disp=sin(r*25.0-u_time*1.5+ang*2.0)*0.5+0.5;\n  col+=vec3(disp*0.015,disp*0.01,disp*0.02);\n  float hi=pow(sin(p.x*4.0+p.y*3.0+u_time)*0.5+0.5,8.0);\n  col+=hi*0.08;\n  vec3 base=vec3(0.05,0.05,0.06);\n  col=mix(base,col,0.85);\n  gl_FragColor=vec4(col,1.0);\n}';
+var FS_LIGHT='precision highp float;\nuniform vec2 u_resolution;uniform float u_time;uniform vec2 u_mouse;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat noise(vec2 p){\n  vec2 i=floor(p),f=fract(p);\n  float a=hash(i),b=hash(i+vec2(1,0));\n  float c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));\n  vec2 u=f*f*(3.0-2.0*f);\n  return mix(a,b,u.x)+(c-a)*u.y*(1.0-u.x)+(d-b)*u.x*u.y;\n}\nfloat fbm(vec2 p){\n  float v=0.0,a=0.5;\n  mat2 m=mat2(0.80,0.60,-0.60,0.80);\n  for(int i=0;i<5;i++){v+=a*noise(p);p=m*p*2.02;a*=0.5;}\n  return v;\n}\nvoid main(){\n  vec2 uv=gl_FragCoord.xy/u_resolution.xy;\n  vec2 p=uv;p.x*=u_resolution.x/u_resolution.y;\n  vec2 m=u_mouse;m.x*=u_resolution.x/u_resolution.y;\n  vec2 md=p-m;float dl=length(md);\n  p+=normalize(md+vec2(0.0001))*exp(-dl*5.0)*0.03;\n  vec2 q=vec2(fbm(p*1.8+u_time*0.07),fbm(p*1.8+vec2(5.2,1.3)+u_time*0.06));\n  vec2 r=vec2(fbm(p*2.0+q*1.3+vec2(1.7,9.2)+u_time*0.05),\n              fbm(p*2.0+q*1.3+vec2(8.3,2.8)+u_time*0.04));\n  float f=fbm(p*2.2+r*1.5);\n  vec3 silverDark=vec3(0.86,0.85,0.84);\n  vec3 paper=vec3(0.955,0.945,0.925);\n  vec3 col=mix(silverDark,paper,f);\n  float ph=r.x*2.2+u_time*0.35;\n  col+=vec3(0.78,0.62,0.92)*sin(ph)*0.055;\n  col+=vec3(0.55,0.72,0.95)*sin(ph*0.8+2.0)*0.05;\n  float hl=smoothstep(0.48,0.92,f);\n  col+=hl*0.06;\n  gl_FragColor=vec4(col,1.0);\n}';
+var mouse={x:0.5,y:0.5};
+addEventListener('mousemove',function(e){mouse.x=e.clientX/innerWidth;mouse.y=e.clientY/innerHeight});
+function bootGL(canvasId,fsSrc){
+  var canvas=document.getElementById(canvasId);
+  var gl=canvas.getContext('webgl',{alpha:false,antialias:true});
+  if(!gl) return function(){return false};
+  function mk(t,s){var sh=gl.createShader(t);gl.shaderSource(sh,s);gl.compileShader(sh);return sh}
+  var prog=gl.createProgram();gl.attachShader(prog,mk(gl.VERTEX_SHADER,VS));gl.attachShader(prog,mk(gl.FRAGMENT_SHADER,fsSrc));
+  gl.linkProgram(prog);gl.useProgram(prog);
+  var buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+  var pos=gl.getAttribLocation(prog,'position');gl.enableVertexAttribArray(pos);gl.vertexAttribPointer(pos,2,gl.FLOAT,false,0,0);
+  var lRes=gl.getUniformLocation(prog,'u_resolution'),lT=gl.getUniformLocation(prog,'u_time'),lM=gl.getUniformLocation(prog,'u_mouse');
+  function resize(){var d=Math.min(window.devicePixelRatio||1,2);canvas.width=innerWidth*d;canvas.height=innerHeight*d;gl.viewport(0,0,canvas.width,canvas.height)}
+  addEventListener('resize',resize);resize();
+  return function(tSec){gl.uniform2f(lRes,canvas.width,canvas.height);gl.uniform1f(lT,tSec);gl.uniform2f(lM,mouse.x,1-mouse.y);gl.drawArrays(gl.TRIANGLES,0,6);return true};
+}
+var drawDark=null,drawLight=null,glRAF=0,glT0=Date.now();
+function startGL(){
+  if(window.__lowPowerMode||glRAF) return;
+  if(!drawDark) drawDark=bootGL('bg-dark',FS_DARK);if(!drawLight) drawLight=bootGL('bg-light',FS_LIGHT);
+  glT0=Date.now();
+  function loop(){if(window.__lowPowerMode){glRAF=0;return}var t=(Date.now()-glT0)/1000;drawDark(t);drawLight(t);glRAF=requestAnimationFrame(loop)}
+  glRAF=requestAnimationFrame(loop);
+}
+function stopGL(){if(glRAF) cancelAnimationFrame(glRAF);glRAF=0}
+startGL();
+addEventListener('ppt-low-power-change',function(e){e.detail.on?stopGL():startGL()});
+var deck=document.getElementById('deck'),slides=deck.querySelectorAll('.slide'),nav=document.getElementById('nav'),idx=0,total=slides.length,lock=false;
+deck.style.width=(total*100)+'vw';
+slides.forEach(function(s,i){var b=document.createElement('button');b.className='dot';b.dataset.i=i;b.setAttribute('aria-label','Page '+(i+1));b.onclick=function(){go(i)};nav.appendChild(b)});
+function go(n){
+  if(lock) return;idx=Math.max(0,Math.min(total-1,n));window.__currentSlideIndex=idx;
+  deck.style.transform='translateX('+(-idx*100)+'vw)';
+  nav.querySelectorAll('.dot').forEach(function(d,i){d.classList.toggle('active',i===idx)});
+  var el=slides[idx],th=el.dataset.theme||(el.classList.contains('light')?'light':(el.classList.contains('dark')?'dark':'dark'));
+  document.body.classList.toggle('light-bg',th==='light');
+  if(window.__playSlide) setTimeout(function(){window.__playSlide(idx)},450);lock=true;setTimeout(function(){lock=false},700);
+}
+var overviewOn=false,ov=document.createElement('div');
+ov.id='overview';ov.style.cssText='position:fixed;inset:0;z-index:100;background:rgba(var(--ink-rgb),.92);backdrop-filter:blur(12px);display:none;overflow-y:auto;padding:4vh 4vw';
+document.body.appendChild(ov);
+function buildOverview(){
+  ov.innerHTML='';var grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:2vh 1.6vw;max-width:90vw;margin:0 auto';
+  slides.forEach(function(s,i){
+    var card=document.createElement('div');
+    card.style.cssText='cursor:pointer;border-radius:6px;overflow:hidden;border:2px solid '+(i===idx?'rgba(var(--paper-rgb),.8)':'rgba(var(--paper-rgb),.15)')+';transition:border-color .2s';
+    card.onmouseenter=function(){card.style.borderColor='rgba(var(--paper-rgb),.6)'};
+    card.onmouseleave=function(){card.style.borderColor=i===idx?'rgba(var(--paper-rgb),.8)':'rgba(var(--paper-rgb),.15)'};
+    var wrap=document.createElement('div');
+    wrap.style.cssText='width:100%;aspect-ratio:16/9;overflow:hidden;position:relative;pointer-events:none;background:'+(s.classList.contains('light')?'var(--paper)':'var(--ink)');
+    var clone=s.cloneNode(true);clone.style.cssText='width:100vw;height:100vh;transform:scale('+(1/4.5)+');transform-origin:top left;position:absolute;top:0;left:0;pointer-events:none';
+    wrap.appendChild(clone);
+    var label=document.createElement('div');
+    label.style.cssText='padding:6px 10px;font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--paper);opacity:.7';
+    label.textContent=(i+1)+' / '+total;card.appendChild(wrap);card.appendChild(label);
+    card.onclick=function(){toggleOverview();go(i)};grid.appendChild(card);
+  });ov.appendChild(grid);
+}
+function toggleOverview(){overviewOn=!overviewOn;if(overviewOn){buildOverview();ov.style.display='block'}else{ov.style.display='none'}}
+addEventListener('keydown',function(e){
+  if(e.key==='Escape'){e.preventDefault();toggleOverview();return}
+  if(e.key&&e.key.toLowerCase()==='b'&&!e.metaKey&&!e.ctrlKey&&!e.altKey){e.preventDefault();window.__setLowPowerMode(!window.__lowPowerMode);return}
+  if(overviewOn) return;
+  if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '||e.key==='ArrowDown'){if(window.__pipeAdvance&&window.__pipeAdvance()) return;go(idx+1);return}
+  if(e.key==='ArrowLeft'||e.key==='PageUp'||e.key==='ArrowUp') go(idx-1);if(e.key==='Home') go(0);if(e.key==='End') go(total-1);
+});
+var wheelTO=null,wheelAcc=0;
+addEventListener('wheel',function(e){wheelAcc+=e.deltaY+e.deltaX;if(Math.abs(wheelAcc)>50){if(wheelAcc>0&&window.__pipeAdvance&&window.__pipeAdvance()){wheelAcc=0}else{go(idx+(wheelAcc>0?1:-1));wheelAcc=0}}clearTimeout(wheelTO);wheelTO=setTimeout(function(){wheelAcc=0},150)},{passive:true});
+var tx=0,ty=0;
+addEventListener('touchstart',function(e){tx=e.touches[0].clientX;ty=e.touches[0].clientY},{passive:true});
+addEventListener('touchend',function(e){var dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)){if(dx<0&&window.__pipeAdvance&&window.__pipeAdvance()) return;go(idx+(dx<0?1:-1))}},{passive:true});
+go(0);
+</script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>lucide.createIcons();</script>
+<script type="module">
+var motion;
+try{motion=await import('https://cdn.jsdelivr.net/npm/motion@11.11.17/+esm')}
+catch(e2){console.warn('[motion] CDN failed');document.querySelectorAll('[data-anim]').forEach(function(el){el.style.opacity='1';el.style.transform='none'})}
+if(motion){
+  var animate=motion.animate,stagger=motion.stagger;document.body.classList.add('motion-ready');
+  var EASE=[.22,1,.36,1],slidesAll=[].slice.call(document.querySelectorAll('.slide')),pipeStep=-1,lastIdx=-1;
+  function resetAnims(slide){slide.querySelectorAll('[data-anim]').forEach(function(el){el.style.opacity='';el.style.transform=''})}
+  function revealStatic(slide){resetAnims(slide);if(document.getAnimations) document.getAnimations().forEach(function(a){a.cancel()});slide.querySelectorAll('[data-anim]').forEach(function(el){el.style.opacity='1';el.style.transform='none'})}
+  function playSlide(i){
+    var slide=slidesAll[i];if(!slide) return;lastIdx=i;
+    var recipe=slide.dataset.animate||(slide.classList.contains('hero')?'hero':'cascade');
+    if(window.__lowPowerMode){revealStatic(slide);return}
+    if(recipe==='pipeline'){pipeStep=-1;slide.querySelectorAll('[data-anim]').forEach(function(el){el.style.opacity='0.15';el.style.transform='none'});return}
+    resetAnims(slide);var all=[].slice.call(slide.querySelectorAll('[data-anim]'));if(!all.length) return;
+    if(recipe==='directional'){
+      var lefts=all.filter(function(el){return el.dataset.anim==='left'}),divs=all.filter(function(el){return el.dataset.anim==='divider'}),rights=all.filter(function(el){return el.dataset.anim==='right'}),others=all.filter(function(el){return['left','right','divider'].indexOf(el.dataset.anim)===-1});
+      if(others.length) animate(others,{opacity:[0,1],y:[12,0]},{duration:.6,delay:stagger(.1,{start:.15}),easing:EASE});
+      if(lefts.length) animate(lefts,{opacity:[0,1],x:[-24,0]},{duration:.8,delay:.35,easing:EASE});
+      if(divs.length) animate(divs,{opacity:[0,.25]},{duration:.5,delay:.9});
+      if(rights.length) animate(rights,{opacity:[0,1],x:[24,0]},{duration:.8,delay:1.0,easing:EASE});return;
+    }
+    if(recipe==='quote'){
+      var lines=all.filter(function(el){return el.dataset.anim==='line'}),others2=all.filter(function(el){return el.dataset.anim!=='line'});
+      if(others2.length) animate(others2,{opacity:[0,1],y:[8,0]},{duration:.6,delay:stagger(.12,{start:.2}),easing:EASE});
+      if(lines.length) animate(lines,{opacity:[.35,1],y:[10,0]},{duration:.8,delay:stagger(.55,{start:.5}),easing:EASE});return;
+    }
+    if(recipe==='hero'){animate(all,{opacity:[0,1],y:[14,0]},{duration:.9,delay:stagger(.16,{start:.2}),easing:EASE});return}
+    animate(all,{opacity:[0,1],y:[16,0]},{duration:.75,delay:stagger(.1,{start:.15}),easing:EASE});
+  }
+  function pipeAdvance(){
+    if(window.__lowPowerMode) return false;var slide=slidesAll[lastIdx];if(!slide||slide.dataset.animate!=='pipeline') return false;
+    var steps=[].slice.call(slide.querySelectorAll('[data-anim="step"]')),arrows=[].slice.call(slide.querySelectorAll('[data-anim="arrow"]'));
+    if(pipeStep>=steps.length-1) return false;pipeStep++;
+    animate(steps[pipeStep],{opacity:[0.15,1],y:[8,0]},{duration:.5,easing:EASE});
+    if(pipeStep>0&&arrows[pipeStep-1]) animate(arrows[pipeStep-1],{opacity:[0.15,.7]},{duration:.3,delay:.15});return true;
+  }
+  window.__playSlide=playSlide;window.__pipeAdvance=pipeAdvance;playSlide(0);
+}
+</script>
+</body>
+</html>

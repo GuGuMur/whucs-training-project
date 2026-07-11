@@ -6,17 +6,19 @@ import type { WorkspaceFolderOption } from '@/client/workspace'
 
 const props = withDefaults(defineProps<{
   show?: boolean
+  activeFolderId?: string | null
   folderOptions?: WorkspaceFolderOption[]
   uploading?: boolean
 }>(), {
   show: false,
+  activeFolderId: null,
   folderOptions: () => [],
   uploading: false,
 })
 
 const emit = defineEmits<{
   'update:show': [value: boolean]
-  submit: [payload: { file: File; folderId: string; tags: string[] }]
+  submit: [payload: { files: File[]; folderId: string; tags: string[] }]
 }>()
 
 const selectedFolder = shallowRef('')
@@ -27,10 +29,18 @@ const errorMessage = shallowRef('')
 // Reset state when modal opens
 watch(() => props.show, (visible) => {
   if (visible) {
-    if (!selectedFolder.value && props.folderOptions.length) {
-      const firstOption = props.folderOptions[0]
-      if (firstOption) {
-        selectedFolder.value = firstOption.value
+    // Default to active folder, else first option
+    if (props.folderOptions.length) {
+      const activeOpt = props.activeFolderId
+        ? props.folderOptions.find(o => o.value === props.activeFolderId)
+        : undefined
+      if (activeOpt) {
+        selectedFolder.value = activeOpt.value
+      } else if (!selectedFolder.value || !props.folderOptions.some(o => o.value === selectedFolder.value)) {
+        const firstOption = props.folderOptions[0]
+        if (firstOption) {
+          selectedFolder.value = firstOption.value
+        }
       }
     }
     fileList.value = []
@@ -50,9 +60,10 @@ watch(() => props.folderOptions, (opts) => {
 })
 
 function handleSubmit() {
-  const uploadFileInfo = fileList.value[0]
-  const file = uploadFileInfo?.file
-  if (!file) {
+  const files = fileList.value
+    .map((info) => info.file)
+    .filter((f): f is File => f != null)
+  if (!files.length) {
     errorMessage.value = '请选择要上传的文件'
     return
   }
@@ -62,10 +73,16 @@ function handleSubmit() {
   }
   errorMessage.value = ''
   emit('submit', {
-    file,
+    files,
     folderId: selectedFolder.value,
     tags: tags.value,
   })
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1048576).toFixed(1)} MB`
 }
 
 function handleClose() {
@@ -86,7 +103,8 @@ function handleClose() {
       <!-- Drag-drop upload zone -->
       <NUpload
         :default-upload="false"
-        :max="1"
+        :max="20"
+        multiple
         :file-list="fileList"
         accept="*"
         directory-dnd
@@ -102,13 +120,25 @@ function handleClose() {
             点击或拖拽文件到此区域上传
           </p>
           <p v-if="fileList.length" class="m-0 text-ink text-13px font-600">
-            {{ fileList[0]?.name ?? '' }}
+            已选择 {{ fileList.length }} 个文件
           </p>
           <p v-else class="m-0 text-sub text-12px opacity-60">
             未选择文件
           </p>
         </div>
       </NUpload>
+
+      <!-- Selected file list -->
+      <div v-if="fileList.length > 1" class="max-h-30 overflow-y-auto border border-line rounded-2 p-2">
+        <div
+          v-for="(info, idx) in fileList"
+          :key="idx"
+          class="flex items-center justify-between gap-2 px-2 py-1 text-13px text-ink rounded-1 hover:bg-hover"
+        >
+          <span class="truncate">{{ info.name }}</span>
+          <span class="shrink-0 text-sub text-11px">{{ info.file ? formatFileSize(info.file.size) : '' }}</span>
+        </div>
+      </div>
 
       <!-- Target folder -->
       <div>

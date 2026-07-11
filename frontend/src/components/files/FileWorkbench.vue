@@ -9,6 +9,7 @@ import type {
   WorkspaceFileAnnotationReplyInput, WorkspaceFileContent, WorkspaceFileContentUpdateInput,
   WorkspaceFileCopyInput, WorkspaceFileFilters,
   WorkspaceFileUpdateInput, WorkspaceFileUploadInput, WorkspaceFileVersion,
+  WorkspaceFileBatchUploadInput,
   WorkspaceFolder, WorkspaceFolderOption, WorkspacePermissionRule, WorkspacePermissionRuleCreateInput,
 } from '@/client/workspace'
 import CategorySidebar from '../files/CategorySidebar.vue'
@@ -63,12 +64,14 @@ const emit = defineEmits<{
   'create-folder': [payload: any]
   'delete-file': [file: WorkspaceFile]
   'delete-file-annotation': [fileId: string, annotationId: string]
+  'delete-folder': [folderId: string]
   'delete-permission-rule': [ruleId: string]
   'download-file': [file: WorkspaceFile]
   'create-permission-rule': [payload: WorkspacePermissionRuleCreateInput]
   'load-file-content': [fileId: string]
   'load-file-annotations': [fileId: string]
   'load-file-versions': [fileId: string]
+  'rename-folder': [folderId: string, name: string]
   'reply-file-annotation': [annotationId: string, payload: WorkspaceFileAnnotationReplyInput]
   'reparse-file': [file: WorkspaceFile]
   'restore-file-version': [fileId: string, versionId: string]
@@ -77,6 +80,7 @@ const emit = defineEmits<{
   'update-file-content': [fileId: string, payload: WorkspaceFileContentUpdateInput]
   'update-file': [fileId: string, payload: WorkspaceFileUpdateInput]
   'upload-file': [payload: WorkspaceFileUploadInput]
+  'upload-files': [payload: WorkspaceFileBatchUploadInput]
 }>()
 
 // ── Filters ──
@@ -105,8 +109,8 @@ function openDrawer(file: WorkspaceFile, tab: string) {
   if (tab === 'preview') emit('load-file-content', file.id)
 }
 
-function handleUpload(payload: WorkspaceFileUploadInput) {
-  emit('upload-file', payload); uploadModalShow.value = false
+function handleUpload(payload: { files: File[]; folderId: string; tags: string[] }) {
+  emit('upload-files', payload); uploadModalShow.value = false
 }
 
 function confirmDelete() {
@@ -247,6 +251,9 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
         :folders="folders"
         @select-category="(k: string) => activeCategory = k"
         @select-folder="(id: string) => emit('select-folder', id)"
+        @create-folder="(p: any) => emit('create-folder', p)"
+        @rename-folder="(fid: string, name: string) => emit('rename-folder', fid, name)"
+        @delete-folder="(fid: string) => emit('delete-folder', fid)"
       />
 
       <div class="min-w-0 border-l border-line">
@@ -315,7 +322,7 @@ const columns = computed<DataTableColumns<WorkspaceFile>>(() => [
 
   <!-- Upload Modal -->
   <FileUploadModal
-    :show="uploadModalShow" :folder-options="folderOptions" :uploading="uploadingFile"
+    :show="uploadModalShow" :active-folder-id="activeFolderId" :folder-options="folderOptions" :uploading="uploadingFile"
     @update:show="(v: boolean) => uploadModalShow = v"
     @submit="handleUpload"
   />

@@ -70,6 +70,26 @@ const completedTask: WorkspaceAgentTask = {
   task: '查询课程信息',
 }
 
+const cancelledTask: WorkspaceAgentTask = {
+  final_answer: '任务已取消。',
+  id: 'task-course',
+  result_view: { content: '任务已取消。', type: 'text' },
+  status: 'cancelled',
+  steps: [
+    ...clarificationTask.steps,
+    {
+      content: '用户已取消该智能体任务。',
+      error_message: 'AGENT_TASK_CANCELLED',
+      metadata: { cancelled_by: '小明' },
+      phase: 'answer',
+      status: 'failed',
+      title: '任务已取消',
+      type: 'answer',
+    },
+  ],
+  task: '查询课程信息',
+}
+
 function saveSession() {
   saveWorkspaceSession({
     accessToken: 'access-token',
@@ -116,20 +136,105 @@ describe('agent store', () => {
     expect(agent.executionSteps).toEqual(clarificationTask.steps)
   })
 
+  it('streams a task and updates execution steps before final task arrives', async () => {
+    saveSession()
+    async function* events() {
+      yield { type: 'plan' as const, step: completedTask.steps[0] }
+      yield { type: 'call' as const, step: completedTask.steps[1] }
+      yield { type: 'answer' as const, step: completedTask.steps[2] }
+      yield { type: 'done' as const, task: completedTask }
+    }
+    const streamSpy = vi.spyOn(workspaceClient, 'streamAgentTask').mockReturnValue(events())
+    const agent = useAgentStore()
+
+    await agent.createTaskStream({ task: '查询高等数学课程信息', kbId: null, contextFileIds: [] })
+
+    expect(streamSpy).toHaveBeenCalledWith('access-token', {
+      contextFileIds: [],
+      kbId: null,
+      task: '查询高等数学课程信息',
+    })
+    expect(agent.executionSteps).toEqual(completedTask.steps)
+    expect(agent.streamedAnswer).toBe('高等数学周一上课。')
+    expect(agent.activeTask?.id).toBe('task-course')
+    expect(agent.isStreaming).toBe(false)
+  })
+
+  it('previews a risky task plan before execution', async () => {
+    saveSession()
+    const previewSpy = vi.spyOn(workspaceClient, 'previewAgentPlan').mockResolvedValue({
+      answer_strategy: 'use_tools_then_answer',
+      intent: '查询数据库',
+      missing_fields: [],
+      requires_confirmation: true,
+      risk_level: 'high',
+      risk_reason: '将访问受限系统数据或外部服务，执行前需要确认。',
+      steps: [
+        {
+          arguments: { table: 'files' },
+          rationale: '查询受限文件表',
+          risk_level: 'high',
+          risk_reason: '将访问受限系统数据或外部服务，执行前需要确认。',
+          tool_name: 'database_query',
+        },
+      ],
+    })
+    const agent = useAgentStore()
+
+    await agent.previewTaskPlan({ task: '数据库查询文件', kbId: null, contextFileIds: [] })
+
+    expect(previewSpy).toHaveBeenCalledWith('access-token', {
+      contextFileIds: [],
+      kbId: null,
+      task: '数据库查询文件',
+    })
+    expect(agent.planPreview?.risk_level).toBe('high')
+    expect(agent.planPreview?.requires_confirmation).toBe(true)
+  })
+
+  it('loads persisted task history and selects the latest task', async () => {
+    saveSession()
+    const historySpy = vi.spyOn(workspaceClient, 'listAgentTasks').mockResolvedValue({
+      items: [completedTask, clarificationTask],
+    })
+    const agent = useAgentStore()
+
+    await agent.loadTaskHistory()
+
+    expect(historySpy).toHaveBeenCalledWith('access-token')
+    expect(agent.taskHistory.map((task) => task.id)).toEqual(['task-course'])
+    expect(agent.activeTask?.final_answer).toBe('高等数学周一上课。')
+  })
+
   it('continues a task with clarification inputs and stores final result', async () => {
     saveSession()
     const continueSpy = vi.spyOn(workspaceClient, 'continueAgentTask').mockResolvedValue(completedTask)
     const agent = useAgentStore()
     agent.activeTask = clarificationTask
 
-    await agent.continueTask('task-course', { inputs: { course_name: '高等数学' } })
+    await agent.continueTask('task-course', { inputs: { course_name: '高等数学' }, message: '继续查询上课时间' })
 
     expect(continueSpy).toHaveBeenCalledWith('access-token', 'task-course', {
       inputs: { course_name: '高等数学' },
+      message: '继续查询上课时间',
     })
     expect(agent.activeTask?.status).toBe('completed')
     expect(agent.finalAnswer).toBe('高等数学周一上课。')
     expect(agent.resultView).toEqual(completedTask.result_view)
     expect(agent.taskHistory[0]?.id).toBe('task-course')
+  })
+
+  it('cancels a task and stores cancelled state', async () => {
+    saveSession()
+    const cancelSpy = vi.spyOn(workspaceClient, 'cancelAgentTask').mockResolvedValue(cancelledTask)
+    const agent = useAgentStore()
+    agent.activeTask = clarificationTask
+
+    await agent.cancelTask('task-course')
+
+    expect(cancelSpy).toHaveBeenCalledWith('access-token', 'task-course')
+    expect(agent.activeTask?.status).toBe('cancelled')
+    expect(agent.finalAnswer).toBe('任务已取消。')
+    expect(agent.executionSteps[agent.executionSteps.length - 1]?.title).toBe('任务已取消')
   })
 })

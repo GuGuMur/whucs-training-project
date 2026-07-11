@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { AtSign, BellRing, Copy, FileText, Link, LogOut, Pencil, Plus, Search, Send, ShieldCheck, Trash2, UsersRound } from '@lucide/vue'
 import { useMessage } from 'naive-ui'
@@ -18,7 +18,7 @@ const auth = useAuthStore()
 const workspace = useWorkspaceStore()
 const message = useMessage()
 const {
-  activeTeamDetail, apiState, auditLogs, summary, teams,
+  activeTeamDetail, apiState, auditLogs, loading, summary, teams,
   teamMessagesById, teamMessageSending, teamMessageTeamIdLoading,
 } = storeToRefs(workspace)
 const { isMobileLayout } = useWorkspaceLayoutMode()
@@ -61,11 +61,24 @@ const messages = computed(() => rawMessages.value.map(m => ({
   messageType: m.message_type,
 })))
 
+// Auto-scroll when new messages arrive
+watch(() => messages.value.length, async () => {
+  await nextTick()
+  const list = document.querySelector('.message-list')
+  if (list) list.scrollTop = list.scrollHeight
+})
+
 const mentionOptions = computed(() => {
   const keyword = mentionQuery.value.trim().toLowerCase()
   const opts = members.value.map(m => ({ id: m.id, label: `@${m.name}`, name: m.name, role: m.role }))
   const all = canMentionAll.value ? [{ id: 'mention-all', label: '@all', name: 'all', role: '提醒所有成员', all: true }, ...opts] : opts
   return keyword ? all.filter(o => o.label.toLowerCase().includes(keyword)) : all
+})
+
+// ── Polling fallback for real-time team messages ──
+let _pollTimer: ReturnType<typeof setInterval> | null = null
+onBeforeUnmount(() => {
+  if (_pollTimer !== null) { window.clearInterval(_pollTimer); _pollTimer = null }
 })
 
 // ── URL join detection ──
@@ -76,6 +89,12 @@ onMounted(async () => {
   if (joinId && joinTok) { joinTeamId.value = joinId; joinToken.value = joinTok; showJoinTeam.value = true }
   const firstTeam = workspace.teams[0]
   if (firstTeam) { activeTeamId.value = firstTeam.id; await workspace.loadTeamDetail(firstTeam.id) }
+  // Start polling for new messages every 3 seconds (works alongside WebSocket push)
+  _pollTimer = window.setInterval(() => {
+    if (activeTeamId.value) {
+      workspace.loadTeamMessages(activeTeamId.value).catch(() => {})
+    }
+  }, 3000)
 })
 
 watch(teams, (items) => { if (!activeTeamId.value && items[0]) activeTeamId.value = items[0].id }, { immediate: true })
@@ -95,7 +114,10 @@ async function handleCreateTeam() {
   if (!newTeamName.value.trim()) return
   await workspace.createTeam({ name: newTeamName.value.trim(), description: newTeamDesc.value.trim() || null })
   showCreateTeam.value = false; newTeamName.value = ''; newTeamDesc.value = ''
-  await workspace.loadWorkspace()
+  // createTeam already adds the team to local state — no need to reload
+  if (!activeTeamId.value) {
+    activeTeamId.value = workspace.teams[0]?.id ?? ''
+  }
 }
 
 function openEditTeam() {
@@ -121,7 +143,7 @@ async function handleJoinTeam() {
   if (!joinTeamId.value.trim() || !joinToken.value.trim()) return
   await workspace.joinTeam(joinTeamId.value.trim(), joinToken.value.trim())
   showJoinTeam.value = false; joinTeamId.value = ''; joinToken.value = ''
-  await workspace.loadWorkspace()
+  await workspace.loadTeams()
 }
 
 async function handleDeleteTeam() {
@@ -150,7 +172,6 @@ async function sendMessage() {
   await workspace.sendTeamMessage(activeTeam.value.id, { content, message_type: 'text', receiver_id: null })
   draftMessage.value = ''
   showMentionPanel.value = false
-  void nextTick(() => { const list = document.querySelector('.message-list'); list?.scrollTo({ top: list.scrollHeight, behavior: 'smooth' }) })
 }
 
 function updateDraftMessage(value: string) {
@@ -175,6 +196,7 @@ function insertFileRef() { draftMessage.value += ' [文件] ' }
 <template>
   <component :is="workspaceLayout" :api-state-label="apiStateLabel" :api-state-type="apiStateType" :nav-items="navItems"
     :unread-notifications="summary.unread_notifications" page-title="团队协作">
+    <NSpin :show="loading" size="large" description="加载中…">
     <div class="chat-shell">
       <!-- Team list sidebar -->
       <aside class="conversation-list" aria-label="团队列表">
@@ -294,6 +316,7 @@ function insertFileRef() { draftMessage.value += ' [文件] ' }
         </NCard>
       </aside>
     </div>
+    </NSpin>
   </component>
 
   <!-- Modals -->

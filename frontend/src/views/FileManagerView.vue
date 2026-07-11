@@ -6,6 +6,7 @@ import FileWorkbench from '@/components/files/FileWorkbench.vue'
 import type {
   WorkspaceFile, WorkspaceFileContentUpdateInput, WorkspaceFileCopyInput,
   WorkspaceFileFilters, WorkspaceFileUpdateInput, WorkspaceFileUploadInput,
+  WorkspaceFileBatchUploadInput,
   WorkspacePermissionRuleCreateInput,
 } from '@/client/workspace'
 import { useWorkspaceLayoutMode } from '@/composables/useWorkspaceLayoutMode'
@@ -81,6 +82,7 @@ async function handleUpdateFileContent(fileId: string, payload: WorkspaceFileCon
       @create-folder="workspace.createFolder"
       @delete-file="handleDeleteFile"
       @delete-file-annotation="workspace.deleteFileAnnotation"
+      @delete-folder="(fid: string) => workspace.deleteFolder(fid)"
       @delete-permission-rule="(rid: string) => workspace.deletePermissionRule(rid)"
       @download-file="handleDownloadFile"
       @create-permission-rule="(p: WorkspacePermissionRuleCreateInput) => workspace.createPermissionRule(p)"
@@ -88,6 +90,7 @@ async function handleUpdateFileContent(fileId: string, payload: WorkspaceFileCon
       @load-file-annotations="(fid: string) => workspace.loadFileAnnotations(fid)"
       @load-file-versions="(fid: string) => workspace.loadFileVersions(fid)"
       @reply-file-annotation="(aid: string, p: any) => workspace.replyFileAnnotation(aid, p)"
+      @rename-folder="(fid: string, name: string) => workspace.updateFolder(fid, { name })"
       @reparse-file="(file: WorkspaceFile) => workspace.reparseFile(file.id)"
       @restore-file-version="(fid: string, vid: string) => workspace.restoreFileVersion(fid, vid)"
       @search-files="(f: WorkspaceFileFilters) => workspace.searchFiles(f)"
@@ -95,6 +98,7 @@ async function handleUpdateFileContent(fileId: string, payload: WorkspaceFileCon
       @update-file-content="handleUpdateFileContent"
       @update-file="(fid: string, p: WorkspaceFileUpdateInput) => workspace.updateFile(fid, p)"
       @upload-file="(p: WorkspaceFileUploadInput) => workspace.uploadFile(p)"
+      @upload-files="(p: WorkspaceFileBatchUploadInput) => workspace.uploadFiles(p)"
     />
   </component>
 </template>

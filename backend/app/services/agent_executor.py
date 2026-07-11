@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import re
 import secrets
+import time
 from typing import Any
 
-from app.domain.schemas import AgentStep, AgentTaskResponse, UserPublic
+from app.domain.schemas import AgentPlanPreviewResponse, AgentPlanPreviewStep, AgentStep, AgentTaskResponse, UserPublic
+from app.services.agent_planner import AgentPlan, AgentPlanner, PlannedToolCall
 from app.services.tool_registry import ToolRegistry
 
 
@@ -14,8 +16,20 @@ _AGENT_REQUESTS: dict[str, dict[str, Any]] = {}
 
 
 class AgentExecutor:
-    def __init__(self, registry: ToolRegistry | None = None) -> None:
+    def __init__(
+        self,
+        registry: ToolRegistry | None = None,
+        planner: AgentPlanner | None = None,
+        *,
+        max_tool_calls: int = 6,
+        max_retries_per_tool: int = 2,
+        max_runtime_seconds: float = 30.0,
+    ) -> None:
         self._registry = registry or ToolRegistry()
+        self._planner = planner or AgentPlanner(self._registry)
+        self._max_tool_calls = max_tool_calls
+        self._max_retries_per_tool = max_retries_per_tool
+        self._max_runtime_seconds = max_runtime_seconds
 
     async def run(
         self,
@@ -35,8 +49,10 @@ class AgentExecutor:
             "kb_id": kb_id,
             "inputs": continuation_inputs or {},
         }
-        selected_tool, params = self._plan_tool(task, context_file_ids, kb_id, request["inputs"])
+        plan = await self._planner.plan(task, context_file_ids, kb_id, request["inputs"])
+        pending_steps = list(plan.plan_steps)
         task_id = task_id or f"agent-{secrets.token_hex(4)}"
+        plan_label = self._plan_label(pending_steps)
 
         steps: list[AgentStep] = [
             AgentStep(
@@ -49,14 +65,14 @@ class AgentExecutor:
                 type="thought",
                 phase="plan",
                 title="规划步骤",
-                content=f"选择工具：{selected_tool or 'direct_answer'}",
-                tool_name=selected_tool,
-                input_json=params,
+                content=f"选择工具：{plan_label}",
+                tool_name=pending_steps[0].tool_name if len(pending_steps) == 1 else None,
+                input_json=self._plan_input_json(plan),
             ),
         ]
 
-        if selected_tool is None:
-            final_answer = f"这是一个可直接回答的问题：{task}"
+        if not pending_steps:
+            final_answer = self._direct_answer(task, request["inputs"])
             response = AgentTaskResponse(
                 id=task_id,
                 task=task,
@@ -77,73 +93,132 @@ class AgentExecutor:
             self._save(response, user, request)
             return response
 
-        spec = self._registry.get(selected_tool)
-        execution = await self._registry.execute(selected_tool, params, workspace, user)
-        steps.append(
-            AgentStep(
-                type="action",
-                phase="call",
-                title="调用工具",
-                content=f"调用 {selected_tool}",
-                tool_name=selected_tool,
-                input_json=params,
-                status="needs_clarification" if execution.status == "needs_clarification" else "success",
-                error_message=execution.error_message,
-            )
-        )
+        observations: list[tuple[str, dict[str, Any], str, str]] = []
+        raw_observations: list[dict[str, Any]] = []
+        retry_counts: dict[str, int] = {}
+        tool_call_count = 0
+        started_at = time.monotonic()
+        while pending_steps:
+            if tool_call_count >= self._max_tool_calls:
+                return self._failed_response(
+                    task_id,
+                    task,
+                    steps,
+                    user,
+                    request,
+                    "工具调用次数超限，请缩小任务范围后重试。",
+                    metadata={"max_tool_calls": self._max_tool_calls},
+                )
+            if time.monotonic() - started_at > self._max_runtime_seconds:
+                return self._failed_response(
+                    task_id,
+                    task,
+                    steps,
+                    user,
+                    request,
+                    "工具执行超时，请稍后重试或缩小任务范围。",
+                    metadata={"max_runtime_seconds": self._max_runtime_seconds},
+                )
 
-        if execution.status == "needs_clarification":
-            final_answer = execution.clarification or (spec.clarification if spec else "请补充必要信息。")
+            step = pending_steps.pop(0)
+            selected_tool = step.tool_name
+            params = step.arguments
+            spec = self._registry.get(selected_tool)
+            tool_call_count += 1
+            execution = await self._registry.execute(selected_tool, params, workspace, user)
+            call_status = (
+                "needs_clarification"
+                if execution.status == "needs_clarification"
+                else ("failed" if execution.status == "failed" else "success")
+            )
             steps.append(
                 AgentStep(
-                    type="answer",
-                    phase="answer",
-                    title="需要补充信息",
-                    content=final_answer,
+                    type="action",
+                    phase="call",
+                    title="调用工具",
+                    content=f"调用 {selected_tool}",
                     tool_name=selected_tool,
+                    input_json=params,
+                    output_json=execution.output,
+                    status=call_status,
+                    error_message=execution.error_message,
+                    metadata={"latency_ms": execution.latency_ms},
+                )
+            )
+
+            if execution.status == "needs_clarification":
+                final_answer = execution.clarification or (spec.clarification if spec else "请补充必要信息。")
+                steps.append(
+                    AgentStep(
+                        type="answer",
+                        phase="answer",
+                        title="需要补充信息",
+                        content=final_answer,
+                        tool_name=selected_tool,
+                        status="needs_clarification",
+                        error_message=final_answer,
+                        metadata={"expected_fields": list((spec.definition.input_schema.get("required", []) if spec else []))},
+                    )
+                )
+                response = AgentTaskResponse(
+                    id=task_id,
+                    task=task,
                     status="needs_clarification",
-                    error_message=final_answer,
+                    steps=steps,
+                    final_answer=final_answer,
+                    result_view={"type": "text", "content": final_answer, "tools": self._planned_tool_names(plan.plan_steps)},
                 )
-            )
-            response = AgentTaskResponse(
-                id=task_id,
-                task=task,
-                status="needs_clarification",
-                steps=steps,
-                final_answer=final_answer,
-                result_view={"type": "text", "content": final_answer},
-            )
-            self._save(response, user, request)
-            return response
+                self._save(response, user, request)
+                return response
 
-        if execution.status == "failed":
-            final_answer = execution.error_message or "工具调用失败，请修改参数后重试。"
+            if execution.status == "failed":
+                final_answer = execution.error_message or "工具调用失败，请修改参数后重试。"
+                steps.append(
+                    AgentStep(
+                        type="observation",
+                        phase="observe",
+                        title="工具失败",
+                        content=final_answer,
+                        tool_name=selected_tool,
+                        status="failed",
+                        error_message=final_answer,
+                    )
+                )
+                raw_observations.append(
+                    {"tool": selected_tool, "status": "failed", "input": params, "error": final_answer}
+                )
+                retry_counts[selected_tool] = retry_counts.get(selected_tool, 0) + 1
+                if retry_counts[selected_tool] <= self._max_retries_per_tool:
+                    revision = await self._revise_plan(
+                        task,
+                        context_file_ids,
+                        kb_id,
+                        request["inputs"],
+                        plan,
+                        raw_observations,
+                        f"{selected_tool} 调用失败：{final_answer}",
+                        steps,
+                    )
+                    if revision.plan_steps:
+                        pending_steps = [*revision.plan_steps, *pending_steps]
+                        continue
+                return self._failed_response(
+                    task_id,
+                    task,
+                    steps,
+                    user,
+                    request,
+                    final_answer,
+                    result_view={"type": "text", "content": final_answer, "tools": self._planned_tool_names(plan.plan_steps)},
+                )
+
+            observe_content = self._format_observation(selected_tool, execution.output)
+            tool_answer = self._format_final_answer(selected_tool, execution.output)
+            observations.append((selected_tool, execution.output, observe_content, tool_answer))
+            raw_observations.append(
+                {"tool": selected_tool, "status": "success", "input": params, "output": execution.output}
+            )
             steps.append(
-                AgentStep(
-                    type="observation",
-                    phase="observe",
-                    title="工具失败",
-                    content=final_answer,
-                    tool_name=selected_tool,
-                    status="failed",
-                    error_message=final_answer,
-                )
-            )
-            response = AgentTaskResponse(
-                id=task_id,
-                task=task,
-                status="failed",
-                steps=steps,
-                final_answer=final_answer,
-                result_view={"type": "text", "content": final_answer},
-            )
-            self._save(response, user, request)
-            return response
-
-        observe_content = self._format_observation(selected_tool, execution.output)
-        final_answer = self._format_final_answer(selected_tool, execution.output)
-        steps.extend(
-            [
                 AgentStep(
                     type="observation",
                     phase="observe",
@@ -151,16 +226,33 @@ class AgentExecutor:
                     content=observe_content,
                     tool_name=selected_tool,
                     output_json=execution.output,
-                ),
-                AgentStep(
-                    type="answer",
-                    phase="answer",
-                    title="最终回答",
-                    content=final_answer,
-                    tool_name=selected_tool,
-                    output_json={"answer": final_answer},
-                ),
-            ]
+                )
+            )
+            if self._is_empty_tool_result(selected_tool, execution.output):
+                revision = await self._revise_plan(
+                    task,
+                    context_file_ids,
+                    kb_id,
+                    request["inputs"],
+                    plan,
+                    raw_observations,
+                    f"{selected_tool} 未查询到结果",
+                    steps,
+                )
+                if revision.plan_steps:
+                    pending_steps = [*revision.plan_steps, *pending_steps]
+
+        final_answer = self._combine_final_answers(observations)
+        answer_tool = observations[0][0] if len(observations) == 1 else None
+        steps.append(
+            AgentStep(
+                type="answer",
+                phase="answer",
+                title="最终回答",
+                content=final_answer,
+                tool_name=answer_tool,
+                output_json={"answer": final_answer},
+            )
         )
         response = AgentTaskResponse(
             id=task_id,
@@ -168,10 +260,43 @@ class AgentExecutor:
             status="completed",
             steps=steps,
             final_answer=final_answer,
-            result_view=self._result_view(selected_tool, execution.output, final_answer),
+            result_view=self._combined_result_view(observations, final_answer),
         )
         self._save(response, user, request)
         return response
+
+    async def preview_plan(
+        self,
+        payload: Any,
+        user: UserPublic,
+        *,
+        inputs: dict[str, Any] | None = None,
+    ) -> AgentPlanPreviewResponse:
+        del user
+        task = getattr(payload, "task", "")
+        context_file_ids = list(getattr(payload, "context_file_ids", []) or [])
+        kb_id = getattr(payload, "kb_id", None)
+        plan = await self._planner.plan(task, context_file_ids, kb_id, inputs or {})
+        preview_steps = []
+        for step in plan.plan_steps:
+            risk_level, risk_reason = self._tool_risk(step.tool_name)
+            preview_steps.append(AgentPlanPreviewStep(
+                tool_name=step.tool_name,
+                arguments=step.arguments,
+                rationale=step.rationale,
+                risk_level=risk_level,
+                risk_reason=risk_reason,
+            ))
+        risk_level, risk_reason = self._plan_risk(preview_steps)
+        return AgentPlanPreviewResponse(
+            intent=plan.intent,
+            missing_fields=plan.missing_fields,
+            answer_strategy=plan.answer_strategy,
+            risk_level=risk_level,
+            risk_reason=risk_reason,
+            requires_confirmation=risk_level in {"medium", "high"},
+            steps=preview_steps,
+        )
 
     def get(self, task_id: str, user: UserPublic) -> AgentTaskResponse | None:
         if _AGENT_OWNERS.get(task_id) != user.id:
@@ -214,20 +339,121 @@ class AgentExecutor:
         kb_id: str | None,
         inputs: dict[str, Any],
     ) -> tuple[str | None, dict[str, Any]]:
-        if "计算" in task or re.search(r"\d+\s*[-+*/]", task):
-            return "calculator", {"expression": inputs.get("expression") or _extract_expression(task)}
-        if "课程" in task:
-            query = inputs.get("query") or _extract_course_query(task)
-            return "course_lookup", {"query": query}
-        if "文件" in task or context_file_ids:
-            return "file_content_search", {
-                "query": inputs.get("query") or _extract_search_query(task),
-                "file_ids": inputs.get("file_ids") or context_file_ids,
-                "kb_id": kb_id,
-            }
-        if "csv" in task.lower() or "数据" in task:
-            return "python_data", {"file_id": inputs.get("file_id") or (context_file_ids[0] if context_file_ids else "")}
-        return None, {}
+        planned = self._planned_tools(self._planner.fallback_plan(task, context_file_ids, kb_id, inputs))
+        return planned[0] if planned else (None, {})
+
+    def _plan_tools(
+        self,
+        task: str,
+        context_file_ids: list[str],
+        kb_id: str | None,
+        inputs: dict[str, Any],
+    ) -> list[tuple[str, dict[str, Any]]]:
+        return self._planned_tools(self._planner.fallback_plan(task, context_file_ids, kb_id, inputs))
+
+    def _planned_tools(self, plan: AgentPlan) -> list[tuple[str, dict[str, Any]]]:
+        return [(step.tool_name, step.arguments) for step in plan.plan_steps]
+
+    def _direct_answer(self, task: str, inputs: dict[str, Any]) -> str:
+        history = inputs.get("_history") if isinstance(inputs, dict) else None
+        if isinstance(history, list) and history:
+            previous = [
+                str(item.get("content", "")).strip()
+                for item in history[-4:]
+                if isinstance(item, dict) and str(item.get("content", "")).strip()
+            ]
+            context = "；".join(previous)
+            return f"基于前文继续回答：{task}" + (f"\n\n前文要点：{context}" if context else "")
+        return f"这是一个可直接回答的问题：{task}"
+
+    def _plan_label(self, steps: list[PlannedToolCall]) -> str:
+        return " -> ".join(step.tool_name for step in steps) if steps else "direct_answer"
+
+    def _plan_input_json(self, plan: AgentPlan) -> dict[str, Any]:
+        return {
+            "intent": plan.intent,
+            "missing_fields": plan.missing_fields,
+            "answer_strategy": plan.answer_strategy,
+            "steps": [
+                {
+                    "tool": step.tool_name,
+                    "input": step.arguments,
+                    "rationale": step.rationale,
+                }
+                for step in plan.plan_steps
+            ],
+        }
+
+    def _planned_tool_names(self, steps: list[PlannedToolCall]) -> list[str]:
+        return [step.tool_name for step in steps]
+
+    async def _revise_plan(
+        self,
+        task: str,
+        context_file_ids: list[str],
+        kb_id: str | None,
+        inputs: dict[str, Any],
+        previous_plan: AgentPlan,
+        observations: list[dict[str, Any]],
+        reason: str,
+        steps: list[AgentStep],
+    ) -> AgentPlan:
+        revision = await self._planner.revise(
+            task,
+            context_file_ids,
+            kb_id,
+            inputs,
+            previous_plan=previous_plan,
+            observations=observations,
+            reason=reason,
+        )
+        if revision.plan_steps:
+            steps.append(
+                AgentStep(
+                    type="thought",
+                    phase="plan",
+                    title="修正规划",
+                    content=f"根据观察调整工具：{self._plan_label(revision.plan_steps)}",
+                    tool_name=revision.plan_steps[0].tool_name if len(revision.plan_steps) == 1 else None,
+                    input_json=self._plan_input_json(revision),
+                    metadata={"revision_reason": reason},
+                )
+            )
+        return revision
+
+    def _failed_response(
+        self,
+        task_id: str,
+        task: str,
+        steps: list[AgentStep],
+        user: UserPublic,
+        request: dict[str, Any],
+        final_answer: str,
+        *,
+        result_view: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> AgentTaskResponse:
+        steps.append(
+            AgentStep(
+                type="answer",
+                phase="answer",
+                title="执行失败",
+                content=final_answer,
+                status="failed",
+                error_message=final_answer,
+                metadata=metadata or {},
+            )
+        )
+        response = AgentTaskResponse(
+            id=task_id,
+            task=task,
+            status="failed",
+            steps=steps,
+            final_answer=final_answer,
+            result_view=result_view or {"type": "text", "content": final_answer},
+        )
+        self._save(response, user, request)
+        return response
 
     def _format_observation(self, tool_name: str, output: dict[str, Any]) -> str:
         if tool_name == "calculator":
@@ -244,6 +470,14 @@ class AgentExecutor:
             return "\n".join(f"{match['file_name']}: {match['snippet']}" for match in matches)
         if tool_name == "python_data":
             return f"数据行数：{output.get('row_count', 0)}，列：{', '.join(output.get('columns', []))}"
+        if tool_name == "rag_query":
+            return f"知识库回答：{output.get('answer', '')}"
+        if tool_name == "file_metadata_query":
+            return f"查询到 {output.get('total', 0)} 个文件。"
+        if tool_name == "database_query":
+            return f"查询表 {output.get('table', '')}，返回 {len(output.get('rows', []))} 行。"
+        if tool_name == "weather_lookup":
+            return f"天气服务返回：{output.get('provider_response', {})}"
         return str(output)
 
     def _format_final_answer(self, tool_name: str, output: dict[str, Any]) -> str:
@@ -266,6 +500,24 @@ class AgentExecutor:
             )
         if tool_name == "python_data":
             return f"数据文件包含 {output.get('row_count', 0)} 行，字段包括：{', '.join(output.get('columns', []))}。"
+        if tool_name == "rag_query":
+            answer = str(output.get("answer", "")).strip()
+            citations = output.get("citations", [])
+            suffix = f"（引用 {len(citations)} 条）" if citations else ""
+            return f"{answer}{suffix}" if answer else "知识库未返回答案。"
+        if tool_name == "file_metadata_query":
+            files = output.get("files", [])
+            if not files:
+                return "没有查询到符合条件的文件。"
+            return "查询到文件：" + "；".join(
+                f"{file.get('name')}（{file.get('type')}，{file.get('parse_status')}）"
+                for file in files
+            )
+        if tool_name == "database_query":
+            rows = output.get("rows", [])
+            return f"受限数据表 {output.get('table')} 返回 {len(rows)} 行记录。"
+        if tool_name == "weather_lookup":
+            return f"{output.get('location')} 天气查询已返回真实服务结果。"
         return str(output)
 
     def _result_view(self, tool_name: str, output: dict[str, Any], final_answer: str) -> dict[str, Any]:
@@ -273,16 +525,105 @@ class AgentExecutor:
             return {"type": "table", "columns": ["code", "name", "teacher", "credits"], "rows": output.get("courses", [])}
         if tool_name == "file_content_search":
             return {"type": "table", "columns": ["file_name", "snippet"], "rows": output.get("matches", [])}
+        if tool_name == "python_data":
+            return {
+                "type": "chart",
+                "content": final_answer,
+                "chart": {"kind": "bar", "series": output.get("numeric_summary", {})},
+                "key_results": [f"行数：{output.get('row_count', 0)}"],
+            }
+        if tool_name == "rag_query":
+            return {
+                "type": "text",
+                "content": final_answer,
+                "citations": output.get("citations", []),
+                "key_results": [output.get("answer", "")],
+            }
+        if tool_name == "file_metadata_query":
+            return {
+                "type": "table",
+                "columns": ["name", "type", "parse_status", "size", "updated_at"],
+                "rows": output.get("files", []),
+            }
+        if tool_name == "database_query":
+            return {
+                "type": "table",
+                "columns": output.get("columns", []),
+                "rows": output.get("rows", []),
+            }
+        if tool_name == "weather_lookup":
+            return {"type": "text", "content": final_answer, "raw": output.get("provider_response", {})}
         return {"type": "text", "content": final_answer}
+
+    def _combine_final_answers(self, observations: list[tuple[str, dict[str, Any], str, str]]) -> str:
+        if len(observations) == 1:
+            return observations[0][3]
+        return "已完成多步骤任务：" + "；".join(answer for _, _, _, answer in observations)
+
+    def _combined_result_view(self, observations: list[tuple[str, dict[str, Any], str, str]], final_answer: str) -> dict[str, Any]:
+        if len(observations) == 1:
+            tool_name, output, _, _ = observations[0]
+            return self._result_view(tool_name, output, final_answer)
+        return {
+            "type": "mixed",
+            "content": final_answer,
+            "tools": [tool_name for tool_name, _, _, _ in observations],
+            "key_results": [answer for _, _, _, answer in observations],
+            "sections": [
+                {
+                    "tool": tool_name,
+                    "observation": observation,
+                    "result": output,
+                }
+                for tool_name, output, observation, _ in observations
+            ],
+        }
+
+    def _is_empty_tool_result(self, tool_name: str, output: dict[str, Any]) -> bool:
+        if tool_name == "course_lookup":
+            return output.get("courses") == []
+        if tool_name == "file_content_search":
+            return output.get("matches") == []
+        if tool_name == "file_metadata_query":
+            return output.get("files") == []
+        if tool_name == "database_query":
+            return output.get("rows") == []
+        if tool_name == "rag_query":
+            return bool(output.get("error_code"))
+        return False
+
+    def _tool_risk(self, tool_name: str) -> tuple[str, str]:
+        if tool_name in {"database_query", "weather_lookup"}:
+            return "high", "将访问受限系统数据或外部服务，执行前需要确认。"
+        if tool_name in {"rag_query", "file_content_search", "python_data", "file_metadata_query"}:
+            return "medium", "将读取用户可访问的文件或知识库内容，执行前建议确认。"
+        return "low", "仅使用本地低风险工具。"
+
+    def _plan_risk(self, steps: list[AgentPlanPreviewStep]) -> tuple[str, str]:
+        if not steps:
+            return "low", "无需调用工具。"
+        if any(step.risk_level == "high" for step in steps):
+            reasons = [step.risk_reason for step in steps if step.risk_level == "high"]
+            return "high", reasons[0]
+        if any(step.risk_level == "medium" for step in steps):
+            reasons = [step.risk_reason for step in steps if step.risk_level == "medium"]
+            return "medium", reasons[0]
+        return "low", "仅使用低风险工具。"
 
 
 def _extract_expression(task: str) -> str:
     match = re.search(r"计算\s*(.+)$", task)
-    return match.group(1).strip() if match else task.strip()
+    expression = match.group(1).strip() if match else task.strip()
+    expression = re.split(r"\s*(?:并|然后|再|，|,)\s*(?:查询|搜索|分析|在文件|课程)", expression, maxsplit=1)[0]
+    return expression.strip()
 
 
 def _extract_course_query(task: str) -> str:
-    cleaned = task.replace("查询", "").replace("课程信息", "").replace("课程", "").strip()
+    match = re.search(r"(?:查询|搜索|了解)\s*([\w\u4e00-\u9fff]*?)课程(?:信息)?", task)
+    if match:
+        return match.group(1).strip()
+    cleaned = task.replace("课程信息", "").replace("课程", "").replace("查询", "").strip()
+    cleaned = re.split(r"\s*(?:并|然后|再|，|,)\s*", cleaned)[-1].strip()
     return "" if not cleaned else cleaned
 
 

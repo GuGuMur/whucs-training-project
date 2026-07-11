@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef } from 'vue'
+import { computed, nextTick, shallowRef, watch } from 'vue'
 import { MessageSquarePlus, MessageSquareText, Send, Trash2 } from '@lucide/vue'
 
 import { renderMarkdown } from '@/composables/useMarkdown'
@@ -7,6 +7,7 @@ import type {
   WorkspaceKnowledgeConversation,
   WorkspaceKnowledgeMessage,
   WorkspaceQuestionInput,
+  WorkspaceStreamEvent,
 } from '@/client/workspace'
 import KnowledgeCitationList from './KnowledgeCitationList.vue'
 
@@ -16,26 +17,34 @@ const props = withDefaults(defineProps<{
   asking?: boolean
   conversations?: WorkspaceKnowledgeConversation[]
   deletingConversationId?: string | null
+  isStreaming?: boolean
   loading?: boolean
   messages?: WorkspaceKnowledgeMessage[]
+  streamingAnswer?: string
+  streamingCitations?: WorkspaceStreamEvent['citations']
 }>(), {
   activeConversationId: null,
   activeKbId: null,
   asking: false,
   conversations: () => [],
   deletingConversationId: null,
+  isStreaming: false,
   loading: false,
   messages: () => [],
+  streamingAnswer: '',
+  streamingCitations: () => [],
 })
 
 const emit = defineEmits<{
   'ask-question': [payload: WorkspaceQuestionInput]
+  'ask-question-stream': [payload: WorkspaceQuestionInput]
   'delete-conversation': [conversationId: string]
   'start-new-conversation': []
   'select-conversation': [conversationId: string]
 }>()
 
 const question = shallowRef('')
+const messagesContainer = shallowRef<HTMLElement | null>(null)
 
 const activeConversation = computed(
   () => props.conversations.find((conversation) => conversation.id === props.activeConversationId) ?? null,
@@ -49,14 +58,22 @@ const emptyMessage = computed(() => {
   return props.activeConversationId ? '该对话暂无消息' : '输入问题会创建一个新对话'
 })
 
+// Auto-scroll when streaming tokens arrive
+watch(() => props.streamingAnswer, async () => {
+  if (props.isStreaming) {
+    await nextTick()
+    messagesContainer.value?.scrollTo({ top: messagesContainer.value.scrollHeight, behavior: 'smooth' })
+  }
+})
+
 function submitQuestion() {
   const text = question.value.trim()
   if (!props.activeKbId || !text) return
-  emit('ask-question', {
+  emit('ask-question-stream', {
     conversationId: props.activeConversationId ?? null,
     kbId: props.activeKbId,
     question: text,
-    topK: 5,
+    topK: 8,
   })
   question.value = ''
 }
@@ -152,9 +169,9 @@ function deleteConversation(conversationId: string) {
           </NTag>
         </div>
 
-        <div class="grid max-h-520px gap-2 overflow-auto pr-1">
-          <NEmpty v-if="!messages.length" size="small" :description="emptyMessage" />
-          <template v-else>
+        <div ref="messagesContainer" class="grid max-h-520px gap-2 overflow-auto pr-1">
+          <NEmpty v-if="!messages.length && !isStreaming" size="small" :description="emptyMessage" />
+          <template v-if="messages.length">
             <article
               v-for="message in messages"
               :key="message.id"
@@ -168,7 +185,7 @@ function deleteConversation(conversationId: string) {
               </div>
               <div
                 v-if="message.role === 'assistant'"
-                class="text-ink text-14px leading-[1.7]"
+                class="markdown-body text-14px leading-[1.7]"
                 v-html="renderMarkdown(message.content)"
               />
               <p v-else class="m-0 whitespace-pre-wrap text-ink text-14px leading-[1.7]">{{ message.content }}</p>
@@ -179,6 +196,36 @@ function deleteConversation(conversationId: string) {
               />
             </article>
           </template>
+
+          <!-- Streaming answer -->
+          <article
+            v-if="isStreaming"
+            class="rounded-2 border border-primary/30 bg-surface px-3 py-2"
+          >
+            <div class="mb-1 flex items-center justify-between gap-2">
+              <NTag size="small" round :bordered="false" type="success">
+                回答 <span class="ml-1 inline-block h-2 w-2 animate-pulse rounded-full bg-green-500" />
+              </NTag>
+              <span class="text-sub text-11px">正在生成...</span>
+            </div>
+            <div
+              class="markdown-body text-14px leading-[1.7]"
+              v-html="renderMarkdown(streamingAnswer || '思考中...')"
+            />
+            <KnowledgeCitationList
+              v-if="streamingCitations?.length"
+              class="mt-3"
+              :citations="streamingCitations.map(c => ({
+                file_id: c.file_id,
+                document_id: c.document_id,
+                chunk_id: c.chunk_id || '',
+                title: c.title,
+                page_no: c.page_no ?? 1,
+                paragraph_no: c.paragraph_no ?? 1,
+                snippet: c.snippet,
+              }))"
+            />
+          </article>
         </div>
 
         <div class="grid gap-2">
@@ -188,7 +235,7 @@ function deleteConversation(conversationId: string) {
             type="textarea"
             placeholder="输入问题，选择旧对话时会继续上下文；新对话会自动创建"
             :autosize="{ minRows: 3, maxRows: 5 }"
-            :disabled="!activeKbId || asking || loading"
+            :disabled="!activeKbId || asking || loading || isStreaming"
             @keydown.enter.exact.prevent="submitQuestion"
           />
           <div class="flex items-center justify-between gap-3">
@@ -198,8 +245,8 @@ function deleteConversation(conversationId: string) {
             <NButton
               data-testid="submit-rag-question"
               type="primary"
-              :disabled="!activeKbId || !question.trim()"
-              :loading="asking"
+              :disabled="!activeKbId || !question.trim() || isStreaming"
+              :loading="asking || isStreaming"
               @click="submitQuestion"
             >
               <template #icon><NIcon aria-hidden="true"><Send /></NIcon></template>
@@ -211,3 +258,24 @@ function deleteConversation(conversationId: string) {
     </div>
   </section>
 </template>
+
+<style scoped>
+.markdown-body :deep(.citation-badge) {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 2px;
+  border-radius: 999px;
+  background: #eaf1ff;
+  padding: 1px 6px;
+  color: #2454d6;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+.markdown-body :deep(.citation-badge:hover) {
+  background: #dbe8ff;
+  text-decoration: underline;
+}
+</style>

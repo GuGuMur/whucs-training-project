@@ -20,14 +20,17 @@ from app.domain.schemas import (
     KnowledgeConversationDetailResponse, KnowledgeConversationListResponse,
     KnowledgeConversationPublic, KnowledgeMessagePublic,
     PermissionRulePublic, WorkflowDefinition, WorkflowExecutionResponse, AgentTaskRequest,
-    AgentTaskResponse, AgentStep,
+    AgentMessage as AgentMessageSchema, AgentPlanRevision as AgentPlanRevisionSchema,
+    AgentPlanPreviewResponse, AgentTaskListResponse, AgentTaskResponse, AgentStep,
+    AgentToolCall as AgentToolCallSchema,
 )
 from app.models import (
     User, File, Folder, FileVersion, DeletedFile, FileAnnotation, ShareLink,
     Team, TeamMember, TeamInvite, TeamMessage,
     KnowledgeBase, KnowledgeCitationSnapshot, KnowledgeConversation,
     KnowledgeDocument, KnowledgeChunk, KnowledgeMessage,
-    Workflow, PermissionRule, Notification, AuditLog, Conversation, MultipartUpload,
+    Workflow, AgentMessage, AgentPlanRevision, AgentTask, AgentTaskStep, AgentToolCall,
+    PermissionRule, Notification, AuditLog, Conversation, MultipartUpload,
 )
 from app.repositories import (
     UserRepository, FileRepository, FileVersionRepository, AnnotationRepository,
@@ -35,7 +38,8 @@ from app.repositories import (
     TeamRepository, TeamMemberRepository, TeamInviteRepository, TeamMessageRepository,
     KnowledgeBaseRepository, KnowledgeCitationSnapshotRepository, KnowledgeChunkRepository,
     KnowledgeConversationRepository, KnowledgeDocumentRepository, KnowledgeMessageRepository,
-    WorkflowRepository, PermissionRepository, NotificationRepository,
+    WorkflowRepository, AgentMessageRepository, AgentPlanRevisionRepository, AgentTaskRepository,
+    AgentTaskStepRepository, AgentToolCallRepository, PermissionRepository, NotificationRepository,
     AuditLogRepository, ConversationRepository, MultipartUploadRepository,
 )
 from app.services.llm import _get_llm
@@ -48,6 +52,8 @@ import faiss
 
 SECRET = "dev-workspace-secret"
 _FILE_CONTENTS: dict[str, bytes] = {}
+_MULTIPART_CHUNKS: dict[str, dict[int, bytes]] = {}
+_MULTIPART_TAGS: dict[str, list[str]] = {}
 _CONTENT_STORAGE_DIR = Path(__file__).resolve().parents[2] / ".data" / "file-contents"
 _EDITABLE_FILE_TYPES = {"txt", "md", "markdown", "csv", "json", "log", "xml", "html", "htm"}
 
@@ -88,6 +94,49 @@ def _read_file_content(f: File) -> bytes | None:
     return content
 
 
+def _extract_document_outline(text: str) -> list[str]:
+    headings: list[str] = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("#"):
+            headings.append(line.lstrip("#").strip())
+        elif len(line) <= 40 and not line.endswith(("。", ".", "！", "!", "？", "?")):
+            headings.append(line)
+        if len(headings) >= 12:
+            break
+    return headings
+
+
+def _extract_document_keywords(text: str, filename: str) -> list[str]:
+    seeds = [part for part in filename.replace(".", " ").replace("-", " ").replace("_", " ").split() if part]
+    for token in ("算法", "动态规划", "复杂度", "数据库", "事务", "索引", "网络", "TCP", "HTTP", "缓存", "实验", "需求", "报告"):
+        if token in text:
+            seeds.append(token)
+    keywords: list[str] = []
+    for seed in seeds:
+        if seed not in keywords:
+            keywords.append(seed)
+        if len(keywords) >= 12:
+            break
+    return keywords
+
+
+def _summarize_document_text(text: str) -> str:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return ""
+    joined = " ".join(lines[:4])
+    return joined if len(joined) <= 260 else f"{joined[:260].rstrip()}..."
+
+
+def _estimate_document_tokens(text: str) -> int:
+    ascii_words = sum(1 for part in text.split() if part.isascii())
+    non_ascii_chars = sum(1 for char in text if not char.isascii() and not char.isspace())
+    return ascii_words + max(1, non_ascii_chars // 2)
+
+
 def _read_content_by_sha(sha256: str) -> bytes | None:
     try:
         path = _content_path(sha256)
@@ -99,6 +148,38 @@ def _read_content_by_sha(sha256: str) -> bytes | None:
     if hashlib.sha256(content).hexdigest() != sha256:
         return None
     return content
+
+
+def _json_loads_object(raw: str | None) -> dict[str, Any]:
+    if not raw:
+        return {}
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _json_loads_list(raw: str | None) -> list[Any]:
+    if not raw:
+        return []
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    return value if isinstance(value, list) else []
+
+
+def _jsonable_list(items: Any) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for item in list(items or []):
+        if hasattr(item, "model_dump"):
+            dumped = item.model_dump()
+            if isinstance(dumped, dict):
+                result.append(dumped)
+        elif isinstance(item, dict):
+            result.append(dict(item))
+    return result
 
 
 async def _safe_list_members(svc, team_id: str):
@@ -130,6 +211,11 @@ class WorkspaceServiceDB:
         self._knowledge_messages = KnowledgeMessageRepository(session)
         self._knowledge_citations = KnowledgeCitationSnapshotRepository(session)
         self._workflows = WorkflowRepository(session)
+        self._agent_tasks = AgentTaskRepository(session)
+        self._agent_steps = AgentTaskStepRepository(session)
+        self._agent_messages = AgentMessageRepository(session)
+        self._agent_tool_calls = AgentToolCallRepository(session)
+        self._agent_plan_revisions = AgentPlanRevisionRepository(session)
         self._perms = PermissionRepository(session)
         self._notifs = NotificationRepository(session)
         self._audit = AuditLogRepository(session)
@@ -214,7 +300,7 @@ class WorkspaceServiceDB:
         await self._s.commit()
         pub = UserPublic(id=db_user.id, username=db_user.username,
                          email=db_user.email, display_name=db_user.display_name, roles=["user"])
-        await self._ensure_personal_root()
+        await self._ensure_personal_root(pub)
         return pub, self._create_token(db_user.id, "access"), self._create_token(db_user.id, "refresh")
 
     async def login_user(self, account: str, password: str) -> tuple[UserPublic, str, str]:
@@ -240,9 +326,29 @@ class WorkspaceServiceDB:
             raise ValueError("INVALID_TOKEN")
         return UserPublic(id=db_user.id, username=db_user.username, email=db_user.email, display_name=db_user.display_name, roles=db_user.roles.split(",") if db_user.roles else ["user"])
 
-    async def _ensure_personal_root(self) -> None:
-        if not await self._folders.get_by_id("personal-root"):
-            await self._folders.create(Folder(id="personal-root", name="个人空间", scope="personal"))
+    async def _ensure_personal_root(self, user: UserPublic) -> str:
+        """Create (if needed) and return the user's personal root folder ID."""
+        root_id = f"personal-root-{user.id}"
+        if not await self._folders.get_by_id(root_id):
+            await self._folders.create(Folder(id=root_id, name="个人空间", scope="personal", owner_id=user.id))
+            await self._s.commit()
+        return root_id
+
+    async def _resolve_upload_folder(self, folder_id: str | None, user: UserPublic) -> Folder:
+        root_id = await self._ensure_personal_root(user)
+        requested_id = (folder_id or "").strip()
+        effective_id = root_id if requested_id in {"", "personal-root"} else requested_id
+        folder = await self._folders.get_by_id(effective_id)
+        if not folder:
+            raise WorkspaceError(404, "FOLDER_NOT_FOUND", "文件夹不存在", {"folder_id": requested_id})
+        if folder.scope == "personal" and folder.owner_id != user.id:
+            raise WorkspaceError(403, "FOLDER_WRITE_FORBIDDEN", "无权写入该个人文件夹", {"folder_id": folder.id})
+        if folder.scope == "team" and folder.team_id:
+            members = await _safe_list_members(self, folder.team_id)
+            member = next((m for m in members if m.user_id == user.id and m.status == "active"), None)
+            if member is None or member.role == "guest":
+                raise WorkspaceError(403, "FOLDER_WRITE_FORBIDDEN", "无权写入该团队文件夹", {"folder_id": folder.id})
+        return folder
 
     async def _ensure_personal_kb(self, user: UserPublic) -> Any:
         """Get or create the user's personal knowledge base for auto-indexing."""
@@ -272,15 +378,14 @@ class WorkspaceServiceDB:
         return [_file_to_item(f) for f in files]
 
     async def upload_file(self, filename: str, folder_id: str, content: bytes, tags: list[str], user: UserPublic) -> FileItem:
-        await self._ensure_personal_root()
-        folder = await self._folders.get_by_id(folder_id)
-        permission_scope = "团队" if folder and folder.scope == "team" else "个人"
-        team_id = folder.team_id if folder and folder.scope == "team" else None
+        folder = await self._resolve_upload_folder(folder_id, user)
+        permission_scope = "团队" if folder.scope == "team" else "个人"
+        team_id = folder.team_id if folder.scope == "team" else None
         digest = hashlib.sha256(content).hexdigest()
         fid = f"file-{digest[:12]}"
         if await self._files.get_by_id(fid):
             fid = f"file-{digest[:8]}-{secrets.token_hex(4)}"
-        f = File(id=fid, name=filename, folder_id=folder_id, type=_file_type(filename), size=len(
+        f = File(id=fid, name=filename, folder_id=folder.id, type=_file_type(filename), size=len(
             content), sha256=digest, tags=",".join(tags), created_by=user.username, owner_id=user.id,
             permission_scope=permission_scope, team_id=team_id)
         _store_file_content(fid, digest, content)
@@ -321,14 +426,16 @@ class WorkspaceServiceDB:
             for kb_id in kb_ids:
                 docs = [d for d in (await self._docs.list_by_kb(kb_id)) if d.file_id == file_id]
                 for doc in docs:
-                    from app.services.workspace import _merge_heading_segments
-                    merged = _merge_heading_segments(parsed.segments)
+                    from app.services.parser import clean_text, chunk_paragraphs
+                    cleaned = clean_text(parsed.text)
+                    text_chunks = chunk_paragraphs(cleaned, target_size=600)
                     old_chunks = await self._chunks.list_by_document(doc.id)
                     for oc in old_chunks:
                         await self._s.delete(oc)
                     import secrets as _s
-                    for i, seg in enumerate(merged):
-                        self._s.add(KnowledgeChunk(id=f"{doc.id}-chunk-{i+1}", document_id=doc.id, content=seg.content, page_no=seg.page_no, paragraph_no=seg.paragraph_no))
+                    for i, tc in enumerate(text_chunks):
+                        self._s.add(KnowledgeChunk(id=f"{doc.id}-chunk-{i+1}", document_id=doc.id,
+                            content=f"[{f.name}]\n{tc}", page_no=1, paragraph_no=i+1))
                     doc.index_status = "indexed"
                 self._faiss.pop(kb_id, None)
         except Exception:
@@ -347,6 +454,7 @@ class WorkspaceServiceDB:
 
     # ── Folders ──
     async def folder_tree(self, user: UserPublic) -> list[FolderItem]:
+        await self._ensure_personal_root(user)
         all_folders = await self._folders.list_all()
         # Include personal folders + team folders where user is a member
         team_ids = set()
@@ -357,7 +465,7 @@ class WorkspaceServiceDB:
                     team_ids.add(t.id)
             except Exception:
                 pass
-        folders = [f for f in all_folders if f.owner_id is None or f.owner_id ==
+        folders = [f for f in all_folders if f.owner_id ==
                    user.id or (f.team_id and f.team_id in team_ids)]
         return _build_tree(folders)
 
@@ -556,21 +664,74 @@ class WorkspaceServiceDB:
     async def init_multipart_upload(self, payload: Any, user: UserPublic) -> Any:
         import secrets as _s
         from datetime import UTC, datetime, timedelta
+        folder = await self._resolve_upload_folder(getattr(payload, "folder_id", ""), user)
         uid = f"upload-{_s.token_hex(4)}"
-        mu = MultipartUpload(id=uid, filename=getattr(payload, "filename", ""), folder_id=getattr(payload, "folder_id", ""), size=getattr(payload, "size", 0), sha256=getattr(payload, "sha256", ""), chunk_size=getattr(payload, "chunk_size", 0), total_chunks=(
+        mu = MultipartUpload(id=uid, filename=getattr(payload, "filename", ""), folder_id=folder.id, size=getattr(payload, "size", 0), sha256=getattr(payload, "sha256", ""), chunk_size=getattr(payload, "chunk_size", 0), total_chunks=(
             getattr(payload, "size", 0) + getattr(payload, "chunk_size", 1) - 1) // max(getattr(payload, "chunk_size", 1), 1), created_by=user.id, created_at=datetime.now(UTC), expires_at=datetime.now(UTC) + timedelta(hours=1))
         await self._uploads.create(mu)
+        _MULTIPART_CHUNKS[uid] = {}
+        _MULTIPART_TAGS[uid] = list(getattr(payload, "tags", []) or [])
         await self._s.commit()
-        return {"id": uid, "filename": mu.filename, "chunk_size": mu.chunk_size, "total_chunks": mu.total_chunks}
+        return self._multipart_session_payload(mu)
 
     async def get_multipart_upload(self, session_id: str, user: UserPublic) -> Any:
-        return {"id": session_id, "status": "active"}
+        mu = await self._uploads.get_by_id(session_id)
+        if not mu or mu.created_by != user.id:
+            raise WorkspaceError(404, "MULTIPART_UPLOAD_NOT_FOUND", "分片上传会话不存在", {"session_id": session_id})
+        return self._multipart_session_payload(mu)
 
     async def upload_multipart_chunk(self, session_id: str, chunk_index: int, chunk_data: bytes, sha256: str, user: UserPublic) -> Any:
-        return {"chunk_index": chunk_index, "status": "ok"}
+        mu = await self._uploads.get_by_id(session_id)
+        if not mu or mu.created_by != user.id:
+            raise WorkspaceError(404, "MULTIPART_UPLOAD_NOT_FOUND", "分片上传会话不存在", {"session_id": session_id})
+        if chunk_index < 0 or chunk_index >= mu.total_chunks:
+            raise WorkspaceError(400, "INVALID_CHUNK_INDEX", "分片序号无效", {"chunk_index": chunk_index})
+        if hashlib.sha256(chunk_data).hexdigest() != sha256:
+            raise WorkspaceError(400, "CHUNK_HASH_MISMATCH", "分片校验失败", {"chunk_index": chunk_index})
+        chunks = _MULTIPART_CHUNKS.setdefault(session_id, {})
+        chunks[chunk_index] = chunk_data
+        return {
+            "session_id": session_id,
+            "chunk_index": chunk_index,
+            "received_chunks": sorted(chunks),
+            "total_chunks": mu.total_chunks,
+            "status": "uploading",
+        }
 
     async def complete_multipart_upload(self, session_id: str, user: UserPublic) -> FileItem:
-        return FileItem(id=session_id, name="uploaded", folder_id="personal-root", type="unknown", size=0, sha256="", content_type="", permission_scope="个人", parse_status="queued", tags=[], knowledge_base_ids=[], updated_at="", created_at="", created_by=user.username)
+        mu = await self._uploads.get_by_id(session_id)
+        if not mu or mu.created_by != user.id:
+            raise WorkspaceError(404, "MULTIPART_UPLOAD_NOT_FOUND", "分片上传会话不存在", {"session_id": session_id})
+        chunks = _MULTIPART_CHUNKS.get(session_id, {})
+        missing = [index for index in range(mu.total_chunks) if index not in chunks]
+        if missing:
+            raise WorkspaceError(400, "MULTIPART_UPLOAD_INCOMPLETE", "分片尚未上传完整", {"missing_chunks": missing})
+        content = b"".join(chunks[index] for index in range(mu.total_chunks))
+        if len(content) != mu.size:
+            raise WorkspaceError(400, "MULTIPART_SIZE_MISMATCH", "文件大小校验失败", {"expected": mu.size, "actual": len(content)})
+        if hashlib.sha256(content).hexdigest() != mu.sha256:
+            raise WorkspaceError(400, "MULTIPART_HASH_MISMATCH", "文件整体校验失败", {"session_id": session_id})
+        item = await self.upload_file(mu.filename, mu.folder_id, content, _MULTIPART_TAGS.get(session_id, []), user)
+        await self._uploads.delete(mu)
+        _MULTIPART_CHUNKS.pop(session_id, None)
+        _MULTIPART_TAGS.pop(session_id, None)
+        await self._s.commit()
+        return item
+
+    def _multipart_session_payload(self, mu: MultipartUpload) -> dict[str, Any]:
+        chunks = _MULTIPART_CHUNKS.get(mu.id, {})
+        return {
+            "id": mu.id,
+            "filename": mu.filename,
+            "folder_id": mu.folder_id,
+            "size": mu.size,
+            "sha256": mu.sha256,
+            "chunk_size": mu.chunk_size,
+            "total_chunks": mu.total_chunks,
+            "received_chunks": sorted(chunks),
+            "status": "completed" if len(chunks) >= mu.total_chunks else "uploading",
+            "expires_at": mu.expires_at,
+        }
 
     async def list_deleted_files(self, user: UserPublic) -> list[RecycleBinItem]:
         items = await self._deleted.list_all()
@@ -579,21 +740,103 @@ class WorkspaceServiceDB:
     # ── Folders (extended) ──
     async def create_folder(self, payload: Any, user: UserPublic) -> FolderItem:
         import secrets as _s
+        scope = getattr(payload, "scope", None) or "personal"
+        root_id = await self._ensure_personal_root(user)
+        parent_id = getattr(payload, "parent_id", None) or root_id
+        parent = await self._folders.get_by_id(parent_id)
+        if not parent:
+            parent_id = root_id
+            parent = await self._folders.get_by_id(root_id)
+        if parent and parent.scope != scope:
+            raise ValueError("FOLDER_SCOPE_MISMATCH")
         fid = f"folder-{_s.token_hex(4)}"
-        f = Folder(id=fid, name=(getattr(payload, "name", None) or "新文件夹"), parent_id=(getattr(
-            payload, "parent_id", None) or "personal-root"), scope="personal", owner_id=user.id)
+        name = getattr(payload, "name", None) or "新文件夹"
+        f = Folder(id=fid, name=name, parent_id=parent_id, scope=scope, owner_id=user.id,
+                   team_id=parent.team_id if parent and scope == "team" else None)
         await self._folders.create(f)
         await self._s.commit()
         return FolderItem(id=fid, name=f.name, parent_id=f.parent_id, scope=f.scope, permission="管理", children=[])
 
     async def update_folder(self, folder_id: str, payload: Any, user: UserPublic) -> FolderItem:
-        return FolderItem(id=folder_id, name=(getattr(payload, "name", None) or "文件夹"), parent_id=getattr(payload, "parent_id", "personal-root"), scope="personal", permission="管理", children=[])
+        folder = await self._folders.get_by_id(folder_id)
+        if not folder:
+            raise WorkspaceError(404, "FOLDER_NOT_FOUND", "文件夹不存在", {"folder_id": folder_id})
+        if folder.owner_id is not None and folder.owner_id != user.id:
+            raise WorkspaceError(403, "PERMISSION_DENIED", "无权修改该文件夹", {"folder_id": folder_id})
+        root_id = await self._ensure_personal_root(user)
+        # Prevent modification of personal root folders
+        if folder_id.startswith("personal-root-"):
+            raise WorkspaceError(400, "CANNOT_MODIFY_ROOT", "不能修改个人根目录", {"folder_id": folder_id})
+
+        name = getattr(payload, "name", None)
+        parent_id = getattr(payload, "parent_id", None)
+
+        if name is not None and name.strip():
+            folder.name = name.strip()
+
+        if parent_id is not None:
+            new_parent = await self._folders.get_by_id(parent_id)
+            if not new_parent:
+                raise WorkspaceError(404, "PARENT_NOT_FOUND", "父文件夹不存在", {"folder_id": parent_id})
+            if new_parent.scope != folder.scope:
+                raise WorkspaceError(400, "FOLDER_SCOPE_MISMATCH", "不能跨空间移动文件夹", {"folder_id": folder_id})
+            # Prevent moving to self or descendant
+            if parent_id == folder_id or await self._is_descendant(parent_id, folder_id):
+                raise WorkspaceError(400, "INVALID_FOLDER_MOVE", "不能将文件夹移动到自身或子级目录", {"folder_id": folder_id})
+            folder.parent_id = parent_id
+            folder.team_id = new_parent.team_id
+
+        await self._folders.update(folder)
+        await self._s.commit()
+        return FolderItem(id=folder.id, name=folder.name, parent_id=folder.parent_id,
+                          scope=folder.scope, permission="管理", children=[])
+
+    async def _is_descendant(self, ancestor_id: str, target_id: str) -> bool:
+        """Check if ancestor_id is a descendant of target_id by walking up the parent chain."""
+        current = await self._folders.get_by_id(ancestor_id)
+        visited: set[str] = set()
+        while current and current.parent_id and current.parent_id not in visited:
+            if current.parent_id == target_id:
+                return True
+            visited.add(current.parent_id)
+            current = await self._folders.get_by_id(current.parent_id)
+        return False
 
     async def delete_folder_tree(self, folder_id: str, user: UserPublic) -> None:
-        f = await self._folders.get_by_id(folder_id)
-        if f:
-            await self._folders.delete(f)
-            await self._s.commit()
+        if folder_id.startswith("personal-root-"):
+            raise WorkspaceError(400, "CANNOT_DELETE_ROOT", "不能删除个人根目录", {"folder_id": folder_id})
+        folder = await self._folders.get_by_id(folder_id)
+        if not folder:
+            return
+        if folder.owner_id is not None and folder.owner_id != user.id:
+            raise WorkspaceError(403, "PERMISSION_DENIED", "无权删除该文件夹", {"folder_id": folder_id})
+
+        # Collect all descendant folder IDs (breadth-first from the target)
+        descendant_ids: list[str] = []
+        queue = [folder_id]
+        while queue:
+            fid = queue.pop(0)
+            children = await self._folders.list_children(fid)
+            for child in children:
+                descendant_ids.append(child.id)
+                queue.append(child.id)
+
+        # Reassign files in deleted folders to user's personal root
+        root_id = await self._ensure_personal_root(user)
+        all_files = await self._files.list_all()
+        affected_ids = {folder_id, *descendant_ids}
+        for f in all_files:
+            if f.folder_id in affected_ids:
+                f.folder_id = root_id
+                await self._files.update(f)
+
+        # Delete folders from leaves up (children first, then the target)
+        for fid in reversed(descendant_ids):
+            f = await self._folders.get_by_id(fid)
+            if f:
+                await self._folders.delete(f)
+        await self._folders.delete(folder)
+        await self._s.commit()
 
     # ── Teams ──
     async def create_team(self, payload: Any, user: UserPublic) -> TeamDetail:
@@ -630,19 +873,22 @@ class WorkspaceServiceDB:
                 members = [m for m in (await _safe_list_members(self, t.id)) if m.status == "active"]
             except Exception:
                 members = []
-            my_role = next(
-                (m.role for m in members if m.user_id == user.id), "member")
-            result.append(TeamSummary(id=t.id, name=t.name, role=my_role,
+            my_member = next((m for m in members if m.user_id == user.id), None)
+            # Only include teams the user is an active member of
+            if my_member is None:
+                continue
+            result.append(TeamSummary(id=t.id, name=t.name, role=my_member.role,
                           member_count=len(members), unread_count=0))
         return result
 
     async def get_team_detail(self, team_id: str, user: UserPublic) -> TeamDetail:
         team = await self._teams.get_by_id(team_id)
         if not team:
-            return TeamDetail(id=team_id, name="未知团队", description="", role="member", member_count=0, unread_count=0, root_folder=FolderItem(id="root", name="root", parent_id=None, scope="team", permission="管理", children=[]), members=[], invites=[])
+            raise ValueError("TEAM_NOT_FOUND")
         members = [m for m in (await _safe_list_members(self, team_id)) if m.status == "active"]
-        my_role = next(
-            (m.role for m in members if m.user_id == user.id), "member")
+        my_member = next((m for m in members if m.user_id == user.id), None)
+        if my_member is None:
+            raise ValueError("NOT_TEAM_MEMBER")
         from app.domain.schemas import TeamMemberPublic
         member_list = []
         for m in members:
@@ -654,25 +900,46 @@ class WorkspaceServiceDB:
                 display_name=u.display_name if u else str(m.user_id),
                 role=m.role, status=m.status, joined_at=m.joined_at))
         return TeamDetail(id=team.id, name=team.name, description=team.description or "",
-                          role=my_role, member_count=len(members), unread_count=0,
+                          role=my_member.role, member_count=len(members), unread_count=0,
                           root_folder=FolderItem(
                               id="root", name="root", parent_id=None, scope="team", permission="管理", children=[]),
                           members=member_list, invites=[])
 
+    async def _ensure_team_member(self, team_id: str, user: UserPublic) -> TeamMember:
+        """Verify user is an active member of the team. Raises ValueError if not."""
+        members = [m for m in (await _safe_list_members(self, team_id)) if m.status == "active"]
+        my_member = next((m for m in members if m.user_id == user.id), None)
+        if my_member is None:
+            raise ValueError("NOT_TEAM_MEMBER")
+        return my_member
+
     async def list_team_messages(self, team_id: str, user: UserPublic) -> list[Any]:
+        await self._ensure_team_member(team_id, user)
         msgs = await self._messages.list_by_team(team_id)
         return [{"id": m.id, "team_id": m.team_id, "sender_id": m.sender_id, "sender_name": m.sender_name, "content": m.content, "message_type": m.message_type, "created_at": str(m.created_at)} for m in msgs]
 
     async def create_team_message(self, team_id: str, payload: Any, user: UserPublic) -> Any:
+        await self._ensure_team_member(team_id, user)
         import secrets as _s
         mid = f"msg-{_s.token_hex(4)}"
         msg = TeamMessage(id=mid, team_id=team_id, sender_id=user.id, sender_name=user.display_name, content=getattr(
             payload, "content", ""), message_type=getattr(payload, "message_type", "text"))
         await self._messages.create(msg)
         await self._s.commit()
-        return {"id": mid, "team_id": team_id, "content": msg.content, "sender_name": msg.sender_name, "sender_id": msg.sender_id, "message_type": msg.message_type, "created_at": str(msg.created_at)}
+        result = {"id": mid, "team_id": team_id, "content": msg.content, "sender_name": msg.sender_name,
+                  "sender_id": msg.sender_id, "message_type": msg.message_type, "created_at": str(msg.created_at)}
+        # Broadcast to all team members via WebSocket (fire-and-forget)
+        try:
+            from app.services.websocket_manager import ws_manager
+            import asyncio as _aio
+            _aio.ensure_future(ws_manager.broadcast(
+                f"team-{team_id}", "team_message", result))
+        except Exception:
+            pass  # Non-fatal: message is persisted even if broadcast fails
+        return result
 
     async def create_team_invite(self, team_id: str, payload: Any, user: UserPublic) -> Any:
+        await self._ensure_team_member(team_id, user)
         import secrets as _s
         from datetime import UTC, datetime, timedelta
         now = datetime.now(UTC)
@@ -687,15 +954,34 @@ class WorkspaceServiceDB:
                 "status": inv.status, "token": inv.token,
                 "created_at": inv.created_at, "expires_at": inv.expires_at}
 
+    async def _ensure_team_admin(self, team_id: str, user: UserPublic) -> TeamMember:
+        """Verify user is an admin/owner of the team."""
+        member = await self._ensure_team_member(team_id, user)
+        if member.role not in ("owner", "admin"):
+            raise ValueError("TEAM_ADMIN_REQUIRED")
+        return member
+
     async def join_team(self, team_id: str, payload: Any, user: UserPublic) -> Any:
+        # Check user isn't already a member
+        try:
+            await self._ensure_team_member(team_id, user)
+            raise ValueError("ALREADY_TEAM_MEMBER")
+        except ValueError as e:
+            if "NOT_TEAM_MEMBER" not in str(e):
+                raise
         import secrets as _s
+        now = datetime.now(UTC)
         mid = f"mem-{_s.token_hex(4)}"
         m = TeamMember(id=mid, team_id=team_id, user_id=user.id, role="member")
         await self._members.create(m)
         await self._s.commit()
-        return {"id": mid, "team_id": team_id, "role": "member", "user_id": user.id}
+        return {"id": mid, "team_id": team_id, "user_id": user.id,
+                "username": user.username, "email": user.email,
+                "display_name": user.display_name, "role": "member",
+                "status": "active", "joined_at": now.isoformat()}
 
     async def update_team_member(self, team_id: str, member_id: str, payload: Any, user: UserPublic) -> Any:
+        await self._ensure_team_admin(team_id, user)
         m = await self._members.get_by_id(member_id)
         if m and m.team_id == team_id:
             m.role = getattr(payload, "role", m.role)
@@ -705,6 +991,7 @@ class WorkspaceServiceDB:
         return {"id": member_id, "role": "member"}
 
     async def remove_team_member(self, team_id: str, member_id: str, user: UserPublic) -> None:
+        await self._ensure_team_admin(team_id, user)
         m = await self._members.get_by_id(member_id)
         if m and m.team_id == team_id:
             m.status = "removed"
@@ -712,9 +999,25 @@ class WorkspaceServiceDB:
             await self._s.commit()
 
     async def update_team(self, team_id: str, payload: Any, user: UserPublic) -> TeamDetail:
-        return TeamDetail(id=team_id, name=(getattr(payload, "name", None) or "团队"), description=(getattr(payload, "description", None) or ""), role="owner", member_count=0, unread_count=0, root_folder=FolderItem(id="root", name="root", parent_id=None, scope="team", permission="管理", children=[]), members=[], invites=[])
+        await self._ensure_team_admin(team_id, user)
+        team = await self._teams.get_by_id(team_id)
+        if not team:
+            raise ValueError("TEAM_NOT_FOUND")
+        if name := getattr(payload, "name", None):
+            team.name = name
+        if description := getattr(payload, "description", None):
+            team.description = description
+        await self._teams.update(team)
+        await self._s.commit()
+        members = [m for m in (await _safe_list_members(self, team_id)) if m.status == "active"]
+        return TeamDetail(id=team.id, name=team.name, description=team.description or "",
+                          role="owner", member_count=len(members), unread_count=0,
+                          root_folder=FolderItem(id=f"folder-team-{team.id}", name=team.name,
+                                                  parent_id=None, scope="team", permission="管理", children=[]),
+                          members=[], invites=[])
 
     async def delete_team(self, team_id: str, user: UserPublic) -> None:
+        await self._ensure_team_admin(team_id, user)
         t = await self._teams.get_by_id(team_id)
         if t:
             await self._teams.delete(t)
@@ -788,6 +1091,9 @@ class WorkspaceServiceDB:
             index_status=doc.index_status,
             chunk_count=len(chunks),
             error_message=doc.error_message or None,
+            summary=doc.summary or None,
+            char_count=doc.char_count or 0,
+            token_count=doc.token_count or 0,
             updated_at=doc.updated_at,
         )
 
@@ -930,21 +1236,34 @@ class WorkspaceServiceDB:
         await self._ensure_file_matches_kb_scope(kb, f)
         content = _read_file_content(f) or b""
         did = f"doc-{_s.token_hex(4)}"
-        # Parse and create chunks
+        # Parse, clean, and chunk — paragraph-aware for coherent retrieval
         try:
             parsed = parse_document(f.name, content, f.type)
-            from app.services.workspace import _merge_heading_segments
-            merged = _merge_heading_segments(parsed.segments)
-            chunks = [KnowledgeChunk(id=f"{did}-chunk-{i+1}", document_id=did, content=seg.content,
-                                     page_no=seg.page_no, paragraph_no=seg.paragraph_no) for i, seg in enumerate(merged)]
-            index_status = "indexed"
-        except Exception:
+            from app.services.parser import clean_text, chunk_paragraphs
+            cleaned = clean_text(parsed.text)
+            text_chunks = chunk_paragraphs(cleaned, target_size=600)
             chunks = [KnowledgeChunk(
-                id=f"{did}-chunk-1", document_id=did, content=f.name, page_no=1, paragraph_no=1)]
+                id=f"{did}-chunk-{i+1}", document_id=did,
+                content=f"[{f.name}]\n{tc}",
+                page_no=1, paragraph_no=i+1,
+            ) for i, tc in enumerate(text_chunks)]
             index_status = "indexed"
+            error_message = ""
+        except Exception as exc:
+            cleaned = ""
+            chunks = []
+            index_status = "failed"
+            error_message = str(exc)
         d = KnowledgeDocument(id=did, kb_id=kb_id,
                               file_id=fid, file_name=f.name, version_sha=f.sha256,
-                              index_status=index_status)
+                              index_status=index_status,
+                              error_message=error_message,
+                              content_text=cleaned,
+                              summary=_summarize_document_text(cleaned),
+                              keywords=json.dumps(_extract_document_keywords(cleaned, f.name), ensure_ascii=False),
+                              outline=json.dumps(_extract_document_outline(cleaned), ensure_ascii=False),
+                              char_count=len(cleaned),
+                              token_count=_estimate_document_tokens(cleaned))
         await self._docs.create(d)
         if chunks:
             await self._chunks.create_bulk(chunks)
@@ -1100,10 +1419,11 @@ class WorkspaceServiceDB:
         kb = await self._kbs.get_by_id(payload.kb_id)
         kb_name = kb.name if kb else "知识库"
         error_code = await self._knowledge_query_error_code(payload.kb_id)
-        citations = [] if error_code else await self._retrieve_citations(payload.kb_id, payload.question, payload.top_k)
-        if not error_code and not citations:
+        rag_context = None if error_code else await self._build_rag_context(payload.kb_id, payload.question, payload.top_k)
+        citations = [] if rag_context is None else rag_context.citations
+        snippets = [] if rag_context is None else rag_context.snippets
+        if not error_code and not snippets:
             error_code = "KB_NO_MATCH"
-        snippets = [c.snippet for c in citations]
 
         history_context = ""
         past_msgs = await self._knowledge_messages.list_by_conversation(conv_id)
@@ -1182,6 +1502,137 @@ class WorkspaceServiceDB:
             error_code=error_code,
         )
 
+    async def answer_question_stream(self, payload: QARequest, user: UserPublic):
+        """Stream RAG answer via SSE async generator."""
+        import secrets as _s
+        import json as _json
+        await self._ensure_kb_access(payload.kb_id, user)
+        conv_id = getattr(payload, "conversation_id", None)
+        now = datetime.now(UTC)
+        if conv_id:
+            conversation = await self._ensure_knowledge_conversation(conv_id, payload.kb_id, user)
+        else:
+            conv_id = f"conv-{_s.token_hex(4)}"
+            conversation = KnowledgeConversation(
+                id=conv_id, kb_id=payload.kb_id, owner_id=user.id,
+                title=payload.question[:120], created_at=now, updated_at=now,
+            )
+            await self._knowledge_conversations.create(conversation)
+        report_mode = getattr(payload, "report_mode", False)
+        kb = await self._kbs.get_by_id(payload.kb_id)
+        kb_name = kb.name if kb else "知识库"
+        error_code = await self._knowledge_query_error_code(payload.kb_id)
+        rag_context = None if error_code else await self._build_rag_context(payload.kb_id, payload.question, payload.top_k)
+        citations = [] if rag_context is None else rag_context.citations
+        snippets = [] if rag_context is None else rag_context.snippets
+        if not error_code and not snippets:
+            error_code = "KB_NO_MATCH"
+
+        # Build history context
+        history_context = ""
+        past_msgs = await self._knowledge_messages.list_by_conversation(conv_id)
+        if past_msgs:
+            recent = past_msgs[-6:]
+            history_parts = []
+            for message in recent:
+                role_label = "用户" if message.role == "user" else "助手"
+                history_parts.append(f"【{role_label}】{message.content}")
+            history_context = "\n".join(history_parts)
+
+        # Create user message immediately
+        user_msg_id = f"msg-{_s.token_hex(4)}"
+        await self._knowledge_messages.create(
+            KnowledgeMessage(id=user_msg_id, conversation_id=conv_id,
+                             role="user", content=payload.question, created_at=now))
+
+        # Send citations to client
+        citation_data = [
+            {
+                "file_id": c.file_id,
+                "document_id": c.document_id,
+                "chunk_id": c.chunk_id,
+                "title": c.title,
+                "page_no": c.page_no,
+                "paragraph_no": c.paragraph_no,
+                "snippet": c.snippet[:800],
+            }
+            for c in (citations or [])
+        ]
+        yield f"data: {_json.dumps({'type': 'citations', 'citations': citation_data}, ensure_ascii=False)}\n\n"
+
+        # Stream answer
+        full_answer = ""
+        assistant_msg_id = f"msg-{_s.token_hex(4)}"
+        try:
+            if error_code:
+                full_answer = self._knowledge_error_answer(error_code, kb_name)
+                yield f"data: {_json.dumps({'type': 'token', 'content': full_answer}, ensure_ascii=False)}\n\n"
+            else:
+                from app.services.llm import generate_rag_answer_stream
+                async for chunk_text in self._stream_llm(
+                    payload.question, snippets, kb_name,
+                    history_context=history_context, report_mode=report_mode,
+                ):
+                    full_answer += chunk_text
+                    yield f"data: {_json.dumps({'type': 'token', 'content': chunk_text}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.warning("Stream failed: %s", e)
+            if not full_answer:
+                full_answer = f"回答生成失败: {e}"
+            yield f"data: {_json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+
+        # Persist assistant message + citation snapshots
+        await self._knowledge_messages.create(
+            KnowledgeMessage(id=assistant_msg_id, conversation_id=conv_id,
+                             role="assistant", content=full_answer, created_at=datetime.now(UTC)))
+        citation_snapshots = [
+            KnowledgeCitationSnapshot(
+                id=f"cite-{_s.token_hex(4)}", message_id=assistant_msg_id,
+                ordinal=index, file_id=c.file_id, document_id=c.document_id,
+                chunk_id=c.chunk_id, title=c.title,
+                page_no=c.page_no, paragraph_no=c.paragraph_no, snippet=c.snippet,
+            )
+            for index, c in enumerate(citations or [])
+        ]
+        if citation_snapshots:
+            await self._knowledge_citations.create_bulk(citation_snapshots)
+        conversation.updated_at = datetime.now(UTC)
+        await self._knowledge_conversations.update(conversation)
+        await self._s.commit()
+        yield f"data: {_json.dumps({'type': 'done', 'conversation_id': conv_id, 'message_id': assistant_msg_id}, ensure_ascii=False)}\n\n"
+
+    async def _stream_llm(self, question: str, snippets: list[str], kb_name: str,
+                          history_context: str = "", report_mode: bool = False):
+        """Bridge sync LLM stream generator into async for SSE via thread + queue."""
+        from app.services.llm import generate_rag_answer_stream
+        import asyncio
+
+        queue: asyncio.Queue[str | None] = asyncio.Queue()
+
+        def _run() -> None:
+            try:
+                for chunk in generate_rag_answer_stream(
+                    question,
+                    snippets,
+                    kb_name,
+                    history_context=history_context,
+                    report_mode=report_mode,
+                ):
+                    queue.put_nowait(chunk)
+            except Exception:
+                pass
+            finally:
+                queue.put_nowait(None)  # sentinel
+
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, _run)
+
+        while True:
+            chunk = await queue.get()
+            if chunk is None:
+                break
+            yield chunk
+
     async def _knowledge_query_error_code(self, kb_id: str) -> str | None:
         docs = await self._docs.list_by_kb(kb_id)
         if not docs:
@@ -1202,6 +1653,9 @@ class WorkspaceServiceDB:
     async def _retrieve_citations(self, kb_id: str, question: str, top_k: int) -> list:
         return await self._rag_pipeline.retrieve(kb_id, question, top_k)
 
+    async def _build_rag_context(self, kb_id: str, question: str, top_k: int):
+        return await self._rag_pipeline.build_context(kb_id, question, top_k)
+
     async def _generate_answer(self, question: str, snippets: list, kb_name: str, history_context: str = "", report_mode: bool = False) -> str:
         return await self._rag_pipeline.answer(
             question,
@@ -1214,92 +1668,43 @@ class WorkspaceServiceDB:
     async def list_tools(self) -> list[ToolDefinition]:
         return self._tool_registry.definitions()
 
+    async def record_agent_tool_execution(self, user: UserPublic, tool_name: str, execution: Any) -> None:
+        status = str(getattr(execution, "status", "unknown"))
+        latency_ms = int(getattr(execution, "latency_ms", 0) or 0)
+        error = str(getattr(execution, "error_message", "") or "")
+        resource_name = json.dumps(
+            {
+                "tool": tool_name,
+                "status": status,
+                "latency_ms": latency_ms,
+                "error": error[:160],
+            },
+            ensure_ascii=False,
+        )[:256]
+        await self._audit.create(AuditLog(
+            actor=user.username,
+            action=f"agent.tool.{status}",
+            resource_type="agent_tool",
+            resource_name=resource_name,
+        ))
+
     def read_file_content_for_tool(self, file: File) -> bytes | None:
         return _read_file_content(file)
 
-    def _agent_tools_description(self) -> str:
-        """Build a formatted tool list string for the LLM planning prompt."""
-        lines: list[str] = []
-        for tool in [ToolDefinition(id="tool-file-search", name="file_search", version="1.0.0", category="文件操作", description="搜索和筛选文件", input_schema={}, output_schema={}), ToolDefinition(id="tool-knowledge-qa", name="knowledge_qa", version="1.0.0", category="AI处理", description="基于知识库回答问题", input_schema={}, output_schema={}), ToolDefinition(id="tool-report-generate", name="report_generate", version="1.0.0", category="数据分析", description="生成结构化报告", input_schema={}, output_schema={}), ToolDefinition(id="tool-file-compare", name="file_compare", version="1.0.0", category="文件操作", description="比对文件内容差异", input_schema={}, output_schema={}), ToolDefinition(id="tool-image-ocr", name="image_ocr", version="1.0.0", category="AI处理", description="图片文字识别", input_schema={}, output_schema={}), ToolDefinition(id="tool-team-activity", name="team_activity", version="1.0.0", category="团队协作", description="获取团队活动动态", input_schema={}, output_schema={})]:
-            lines.append(f"- {tool.name}: {tool.description}")
-        return "\n".join(lines)
-
-    async def _execute_agent_tool(self, tool_name: str, payload: Any, user: UserPublic, context: str) -> str:
-        """Execute a tool with timeout and error handling."""
-        try:
-            return await self._run_agent_tool(tool_name, payload, user, context)
-        except TimeoutError:
-            return f"工具 {tool_name} 执行超时，请重试。"
-        except Exception as exc:
-            return f"工具 {tool_name} 执行失败：{exc}"
-
-    async def _run_agent_tool(self, tool_name: str, payload: Any, user: UserPublic, context: str) -> str:
-        """Dispatch tool execution based on tool name."""
-        task = getattr(payload, "task", "")
-        kb_id = getattr(payload, "kb_id", None)
-
-        if tool_name == "file_search":
-            files = await self._files.list_all()
-            context_ids = getattr(payload, "context_file_ids", []) or []
-            if context_ids:
-                files = [f for f in files if f.id in context_ids]
-            if not files:
-                return "未找到匹配的文件。"
-            file_list = "\n".join(f"- {f.name} ({f.type}, {f.parse_status})" for f in files[:5])
-            return f"找到 {len(files)} 个文件：\n{file_list}"
-
-        elif tool_name == "knowledge_qa":
-            if not kb_id:
-                return "没有可用的知识库。"
-            citations = await self._retrieve_citations(kb_id, task, 3)
-            if not citations:
-                return "知识库未检索到相关内容。"
-            return "\n".join(f"[{c.title}] {c.snippet}" for c in citations)
-
-        elif tool_name == "report_generate":
-            llm = _get_llm()
-            if llm is None:
-                return "LLM 不可用，无法生成报告。"
-            report_prompt = f"请根据以下上下文生成一份简短的 Markdown 报告：\n{context}"
-            resp = llm.invoke(report_prompt)
-            return resp.content.strip() if hasattr(resp, "content") else str(resp).strip()
-
-        elif tool_name == "file_compare":
-            return await self._compare_files(payload, user)
-
-        elif tool_name == "team_activity":
-            logs = await self._audit.list_all()
-            recent = logs[-20:] if logs else []
-            if not recent:
-                return "暂无团队活动记录。"
-            return "\n".join(f"- {log.action}: {log.resource_name} ({log.actor})" for log in reversed(recent[-10:]))
-
-        elif tool_name == "image_ocr":
-            return "OCR 服务暂不可用，请稍后重试。"
-
-        return f"工具 {tool_name} 执行完成。"
-
-    async def _compare_files(self, payload: Any, user: UserPublic) -> str:
-        """Compare two files by context_file_ids and return a diff summary."""
-        context_ids = getattr(payload, "context_file_ids", []) or []
-        if len(context_ids) < 2:
-            return "需要至少两个文件进行比对。"
-        file_a = await self._files.get_by_id(context_ids[0])
-        file_b = await self._files.get_by_id(context_ids[1])
-        if not file_a or not file_b:
-            return "无法找到需要比对的其中一个文件。"
-        content_a_bytes = _read_file_content(file_a)
-        content_b_bytes = _read_file_content(file_b)
-        if content_a_bytes is None or content_b_bytes is None:
-            return "无法读取文件内容进行比对。"
-        content_a = content_a_bytes.decode("utf-8", errors="replace")
-        content_b = content_b_bytes.decode("utf-8", errors="replace")
-        lines_a = set(content_a.splitlines())
-        lines_b = set(content_b.splitlines())
-        only_a = lines_a - lines_b
-        only_b = lines_b - lines_a
-        common = lines_a & lines_b
-        return f"比对 {file_a.name} vs {file_b.name}：共同行 {len(common)}，仅A {len(only_a)}，仅B {len(only_b)}。\n仅A示例：{next(iter(only_a), '无')[:80]}\n仅B示例：{next(iter(only_b), '无')[:80]}"
+    def _workflow_tool_params(self, tool_name: str, node: dict[str, Any], payload: Any) -> dict[str, Any]:
+        params = dict(node.get("parameters") or {})
+        file_id = getattr(payload, "file_id", None)
+        if tool_name == "file_content_search":
+            params.setdefault("query", "")
+            if file_id and not params.get("file_ids"):
+                params["file_ids"] = [file_id]
+        elif tool_name == "python_data" and file_id:
+            params.setdefault("file_id", file_id)
+        elif tool_name == "calculator":
+            params.setdefault("expression", "1 + 1")
+        elif tool_name == "course_lookup":
+            params.setdefault("query", "算法")
+        return params
 
     async def create_agent_task(self, payload: Any, user: UserPublic) -> AgentTaskResponse:
         kb_id = getattr(payload, "kb_id", None)
@@ -1307,7 +1712,7 @@ class WorkspaceServiceDB:
             try:
                 await self._ensure_kb_access(kb_id, user)
             except WorkspaceError:
-                return AgentTaskResponse(
+                response = AgentTaskResponse(
                     id=f"agent-{secrets.token_hex(4)}",
                     task=getattr(payload, "task", ""),
                     status="failed",
@@ -1325,7 +1730,12 @@ class WorkspaceServiceDB:
                     final_answer=f"知识库 {kb_id} 不存在。",
                     result_view={"type": "text", "content": f"知识库 {kb_id} 不存在。"},
                 )
+                await self._persist_agent_response(response, user, self._agent_request_from_payload(payload))
+                await self._s.commit()
+                loaded = await self._load_agent_response(response.id, user)
+                return loaded or response
         response = await self._agent_executor.run(payload, self, user)
+        await self._persist_agent_response(response, user, self._agent_request_from_payload(payload))
         audit_log = AuditLog(
             actor=user.username,
             action="agent.create_task",
@@ -1334,19 +1744,102 @@ class WorkspaceServiceDB:
         )
         await self._audit.create(audit_log)
         await self._s.commit()
-        return response
+        loaded = await self._load_agent_response(response.id, user)
+        return loaded or response
 
     async def get_agent_task(self, task_id: str, user: UserPublic) -> AgentTaskResponse:
+        persisted = await self._load_agent_response(task_id, user)
+        if persisted:
+            return persisted
         task = self._agent_executor.get(task_id, user)
         if not task:
             raise WorkspaceError(404, "AGENT_TASK_NOT_FOUND", "智能体任务不存在", {"task_id": task_id})
         return task
 
+    async def list_agent_tasks(self, user: UserPublic) -> AgentTaskListResponse:
+        tasks = await self._agent_tasks.list_by_owner(user.id)
+        items: list[AgentTaskResponse] = []
+        for task in tasks:
+            loaded = await self._load_agent_response(task.id, user)
+            if loaded is not None:
+                items.append(loaded)
+        return AgentTaskListResponse(items=items)
+
+    async def preview_agent_plan(self, payload: Any, user: UserPublic) -> AgentPlanPreviewResponse:
+        kb_id = getattr(payload, "kb_id", None)
+        if kb_id:
+            await self._ensure_kb_access(kb_id, user)
+        return await self._agent_executor.preview_plan(payload, user)
+
+    async def stream_agent_task(self, payload: Any, user: UserPublic):
+        try:
+            response = await self.create_agent_task(payload, user)
+            for step in response.steps:
+                event_type = step.phase if step.phase in {"plan", "call", "observe", "answer"} else "step"
+                yield f"data: {json.dumps({'type': event_type, 'step': step.model_dump()}, ensure_ascii=False, default=str)}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'task': response.model_dump()}, ensure_ascii=False, default=str)}\n\n"
+        except Exception as exc:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)}, ensure_ascii=False)}\n\n"
+
     async def continue_agent_task(self, task_id: str, payload: Any, user: UserPublic) -> AgentTaskResponse:
         inputs = getattr(payload, "inputs", {}) if payload is not None else {}
-        task = await self._agent_executor.continue_task(task_id, inputs, self, user)
+        message = (getattr(payload, "message", None) or "").strip() if payload is not None else ""
+        persisted_task = await self._agent_tasks.get_by_id(task_id)
+        if persisted_task and persisted_task.owner_id == user.id:
+            if persisted_task.status == "cancelled":
+                raise WorkspaceError(409, "AGENT_TASK_CANCELLED", "智能体任务已取消，不能继续执行", {"task_id": task_id})
+            request = _json_loads_object(persisted_task.request_json)
+            db_messages = await self._agent_messages.list_by_task(task_id)
+            db_tool_calls = await self._agent_tool_calls.list_by_task(task_id)
+            all_history = [
+                {
+                    "role": item.role,
+                    "content": item.content,
+                    "metadata": _json_loads_object(item.metadata_json),
+                }
+                for item in db_messages
+            ]
+            history = all_history[-12:]
+            history_summary = self._summarize_agent_history(all_history[:-12])
+            prior_tool_calls = [
+                {
+                    "tool_name": item.tool_name,
+                    "input_json": _json_loads_object(item.input_json),
+                    "output_json": _json_loads_object(item.output_json),
+                    "status": item.status,
+                    "error_message": item.error_message,
+                }
+                for item in db_tool_calls
+            ][-12:]
+            merged_inputs = {**_json_loads_object(json.dumps(request.get("inputs", {}))), **inputs}
+            if history:
+                merged_inputs["_history"] = history
+            if history_summary:
+                merged_inputs["_history_summary"] = history_summary
+            if prior_tool_calls:
+                merged_inputs["_prior_tool_calls"] = prior_tool_calls
+            next_task = message or request.get("task", persisted_task.task)
+            next_payload = type(
+                "_AgentPayload",
+                (),
+                {
+                    "task": next_task,
+                    "context_file_ids": request.get("context_file_ids", []),
+                    "kb_id": request.get("kb_id"),
+                },
+            )()
+            task = await self._agent_executor.run(next_payload, self, user, task_id=task_id, continuation_inputs=merged_inputs)
+            request["task"] = next_task
+            request["inputs"] = merged_inputs
+            request["history"] = history
+            request["history_summary"] = history_summary
+            request["prior_tool_calls"] = prior_tool_calls
+        else:
+            task = await self._agent_executor.continue_task(task_id, inputs, self, user)
+            request = None
         if not task:
             raise WorkspaceError(404, "AGENT_TASK_NOT_FOUND", "智能体任务不存在", {"task_id": task_id})
+        await self._persist_agent_response(task, user, request or self._agent_request_from_response(task, inputs))
         audit_log = AuditLog(
             actor=user.username,
             action="agent.continue_task",
@@ -1355,7 +1848,322 @@ class WorkspaceServiceDB:
         )
         await self._audit.create(audit_log)
         await self._s.commit()
-        return task
+        loaded = await self._load_agent_response(task.id, user)
+        return loaded or task
+
+    async def cancel_agent_task(self, task_id: str, user: UserPublic) -> AgentTaskResponse:
+        task = await self._agent_tasks.get_by_id(task_id)
+        if not task or task.owner_id != user.id:
+            raise WorkspaceError(404, "AGENT_TASK_NOT_FOUND", "智能体任务不存在", {"task_id": task_id})
+        if task.status in {"completed", "failed", "cancelled"}:
+            raise WorkspaceError(
+                409,
+                "AGENT_TASK_NOT_CANCELABLE",
+                "智能体任务已结束，不能取消",
+                {"task_id": task_id, "status": task.status},
+            )
+
+        existing_steps = await self._agent_steps.list_by_task(task_id)
+        cancel_step = AgentTaskStep(
+            task_id=task_id,
+            sequence=len(existing_steps),
+            type="answer",
+            phase="answer",
+            title="任务已取消",
+            content="用户已取消该智能体任务。",
+            status="failed",
+            error_message="AGENT_TASK_CANCELLED",
+            metadata_json=json.dumps({"cancelled_by": user.username}, ensure_ascii=False),
+        )
+        task.status = "cancelled"
+        task.final_answer = "任务已取消。"
+        task.result_view_json = json.dumps({"type": "text", "content": "任务已取消。"}, ensure_ascii=False)
+        await self._agent_tasks.update(task)
+        self._s.add(cancel_step)
+        await self._s.flush()
+        await self._audit.create(AuditLog(
+            actor=user.username,
+            action="agent.cancel_task",
+            resource_type="agent_task",
+            resource_name=task.task[:100],
+        ))
+        await self._s.commit()
+        response = await self._load_agent_response(task_id, user)
+        if response is None:
+            raise WorkspaceError(404, "AGENT_TASK_NOT_FOUND", "智能体任务不存在", {"task_id": task_id})
+        return response
+
+    def _agent_request_from_payload(self, payload: Any, inputs: dict[str, Any] | None = None) -> dict[str, Any]:
+        return {
+            "task": getattr(payload, "task", ""),
+            "context_file_ids": list(getattr(payload, "context_file_ids", []) or []),
+            "kb_id": getattr(payload, "kb_id", None),
+            "inputs": inputs or {},
+        }
+
+    def _agent_request_from_response(self, response: AgentTaskResponse, inputs: dict[str, Any] | None = None) -> dict[str, Any]:
+        return {
+            "task": response.task,
+            "context_file_ids": [],
+            "kb_id": None,
+            "inputs": inputs or {},
+        }
+
+    async def _persist_agent_response(self, response: AgentTaskResponse, user: UserPublic, request: dict[str, Any]) -> None:
+        existing = await self._agent_tasks.get_by_id(response.id)
+        result_view_json = json.dumps(response.result_view, ensure_ascii=False, default=str)
+        request_json = json.dumps(request, ensure_ascii=False, default=str)
+        context_file_ids_json = json.dumps(request.get("context_file_ids", []), ensure_ascii=False)
+        if existing:
+            existing.status = response.status
+            existing.task = response.task
+            existing.kb_id = request.get("kb_id")
+            existing.context_file_ids_json = context_file_ids_json
+            existing.request_json = request_json
+            existing.final_answer = response.final_answer
+            existing.result_view_json = result_view_json
+            await self._agent_tasks.update(existing)
+        else:
+            await self._agent_tasks.create(AgentTask(
+                id=response.id,
+                owner_id=user.id,
+                task=response.task,
+                status=response.status,
+                kb_id=request.get("kb_id"),
+                context_file_ids_json=context_file_ids_json,
+                request_json=request_json,
+                final_answer=response.final_answer,
+                result_view_json=result_view_json,
+            ))
+        db_steps = [
+            AgentTaskStep(
+                task_id=response.id,
+                sequence=index,
+                type=step.type,
+                phase=step.phase,
+                title=step.title,
+                content=step.content,
+                tool_name=step.tool_name,
+                input_json=json.dumps(step.input_json, ensure_ascii=False, default=str),
+                output_json=json.dumps(step.output_json, ensure_ascii=False, default=str),
+                status=step.status,
+                error_message=step.error_message,
+                metadata_json=json.dumps(step.metadata, ensure_ascii=False, default=str),
+            )
+            for index, step in enumerate(response.steps)
+        ]
+        await self._agent_steps.replace_for_task(response.id, db_steps)
+        await self._agent_messages.replace_for_task(
+            response.id,
+            self._agent_messages_from_response(response, request),
+        )
+        await self._agent_tool_calls.replace_for_task(
+            response.id,
+            self._agent_tool_calls_from_response(response),
+        )
+        await self._agent_plan_revisions.replace_for_task(
+            response.id,
+            self._agent_plan_revisions_from_response(response),
+        )
+
+    async def _load_agent_response(self, task_id: str, user: UserPublic) -> AgentTaskResponse | None:
+        task = await self._agent_tasks.get_by_id(task_id)
+        if not task or task.owner_id != user.id:
+            return None
+        db_steps = await self._agent_steps.list_by_task(task_id)
+        db_messages = await self._agent_messages.list_by_task(task_id)
+        db_tool_calls = await self._agent_tool_calls.list_by_task(task_id)
+        db_plan_revisions = await self._agent_plan_revisions.list_by_task(task_id)
+        return AgentTaskResponse(
+            id=task.id,
+            task=task.task,
+            status=task.status,
+            steps=[
+                AgentStep(
+                    type=step.type,
+                    phase=step.phase,
+                    title=step.title,
+                    content=step.content,
+                    tool_name=step.tool_name,
+                    input_json=_json_loads_object(step.input_json),
+                    output_json=_json_loads_object(step.output_json),
+                    status=step.status,
+                    error_message=step.error_message,
+                    metadata=_json_loads_object(step.metadata_json),
+                )
+                for step in db_steps
+            ],
+            final_answer=task.final_answer,
+            result_view=_json_loads_object(task.result_view_json),
+            messages=[
+                AgentMessageSchema(
+                    id=message.id,
+                    role=message.role,
+                    content=message.content,
+                    metadata=_json_loads_object(message.metadata_json),
+                )
+                for message in db_messages
+            ],
+            tool_calls=[
+                AgentToolCallSchema(
+                    id=call.id,
+                    tool_name=call.tool_name,
+                    input_json=_json_loads_object(call.input_json),
+                    output_json=_json_loads_object(call.output_json),
+                    status=call.status,
+                    error_message=call.error_message,
+                    latency_ms=call.latency_ms,
+                )
+                for call in db_tool_calls
+            ],
+            plan_revisions=[
+                AgentPlanRevisionSchema(
+                    id=revision.id,
+                    revision_no=revision.revision_no,
+                    reason=revision.reason,
+                    plan_json=_json_loads_object(revision.plan_json),
+                )
+                for revision in db_plan_revisions
+            ],
+        )
+
+    def _agent_messages_from_response(self, response: AgentTaskResponse, request: dict[str, Any]) -> list[AgentMessage]:
+        messages: list[AgentMessage] = []
+        history = request.get("history", [])
+        if isinstance(history, list):
+            for item in self._compact_agent_history(history):
+                if not isinstance(item, dict):
+                    continue
+                role = item.get("role") if item.get("role") in {"user", "assistant", "system"} else "system"
+                content = str(item.get("content") or "").strip()
+                if not content:
+                    continue
+                messages.append(AgentMessage(
+                    id=f"{response.id}-msg-{len(messages)}",
+                    task_id=response.id,
+                    sequence=len(messages),
+                    role=role,
+                    content=content,
+                    metadata_json=json.dumps(item.get("metadata") or {}, ensure_ascii=False, default=str),
+                ))
+
+        raw_inputs = request.get("inputs", {})
+        metadata_inputs = dict(raw_inputs) if isinstance(raw_inputs, dict) else {}
+        metadata_inputs.pop("_history", None)
+        metadata_inputs.pop("_history_summary", None)
+        metadata_inputs.pop("_prior_tool_calls", None)
+        messages.append(AgentMessage(
+            id=f"{response.id}-msg-{len(messages)}",
+            task_id=response.id,
+            sequence=len(messages),
+            role="user",
+            content=str(request.get("task") or response.task),
+            metadata_json=json.dumps({
+                "context_file_ids": request.get("context_file_ids", []),
+                "kb_id": request.get("kb_id"),
+                "inputs": metadata_inputs,
+            }, ensure_ascii=False, default=str),
+        ))
+        messages.append(AgentMessage(
+            id=f"{response.id}-msg-{len(messages)}",
+            task_id=response.id,
+            sequence=len(messages),
+            role="assistant",
+            content=response.final_answer,
+            metadata_json=json.dumps({
+                "status": response.status,
+                "result_view": response.result_view,
+            }, ensure_ascii=False, default=str),
+        ))
+        return messages
+
+    def _summarize_agent_history(self, history: list[dict[str, Any]]) -> str:
+        if not history:
+            return ""
+        fragments: list[str] = []
+        for item in history[-20:]:
+            role = str(item.get("role") or "system")
+            content = str(item.get("content") or "").strip().replace("\n", " ")
+            if not content:
+                continue
+            fragments.append(f"{role}: {content[:160]}")
+        return "；".join(fragments)
+
+    def _compact_agent_history(self, history: list[Any]) -> list[dict[str, Any]]:
+        normalized: list[dict[str, Any]] = []
+        for item in history:
+            if not isinstance(item, dict):
+                continue
+            role = item.get("role") if item.get("role") in {"user", "assistant", "system"} else "system"
+            content = str(item.get("content") or "").strip()
+            if not content:
+                continue
+            metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+            normalized.append({"role": role, "content": content, "metadata": metadata})
+
+        if len(normalized) <= 10:
+            return normalized
+
+        older = normalized[:-8]
+        recent = normalized[-8:]
+        existing_summary = next(
+            (
+                item for item in older
+                if item["role"] == "system" and item.get("metadata", {}).get("kind") == "history_summary"
+            ),
+            None,
+        )
+        summary_lines: list[str] = []
+        if existing_summary:
+            summary_lines.append(existing_summary["content"])
+        for item in older:
+            if item is existing_summary:
+                continue
+            role_label = {"user": "用户", "assistant": "助手", "system": "系统"}.get(item["role"], "系统")
+            summary_lines.append(f"{role_label}: {item['content']}")
+        summary = "历史摘要：" + "；".join(summary_lines)
+        if len(summary) > 1200:
+            summary = f"{summary[:1200].rstrip()}..."
+        return [
+            {
+                "role": "system",
+                "content": summary,
+                "metadata": {"kind": "history_summary", "source_message_count": len(normalized)},
+            },
+            *recent,
+        ]
+
+    def _agent_tool_calls_from_response(self, response: AgentTaskResponse) -> list[AgentToolCall]:
+        calls: list[AgentToolCall] = []
+        for index, step in enumerate(response.steps):
+            if step.phase != "call" or not step.tool_name:
+                continue
+            calls.append(AgentToolCall(
+                id=f"{response.id}-call-{len(calls)}",
+                task_id=response.id,
+                step_sequence=index,
+                tool_name=step.tool_name,
+                input_json=json.dumps(step.input_json, ensure_ascii=False, default=str),
+                output_json=json.dumps(step.output_json, ensure_ascii=False, default=str),
+                status="needs_clarification" if step.status == "needs_clarification" else ("failed" if step.status == "failed" else "success"),
+                error_message=step.error_message,
+                latency_ms=int(step.metadata.get("latency_ms", 0) or 0),
+            ))
+        return calls
+
+    def _agent_plan_revisions_from_response(self, response: AgentTaskResponse) -> list[AgentPlanRevision]:
+        revisions: list[AgentPlanRevision] = []
+        for index, step in enumerate(response.steps):
+            if step.phase != "plan":
+                continue
+            revisions.append(AgentPlanRevision(
+                id=f"{response.id}-plan-{len(revisions)}",
+                task_id=response.id,
+                revision_no=len(revisions),
+                reason=str(step.metadata.get("revision_reason") or step.title),
+                plan_json=json.dumps(step.input_json, ensure_ascii=False, default=str),
+            ))
+        return revisions
 
     async def list_workflows(self) -> list[WorkflowDefinition]:
         wfs = await self._workflows.list_all()
@@ -1367,8 +2175,8 @@ class WorkspaceServiceDB:
         import secrets as _s
         import json as _json
         wid = f"wf-{_s.token_hex(4)}"
-        nodes_raw = getattr(payload, "nodes", None) or []
-        edges_raw = getattr(payload, "edges", None) or []
+        nodes_raw = _jsonable_list(getattr(payload, "nodes", None) or [])
+        edges_raw = _jsonable_list(getattr(payload, "edges", None) or [])
         nodes_json = _json.dumps(nodes_raw, ensure_ascii=False)
         edges_json = _json.dumps(edges_raw, ensure_ascii=False)
         wf = Workflow(id=wid, name=(getattr(payload, "name", None) or "新流程"),
@@ -1395,9 +2203,11 @@ class WorkspaceServiceDB:
             wf.trigger = getattr(payload, "trigger")
         nodes_raw = getattr(payload, "nodes", None)
         if nodes_raw is not None:
+            nodes_raw = _jsonable_list(nodes_raw)
             wf.nodes = _json.dumps(nodes_raw, ensure_ascii=False)
         edges_raw = getattr(payload, "edges", None)
         if edges_raw is not None:
+            edges_raw = _jsonable_list(edges_raw)
             wf.edges = _json.dumps(edges_raw, ensure_ascii=False)
         await self._workflows.update(wf)
         await self._s.commit()
@@ -1457,11 +2267,20 @@ class WorkspaceServiceDB:
         for node in nodes:
             tool_name = node.get("tool_name")
             if tool_name:
-                try:
-                    result = await self._execute_agent_tool(tool_name, payload, user, node.get("content", ""))
-                except Exception as exc:
-                    result = f"执行失败: {exc}"
-                node_executions.append({"node_id": node.get("id", ""), "name": node.get("name", ""), "tool_name": tool_name, "status": "success", "input": {}, "output": {"result": result}})
+                tool_input = self._workflow_tool_params(tool_name, node, payload)
+                execution = await self._tool_registry.execute(tool_name, tool_input, self, user)
+                status = "success" if execution.status == "success" else "failed"
+                output = execution.output if execution.status == "success" else {
+                    "error": execution.error_message or execution.clarification or "工具执行失败",
+                }
+                node_executions.append({
+                    "node_id": node.get("id", ""),
+                    "name": node.get("name", ""),
+                    "tool_name": tool_name,
+                    "status": status,
+                    "input": tool_input,
+                    "output": output,
+                })
             else:
                 node_executions.append({"node_id": node.get("id", ""), "name": node.get("name", ""), "tool_name": "", "status": "success", "input": {}, "output": {}})
         return WorkflowExecutionResponse(id=f"exec-{_s.token_hex(4)}", workflow_id=workflow_id, status="completed", node_executions=node_executions, output={"summary": f"流程「{wf.name}」执行完成，共 {len(nodes)} 个节点"})
@@ -1472,63 +2291,78 @@ class WorkspaceServiceDB:
         import json as _json
         existing = await self._workflows.list_all()
         if any(w.status == "template" for w in existing):
+            for workflow in existing:
+                if workflow.status == "template":
+                    nodes = _json.loads(workflow.nodes) if workflow.nodes else []
+                    migrated = False
+                    for node in nodes:
+                        old_name = node.get("tool_name")
+                        new_name = {
+                            "file_search": "file_content_search",
+                            "knowledge_qa": "file_content_search",
+                            "report_generate": "calculator",
+                            "file_compare": "file_content_search",
+                            "image_ocr": "file_content_search",
+                            "team_activity": "course_lookup",
+                        }.get(old_name, old_name)
+                        if new_name != old_name:
+                            node["tool_name"] = new_name
+                            migrated = True
+                    if migrated:
+                        workflow.nodes = _json.dumps(nodes, ensure_ascii=False)
+                        await self._workflows.update(workflow)
+            await self._s.commit()
             return
         templates = [
             {"name": "新文件自动摘要", "trigger": "file_upload", "description": "上传文件后自动解析内容并生成摘要报告", "nodes": [
                 {"id": "trigger-1", "name": "文件上传触发", "type": "trigger", "tool_name": None, "parameters": {}, "position": {"x": 80, "y": 170}},
-                {"id": "tool-search", "name": "搜索相关文件", "type": "tool", "tool_name": "file_search", "parameters": {"query": ""}, "position": {"x": 360, "y": 110}},
-                {"id": "tool-qa", "name": "知识库问答", "type": "tool", "tool_name": "knowledge_qa", "parameters": {"kb_id": "", "question": ""}, "position": {"x": 650, "y": 110}},
+                {"id": "tool-search", "name": "搜索相关文件", "type": "tool", "tool_name": "file_content_search", "parameters": {"query": ""}, "position": {"x": 360, "y": 110}},
+                {"id": "tool-data", "name": "CSV 数据分析", "type": "tool", "tool_name": "python_data", "parameters": {}, "position": {"x": 650, "y": 110}},
                 {"id": "output-report", "name": "生成摘要报告", "type": "output", "tool_name": None, "parameters": {"format": "markdown"}, "position": {"x": 940, "y": 170}},
             ], "edges": [
                 {"id": "e1", "source": "trigger-1", "target": "tool-search", "type": "smoothstep"},
-                {"id": "e2", "source": "tool-search", "target": "tool-qa", "type": "smoothstep"},
-                {"id": "e3", "source": "tool-qa", "target": "output-report", "type": "smoothstep"},
+                {"id": "e2", "source": "tool-search", "target": "tool-data", "type": "smoothstep"},
+                {"id": "e3", "source": "tool-data", "target": "output-report", "type": "smoothstep"},
             ]},
             {"name": "团队周报生成", "trigger": "schedule", "description": "定时收集团队活动与文件变更，生成 Markdown 周报", "nodes": [
                 {"id": "trigger-w", "name": "每周触发", "type": "trigger", "tool_name": None, "parameters": {"cron": "0 9 * * 1"}, "position": {"x": 80, "y": 170}},
-                {"id": "tool-team", "name": "获取团队动态", "type": "tool", "tool_name": "team_activity", "parameters": {"team_id": "", "limit": 20}, "position": {"x": 360, "y": 110}},
-                {"id": "tool-files", "name": "搜索本周文件", "type": "tool", "tool_name": "file_search", "parameters": {"query": ""}, "position": {"x": 360, "y": 250}},
-                {"id": "tool-report", "name": "生成周报", "type": "tool", "tool_name": "report_generate", "parameters": {"topic": "团队周报"}, "position": {"x": 650, "y": 180}},
+                {"id": "tool-files", "name": "搜索本周文件", "type": "tool", "tool_name": "file_content_search", "parameters": {"query": "周报"}, "position": {"x": 360, "y": 250}},
+                {"id": "tool-course", "name": "查询课程安排", "type": "tool", "tool_name": "course_lookup", "parameters": {"query": "算法"}, "position": {"x": 650, "y": 180}},
                 {"id": "output-weekly", "name": "发布周报", "type": "output", "tool_name": None, "parameters": {"format": "markdown", "destination": "team-channel"}, "position": {"x": 940, "y": 180}},
             ], "edges": [
-                {"id": "e1", "source": "trigger-w", "target": "tool-team", "type": "smoothstep"},
-                {"id": "e2", "source": "trigger-w", "target": "tool-files", "type": "smoothstep"},
-                {"id": "e3", "source": "tool-team", "target": "tool-report", "type": "smoothstep"},
-                {"id": "e4", "source": "tool-files", "target": "tool-report", "type": "smoothstep"},
-                {"id": "e5", "source": "tool-report", "target": "output-weekly", "type": "smoothstep"},
+                {"id": "e1", "source": "trigger-w", "target": "tool-files", "type": "smoothstep"},
+                {"id": "e2", "source": "tool-files", "target": "tool-course", "type": "smoothstep"},
+                {"id": "e3", "source": "tool-course", "target": "output-weekly", "type": "smoothstep"},
             ]},
             {"name": "批量知识问答", "trigger": "manual", "description": "对知识库中的文件逐一提问并汇总结果", "nodes": [
                 {"id": "trigger-b", "name": "手动触发", "type": "trigger", "tool_name": None, "parameters": {}, "position": {"x": 80, "y": 170}},
-                {"id": "tool-qa", "name": "知识库问答", "type": "tool", "tool_name": "knowledge_qa", "parameters": {"kb_id": "", "question": ""}, "position": {"x": 360, "y": 110}},
+                {"id": "tool-search", "name": "文件内容查询", "type": "tool", "tool_name": "file_content_search", "parameters": {"query": ""}, "position": {"x": 360, "y": 110}},
                 {"id": "aggregate", "name": "汇总答案", "type": "aggregate", "tool_name": None, "parameters": {"strategy": "merge"}, "position": {"x": 650, "y": 170}},
                 {"id": "output-batch", "name": "输出问答结果", "type": "output", "tool_name": None, "parameters": {"format": "markdown"}, "position": {"x": 940, "y": 170}},
             ], "edges": [
-                {"id": "e1", "source": "trigger-b", "target": "tool-qa", "type": "smoothstep"},
-                {"id": "e2", "source": "tool-qa", "target": "aggregate", "type": "smoothstep"},
+                {"id": "e1", "source": "trigger-b", "target": "tool-search", "type": "smoothstep"},
+                {"id": "e2", "source": "tool-search", "target": "aggregate", "type": "smoothstep"},
                 {"id": "e3", "source": "aggregate", "target": "output-batch", "type": "smoothstep"},
             ]},
             {"name": "文件比对报告", "trigger": "manual", "description": "选择两个文件进行内容比对并生成差异报告", "nodes": [
                 {"id": "trigger-c", "name": "手动选择文件", "type": "trigger", "tool_name": None, "parameters": {}, "position": {"x": 80, "y": 170}},
-                {"id": "tool-compare", "name": "比对文件内容", "type": "tool", "tool_name": "file_compare", "parameters": {"file_a": "", "file_b": ""}, "position": {"x": 360, "y": 110}},
-                {"id": "tool-report", "name": "生成比对报告", "type": "tool", "tool_name": "report_generate", "parameters": {"topic": "文件比对分析"}, "position": {"x": 650, "y": 170}},
+                {"id": "tool-search", "name": "查询文件内容", "type": "tool", "tool_name": "file_content_search", "parameters": {"query": ""}, "position": {"x": 360, "y": 110}},
+                {"id": "tool-calc", "name": "计算统计项", "type": "tool", "tool_name": "calculator", "parameters": {"expression": "1 + 1"}, "position": {"x": 650, "y": 170}},
                 {"id": "output-compare", "name": "导出报告", "type": "output", "tool_name": None, "parameters": {"format": "docx"}, "position": {"x": 940, "y": 170}},
             ], "edges": [
-                {"id": "e1", "source": "trigger-c", "target": "tool-compare", "type": "smoothstep"},
-                {"id": "e2", "source": "tool-compare", "target": "tool-report", "type": "smoothstep"},
-                {"id": "e3", "source": "tool-report", "target": "output-compare", "type": "smoothstep"},
+                {"id": "e1", "source": "trigger-c", "target": "tool-search", "type": "smoothstep"},
+                {"id": "e2", "source": "tool-search", "target": "tool-calc", "type": "smoothstep"},
+                {"id": "e3", "source": "tool-calc", "target": "output-compare", "type": "smoothstep"},
             ]},
             {"name": "知识入库处理", "trigger": "file_upload", "description": "上传文件后自动解析、OCR识别、分块索引到知识库", "nodes": [
                 {"id": "trigger-k", "name": "文件上传触发", "type": "trigger", "tool_name": None, "parameters": {"event": "file.created"}, "position": {"x": 80, "y": 170}},
-                {"id": "tool-ocr", "name": "图片OCR识别", "type": "tool", "tool_name": "image_ocr", "parameters": {"file_id": ""}, "position": {"x": 360, "y": 100}},
-                {"id": "tool-search", "name": "搜索重复文件", "type": "tool", "tool_name": "file_search", "parameters": {"query": ""}, "position": {"x": 360, "y": 240}},
-                {"id": "tool-report", "name": "生成入库报告", "type": "tool", "tool_name": "report_generate", "parameters": {"topic": "知识入库处理结果"}, "position": {"x": 650, "y": 170}},
+                {"id": "tool-search", "name": "搜索重复文件", "type": "tool", "tool_name": "file_content_search", "parameters": {"query": ""}, "position": {"x": 360, "y": 240}},
+                {"id": "tool-data", "name": "CSV 数据分析", "type": "tool", "tool_name": "python_data", "parameters": {}, "position": {"x": 650, "y": 170}},
                 {"id": "output-kb", "name": "更新知识库", "type": "output", "tool_name": None, "parameters": {"format": "markdown", "destination": "knowledge-base"}, "position": {"x": 940, "y": 170}},
             ], "edges": [
-                {"id": "e1", "source": "trigger-k", "target": "tool-ocr", "type": "smoothstep"},
-                {"id": "e2", "source": "trigger-k", "target": "tool-search", "type": "smoothstep"},
-                {"id": "e3", "source": "tool-ocr", "target": "tool-report", "type": "smoothstep"},
-                {"id": "e4", "source": "tool-search", "target": "tool-report", "type": "smoothstep"},
-                {"id": "e5", "source": "tool-report", "target": "output-kb", "type": "smoothstep"},
+                {"id": "e1", "source": "trigger-k", "target": "tool-search", "type": "smoothstep"},
+                {"id": "e2", "source": "tool-search", "target": "tool-data", "type": "smoothstep"},
+                {"id": "e3", "source": "tool-data", "target": "output-kb", "type": "smoothstep"},
             ]},
         ]
         for tmpl in templates:
@@ -1776,9 +2610,11 @@ class WorkspaceServiceDB:
         team_summaries = []
         for t in teams_db:
             members = [m for m in (await _safe_list_members(self, t.id)) if m.status == "active"]
-            my_role = next(
-                (m.role for m in members if m.user_id == user.id), "member")
-            team_summaries.append({"id": t.id, "name": t.name, "role": my_role, "member_count": len(
+            my_member = next((m for m in members if m.user_id == user.id), None)
+            # Only include teams the user is an active member of
+            if my_member is None:
+                continue
+            team_summaries.append({"id": t.id, "name": t.name, "role": my_member.role, "member_count": len(
                 members), "unread_count": 0})
         workflows_db = await self._workflows.list_all()
         workflow_defs = []
