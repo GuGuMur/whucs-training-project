@@ -11,7 +11,9 @@ import re
 import time
 import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
@@ -237,6 +239,122 @@ class ToolRegistry:
                 handler=self._weather_lookup,
                 clarification="请补充要查询天气的地点。",
             ),
+            "kb_interest_extract": ToolSpec(
+                definition=ToolDefinition(
+                    id="tool-kb-interest-extract",
+                    name="kb_interest_extract",
+                    version="1.0.0",
+                    category="知识库",
+                    description="读取知识库文档画像，提取用户研究兴趣关键词。",
+                    input_schema={
+                        "type": "object",
+                        "required": ["kb_id"],
+                        "properties": {
+                            "kb_id": {"type": "string"},
+                            "query": {"type": "string"},
+                            "max_terms": {"type": "integer", "minimum": 1, "maximum": 20},
+                        },
+                    },
+                    output_schema={
+                        "type": "object",
+                        "properties": {
+                            "kb_id": {"type": "string"},
+                            "interests": {"type": "array"},
+                            "documents": {"type": "array"},
+                        },
+                    },
+                ),
+                handler=self._kb_interest_extract,
+                clarification="请补充要读取的知识库 ID。",
+            ),
+            "arxiv_search": ToolSpec(
+                definition=ToolDefinition(
+                    id="tool-arxiv-search",
+                    name="arxiv_search",
+                    version="1.0.0",
+                    category="科研",
+                    description="根据兴趣关键词从 arXiv 获取近几天的相关论文。",
+                    input_schema={
+                        "type": "object",
+                        "required": ["interests"],
+                        "properties": {
+                            "interests": {"type": "array", "items": {"type": "string"}},
+                            "days": {"type": "integer", "minimum": 1, "maximum": 30},
+                            "max_results": {"type": "integer", "minimum": 1, "maximum": 20},
+                        },
+                    },
+                    output_schema={
+                        "type": "object",
+                        "properties": {
+                            "interests": {"type": "array"},
+                            "papers": {"type": "array"},
+                            "days": {"type": "integer"},
+                            "max_results": {"type": "integer"},
+                        },
+                    },
+                ),
+                handler=self._arxiv_search,
+                clarification="请补充用于检索 arXiv 的兴趣关键词。",
+            ),
+            "arxiv_markdown_render": ToolSpec(
+                definition=ToolDefinition(
+                    id="tool-arxiv-markdown-render",
+                    name="arxiv_markdown_render",
+                    version="1.0.0",
+                    category="科研",
+                    description="将 arXiv 论文列表整理成 Markdown 报告。",
+                    input_schema={
+                        "type": "object",
+                        "required": ["interests", "papers"],
+                        "properties": {
+                            "interests": {"type": "array", "items": {"type": "string"}},
+                            "papers": {"type": "array"},
+                            "days": {"type": "integer", "minimum": 1, "maximum": 30},
+                        },
+                    },
+                    output_schema={
+                        "type": "object",
+                        "properties": {
+                            "markdown": {"type": "string"},
+                            "paper_count": {"type": "integer"},
+                            "interests": {"type": "array"},
+                        },
+                    },
+                ),
+                handler=self._arxiv_markdown_render,
+                clarification="请补充兴趣关键词和论文列表。",
+            ),
+            "knowledge_markdown_write": ToolSpec(
+                definition=ToolDefinition(
+                    id="tool-knowledge-markdown-write",
+                    name="knowledge_markdown_write",
+                    version="1.0.0",
+                    category="知识库",
+                    description="把 Markdown 内容保存为文件并写入指定知识库。",
+                    input_schema={
+                        "type": "object",
+                        "required": ["kb_id", "markdown"],
+                        "properties": {
+                            "kb_id": {"type": "string"},
+                            "markdown": {"type": "string"},
+                            "filename": {"type": "string"},
+                            "tags": {"type": "array", "items": {"type": "string"}},
+                        },
+                    },
+                    output_schema={
+                        "type": "object",
+                        "properties": {
+                            "kb_id": {"type": "string"},
+                            "document_id": {"type": "string"},
+                            "file_id": {"type": "string"},
+                            "file_name": {"type": "string"},
+                            "markdown": {"type": "string"},
+                        },
+                    },
+                ),
+                handler=self._knowledge_markdown_write,
+                clarification="请补充知识库 ID 和 Markdown 内容。",
+            ),
         }
 
     def definitions(self) -> list[ToolDefinition]:
@@ -269,11 +387,11 @@ class ToolRegistry:
 
     def validate_configuration(self) -> list[dict[str, str]]:
         issues: list[dict[str, str]] = []
-        if "weather_lookup" in self._tools and not os.environ.get("WEATHER_API_URL", "").strip():
+        if "weather_lookup" in self._tools and not os.environ.get("QWEATHER_HOST", "").strip():
             issues.append({
                 "tool": "weather_lookup",
-                "code": "WEATHER_API_URL_MISSING",
-                "message": "天气工具未配置 WEATHER_API_URL。",
+                "code": "QWEATHER_HOST_MISSING",
+                "message": "天气工具未配置 QWEATHER_HOST。",
             })
         if not _COURSE_CATALOG_PATH.exists():
             issues.append({
@@ -305,7 +423,7 @@ class ToolRegistry:
             denied = [file_id for file_id in requested_ids if file_id not in visible_ids]
             if denied:
                 raise PermissionError(f"文件不存在或无权访问：{', '.join(denied)}")
-        elif name == "rag_query" and hasattr(workspace, "_ensure_kb_access"):
+        elif name in {"rag_query", "kb_interest_extract", "knowledge_markdown_write"} and hasattr(workspace, "_ensure_kb_access"):
             await workspace._ensure_kb_access(str(params.get("kb_id", "")), user)
 
     async def _record_execution(
@@ -447,25 +565,120 @@ class ToolRegistry:
         return {"table": table, "columns": columns, "rows": rows[:limit], "total": len(rows)}
 
     async def _weather_lookup(self, params: dict[str, Any], _workspace: Any, _user: UserPublic) -> dict[str, Any]:
-        base_url = os.environ.get("WEATHER_API_URL", "").strip()
-        api_key = os.environ.get("WEATHER_API_KEY", "").strip()
-        if not base_url:
-            raise ValueError("天气工具未配置真实 WEATHER_API_URL，无法查询天气。")
+        host = os.environ.get("QWEATHER_HOST", "").strip()
+        api_key = os.environ.get("QWEATHER_KEY", "").strip()
+        if not host:
+            raise ValueError("天气工具未配置 QWEATHER_HOST，无法查询天气。")
+        if not api_key:
+            raise ValueError("天气工具未配置 QWEATHER_KEY，无法查询天气。")
 
         location = str(params["location"]).strip()
-        query_params = {"location": location}
-        if api_key:
-            query_params["key"] = api_key
-        separator = "&" if "?" in base_url else "?"
-        url = f"{base_url}{separator}{urllib.parse.urlencode(query_params)}"
-        request = urllib.request.Request(url, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(request, timeout=8) as response:  # noqa: S310 - URL is operator-configured.
-            body = response.read().decode("utf-8", errors="replace")
+        scheme = "http" if "re.qweatherapi.com" in host else "https"
+
+        # Step 1: City lookup → get location ID
+        geo_url = f"{scheme}://{host}/v2/city/lookup?{urllib.parse.urlencode({'location': location, 'key': api_key})}"
+        geo_req = urllib.request.Request(geo_url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(geo_req, timeout=8) as resp:
+            geo_body = resp.read().decode("utf-8", errors="replace")
         try:
-            provider_response = json.loads(body)
+            geo_data = json.loads(geo_body)
         except json.JSONDecodeError:
-            provider_response = {"raw": body}
-        return {"location": location, "provider_response": provider_response}
+            raise ValueError(f"城市查询返回无效响应: {geo_body[:200]}")
+
+        city_list = geo_data.get("location") if isinstance(geo_data, dict) else None
+        if not city_list or not isinstance(city_list, list) or len(city_list) == 0:
+            raise ValueError(f"未找到城市「{location}」，请尝试更具体的名称。")
+
+        city_id = city_list[0].get("id")
+        city_name = city_list[0].get("name", location)
+        if not city_id:
+            raise ValueError(f"城市「{location}」缺少 ID，无法查询天气。")
+
+        # Step 2: Weather query → get current weather
+        weather_url = f"{scheme}://{host}/v7/weather/now?{urllib.parse.urlencode({'location': city_id, 'key': api_key})}"
+        weather_req = urllib.request.Request(weather_url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(weather_req, timeout=8) as resp:
+            weather_body = resp.read().decode("utf-8", errors="replace")
+        try:
+            weather_data = json.loads(weather_body)
+        except json.JSONDecodeError:
+            weather_data = {"raw": weather_body}
+
+        return {
+            "location": city_name,
+            "city_id": city_id,
+            "provider_response": weather_data,
+        }
+
+    async def _kb_interest_extract(self, params: dict[str, Any], workspace: Any, user: UserPublic) -> dict[str, Any]:
+        kb_id = str(params["kb_id"]).strip()
+        max_terms = _bounded_int(params.get("max_terms"), default=8, minimum=1, maximum=20)
+        if hasattr(workspace, "list_knowledge_document_profiles"):
+            documents = await workspace.list_knowledge_document_profiles(kb_id, user)
+        else:
+            documents = await workspace.list_knowledge_documents(kb_id, user)
+        interests = _extract_interests_from_documents(documents, str(params.get("query") or ""), max_terms=max_terms)
+        document_rows = [
+            {
+                "id": _doc_value(doc, "id"),
+                "file_id": _doc_value(doc, "file_id"),
+                "file_name": _doc_value(doc, "file_name"),
+                "summary": _doc_value(doc, "summary"),
+            }
+            for doc in documents
+        ]
+        return {
+            "kb_id": kb_id,
+            "interests": interests,
+            "documents": document_rows,
+        }
+
+    async def _arxiv_search(self, params: dict[str, Any], _workspace: Any, _user: UserPublic) -> dict[str, Any]:
+        interests = _coerce_string_list(params.get("interests"))
+        days = _bounded_int(params.get("days"), default=7, minimum=1, maximum=30)
+        max_results = _bounded_int(params.get("max_results"), default=8, minimum=1, maximum=20)
+        papers = _fetch_arxiv_papers(interests, days=days, max_results=max_results)
+        return {
+            "interests": interests,
+            "papers": papers,
+            "days": days,
+            "max_results": max_results,
+        }
+
+    async def _arxiv_markdown_render(self, params: dict[str, Any], _workspace: Any, _user: UserPublic) -> dict[str, Any]:
+        interests = _coerce_string_list(params.get("interests"))
+        papers = [paper for paper in params.get("papers", []) if isinstance(paper, dict)]
+        days = _bounded_int(params.get("days"), default=7, minimum=1, maximum=30)
+        markdown = _build_arxiv_markdown_report(interests, papers, days)
+        return {
+            "markdown": markdown,
+            "paper_count": len(papers),
+            "interests": interests,
+        }
+
+    async def _knowledge_markdown_write(self, params: dict[str, Any], workspace: Any, user: UserPublic) -> dict[str, Any]:
+        kb_id = str(params["kb_id"]).strip()
+        markdown = str(params["markdown"])
+        filename = f"arxiv-interest-report-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}.md"
+        if str(params.get("filename") or "").strip():
+            filename = str(params["filename"]).strip()
+        tags = _coerce_string_list(params.get("tags"))
+        if not tags:
+            tags = ["arxiv", "research-interest", "auto-report"]
+        document = await workspace.create_markdown_knowledge_document(
+            kb_id,
+            filename,
+            markdown,
+            tags,
+            user,
+        )
+        return {
+            "kb_id": kb_id,
+            "document_id": document.id,
+            "file_id": document.file_id,
+            "file_name": document.file_name,
+            "markdown": markdown,
+        }
 
 
 _OPERATORS: dict[type[ast.AST], Callable[[Any, Any], Any]] = {
@@ -575,3 +788,223 @@ def _safe_limit(value: Any, default: int) -> int:
     except (TypeError, ValueError):
         return default
     return max(1, min(limit, 100))
+
+
+def _bounded_int(value: Any, *, default: int, minimum: int, maximum: int) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        number = default
+    return max(minimum, min(number, maximum))
+
+
+def _coerce_string_list(value: Any) -> list[str]:
+    if isinstance(value, str):
+        raw_items = re.split(r"[,，;；\n]+", value)
+    elif isinstance(value, list):
+        raw_items = value
+    else:
+        raw_items = []
+    return [str(item).strip() for item in raw_items if str(item).strip()]
+
+
+def _extract_interests_from_documents(documents: list[Any], explicit_query: str = "", *, max_terms: int = 8) -> list[str]:
+    candidates: list[str] = []
+    if explicit_query.strip():
+        candidates.extend(_split_interest_terms(explicit_query))
+    for doc in documents:
+        if isinstance(doc, dict):
+            values = [
+                str(doc.get("summary") or ""),
+                str(doc.get("file_name") or ""),
+                str(doc.get("content_preview") or ""),
+                " ".join(str(item) for item in doc.get("keywords", []) if item),
+                " ".join(str(item) for item in doc.get("outline", []) if item),
+            ]
+        else:
+            values = [
+                getattr(doc, "summary", "") or "",
+                getattr(doc, "file_name", "") or "",
+            ]
+        for value in values:
+            candidates.extend(_split_interest_terms(value))
+    scored: dict[str, int] = {}
+    for term in candidates:
+        normalized = _normalize_interest(term)
+        if not normalized or normalized in _INTEREST_STOPWORDS:
+            continue
+        if len(normalized) < 2:
+            continue
+        scored[normalized] = scored.get(normalized, 0) + 1
+    ranked = sorted(scored.items(), key=lambda item: (-item[1], item[0]))
+    return [term for term, _ in ranked[:max_terms]] or ["machine learning"]
+
+
+def _doc_value(doc: Any, key: str) -> Any:
+    if isinstance(doc, dict):
+        return doc.get(key, "")
+    return getattr(doc, key, "")
+
+
+def _split_interest_terms(text: str) -> list[str]:
+    text = re.sub(r"[_/\\|]+", " ", text)
+    phrases = re.findall(r"[A-Za-z][A-Za-z0-9\- ]{2,48}|[\u4e00-\u9fff]{2,12}", text)
+    terms: list[str] = []
+    for phrase in phrases:
+        cleaned = phrase.strip(" -:：，。,.()[]{}")
+        if not cleaned:
+            continue
+        if re.search(r"[\u4e00-\u9fff]", cleaned):
+            terms.append(cleaned)
+        else:
+            words = [word for word in re.split(r"\s+", cleaned.lower()) if word]
+            if 1 <= len(words) <= 4:
+                terms.append(" ".join(words))
+            for word in words:
+                if len(word) >= 4:
+                    terms.append(word)
+    return terms
+
+
+def _normalize_interest(term: str) -> str:
+    term = re.sub(r"\s+", " ", term.strip().lower())
+    return term.strip(" -:：，。,.()[]{}")
+
+
+def _fetch_arxiv_papers(interests: list[str], *, days: int, max_results: int) -> list[dict[str, Any]]:
+    query_terms = [term for term in interests[:5] if term]
+    query = " OR ".join(f'all:"{term}"' for term in query_terms) or 'all:"machine learning"'
+    params = urllib.parse.urlencode({
+        "search_query": query,
+        "start": 0,
+        "max_results": max_results * 3,
+        "sortBy": "submittedDate",
+        "sortOrder": "descending",
+    })
+    url = f"https://export.arxiv.org/api/query?{params}"
+    request = urllib.request.Request(url, headers={"User-Agent": "whucs-training-project/1.0"})
+    with urllib.request.urlopen(request, timeout=12) as response:  # noqa: S310 - arXiv public API endpoint.
+        body = response.read()
+    papers = _parse_arxiv_feed(body)
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    recent = [
+        paper for paper in papers
+        if paper.get("published_at") is None or paper["published_at"] >= cutoff
+    ]
+    return [_paper_public_payload(paper) for paper in recent[:max_results]]
+
+
+def _parse_arxiv_feed(body: bytes) -> list[dict[str, Any]]:
+    root = ET.fromstring(body)
+    ns = {"atom": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
+    papers: list[dict[str, Any]] = []
+    for entry in root.findall("atom:entry", ns):
+        published_raw = _xml_text(entry, "atom:published", ns)
+        published_at = _parse_arxiv_datetime(published_raw)
+        link = ""
+        pdf_url = ""
+        for node in entry.findall("atom:link", ns):
+            href = node.attrib.get("href", "")
+            if node.attrib.get("title") == "pdf":
+                pdf_url = href
+            elif node.attrib.get("rel") == "alternate":
+                link = href
+        papers.append({
+            "id": _xml_text(entry, "atom:id", ns),
+            "title": _clean_space(_xml_text(entry, "atom:title", ns)),
+            "summary": _clean_space(_xml_text(entry, "atom:summary", ns)),
+            "authors": [
+                _xml_text(author, "atom:name", ns)
+                for author in entry.findall("atom:author", ns)
+                if _xml_text(author, "atom:name", ns)
+            ],
+            "published": published_raw,
+            "published_at": published_at,
+            "updated": _xml_text(entry, "atom:updated", ns),
+            "link": link,
+            "pdf_url": pdf_url,
+            "categories": [node.attrib.get("term", "") for node in entry.findall("atom:category", ns)],
+        })
+    return papers
+
+
+def _paper_public_payload(paper: dict[str, Any]) -> dict[str, Any]:
+    payload = dict(paper)
+    payload.pop("published_at", None)
+    payload["abstract"] = payload.pop("summary", "")
+    return payload
+
+
+def _build_arxiv_markdown_report(interests: list[str], papers: list[dict[str, Any]], days: int) -> str:
+    lines = [
+        "# arXiv 近期论文推荐",
+        "",
+        f"- 生成时间：{datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
+        f"- 时间范围：最近 {days} 天",
+        f"- 兴趣关键词：{', '.join(interests)}",
+        "",
+    ]
+    if not papers:
+        lines.extend([
+            "## 未找到匹配论文",
+            "",
+            "本次查询没有返回近几天内匹配兴趣关键词的 arXiv 论文。可以扩大时间范围或补充更具体的研究方向。",
+            "",
+        ])
+        return "\n".join(lines)
+    lines.append("## 论文列表")
+    lines.append("")
+    for index, paper in enumerate(papers, 1):
+        authors = ", ".join(paper.get("authors", [])[:5]) or "Unknown authors"
+        abstract = str(paper.get("abstract", "")).strip()
+        if len(abstract) > 700:
+            abstract = f"{abstract[:700].rstrip()}..."
+        lines.extend([
+            f"### {index}. {paper.get('title', 'Untitled')}",
+            "",
+            f"- 作者：{authors}",
+            f"- 发布时间：{paper.get('published', '')}",
+            f"- 分类：{', '.join(paper.get('categories', []))}",
+            f"- 链接：{paper.get('link') or paper.get('id')}",
+            f"- PDF：{paper.get('pdf_url', '')}",
+            "",
+            abstract,
+            "",
+        ])
+    return "\n".join(lines)
+
+
+def _xml_text(node: ET.Element, path: str, ns: dict[str, str]) -> str:
+    child = node.find(path, ns)
+    return child.text.strip() if child is not None and child.text else ""
+
+
+def _parse_arxiv_datetime(value: str) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
+    except ValueError:
+        return None
+
+
+def _clean_space(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip()
+
+
+_INTEREST_STOPWORDS = {
+    "and",
+    "are",
+    "arxiv",
+    "for",
+    "from",
+    "markdown",
+    "paper",
+    "report",
+    "the",
+    "with",
+    "文档",
+    "报告",
+    "论文",
+    "知识库",
+}

@@ -2,14 +2,14 @@
   "version": 1,
   "created_at": "2026-07-06T07:17:33.095Z",
   "lifetime": {
-    "total_tokens_estimated": 14964717,
-    "total_reads": 5527,
-    "total_writes": 8122,
-    "total_sessions": 16,
-    "anatomy_hits": 4081,
-    "anatomy_misses": 1446,
-    "repeated_reads_blocked": 7490,
-    "estimated_savings_vs_bare_cli": 46113154
+    "total_tokens_estimated": 15183694,
+    "total_reads": 5565,
+    "total_writes": 8200,
+    "total_sessions": 22,
+    "anatomy_hits": 4105,
+    "anatomy_misses": 1460,
+    "repeated_reads_blocked": 7538,
+    "estimated_savings_vs_bare_cli": 46877869
   },
   "sessions": [
     {
@@ -76376,6 +76376,709 @@
         "writes_count": 60,
         "repeated_reads_blocked": 44,
         "anatomy_lookups": 20
+      }
+    },
+    {
+      "id": "session-2026-07-10-0550",
+      "started": "2026-07-10T21:50:40.549Z",
+      "ended": "2026-07-11T04:24:48.618Z",
+      "reads": [
+        {
+          "file": "/home/gugumur/.claude/skills/skywork-ppt/workflow_generate.md",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/docs/superpowers/reports/2026-07-11-agent-tool-flow-system-evaluation.md",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/docs/superpowers/plans/2026-07-11-folder-agent-flow-completion.md",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/docs/superpowers/plans/2026-07-11-production-llm-agent-tool-flow.md",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/docs/superpowers/plans/2026-07-11-rag-agent-flow-refactor.md",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/progress.md",
+          "tokens_estimated": 20740,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/task_plan.md",
+          "tokens_estimated": 7507,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/.claude/skills/guizang-ppt-skill/assets/template.html",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/.claude/skills/guizang-ppt-skill/references/themes.md",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/.claude/skills/guizang-ppt-skill/references/layouts.md",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 13828,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 37874,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/report/requirements/requirements_specification.md",
+          "tokens_estimated": 22000,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/report/design/system_design_specification.md",
+          "tokens_estimated": 11883,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/stores/workspace.ts",
+          "tokens_estimated": 3400,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/api/v2/general.py",
+          "tokens_estimated": 250,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/api/v2/teams.py",
+          "tokens_estimated": 1334,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/models/team.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/client/generated/client.gen.ts",
+          "tokens_estimated": 120,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/router/index.ts",
+          "tokens_estimated": 360,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/stores/auth.ts",
+          "tokens_estimated": 1050,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/client/generated/client.ts",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/websocket_manager.py",
+          "tokens_estimated": 424,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/api/v1/admin.py",
+          "tokens_estimated": 800,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/api/v2/__init__.py",
+          "tokens_estimated": 230,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/api/v2/_deps.py",
+          "tokens_estimated": 450,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/core/database.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/main.py",
+          "tokens_estimated": 350,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/vite.config.ts",
+          "tokens_estimated": 120,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/TeamChatView.vue",
+          "tokens_estimated": 6289,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/components/rag/KnowledgeFilePicker.vue",
+          "tokens_estimated": 1438,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/RagQaView.vue",
+          "tokens_estimated": 2446,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/components/rag/KnowledgeBaseManager.vue",
+          "tokens_estimated": 1231,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/components/files/CategorySidebar.vue",
+          "tokens_estimated": 3058,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 205,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 130,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 52,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 487,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 522,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 354,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 160,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 46,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 108,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 212,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 119,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 542,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 598,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 460,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 367,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 348,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 229,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 594,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 267,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 23,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/client/generated/client.gen.ts",
+          "tokens_estimated": 240,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/api/v2/ws.py",
+          "tokens_estimated": 400,
+          "action": "create"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/api/v2/__init__.py",
+          "tokens_estimated": 140,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 319,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/stores/workspace.ts",
+          "tokens_estimated": 367,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/api/v2/ws.py",
+          "tokens_estimated": 448,
+          "action": "create"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 121,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/TeamChatView.vue",
+          "tokens_estimated": 23,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/TeamChatView.vue",
+          "tokens_estimated": 191,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/TeamChatView.vue",
+          "tokens_estimated": 263,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/TeamChatView.vue",
+          "tokens_estimated": 46,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/stores/workspace.ts",
+          "tokens_estimated": 108,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/TeamChatView.vue",
+          "tokens_estimated": 26,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/TeamChatView.vue",
+          "tokens_estimated": 11,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/components/rag/KnowledgeFilePicker.vue",
+          "tokens_estimated": 1541,
+          "action": "create"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/RagQaView.vue",
+          "tokens_estimated": 792,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/RagQaView.vue",
+          "tokens_estimated": 34,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/RagQaView.vue",
+          "tokens_estimated": 56,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/RagQaView.vue",
+          "tokens_estimated": 56,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/RagQaView.vue",
+          "tokens_estimated": 871,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/RagQaView.vue",
+          "tokens_estimated": 78,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/components/rag/__tests__/KnowledgeFilePicker.spec.ts",
+          "tokens_estimated": 120,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/components/rag/KnowledgeFilePicker.vue",
+          "tokens_estimated": 52,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/RagQaView.vue",
+          "tokens_estimated": 68,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/components/rag/KnowledgeBaseManager.vue",
+          "tokens_estimated": 158,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/components/rag/KnowledgeBaseManager.vue",
+          "tokens_estimated": 78,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/components/rag/KnowledgeBaseManager.vue",
+          "tokens_estimated": 152,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/components/rag/KnowledgeBaseManager.vue",
+          "tokens_estimated": 25,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 401,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 14,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/components/files/CategorySidebar.vue",
+          "tokens_estimated": 43,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 0,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 440,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 579,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 22,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 21,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/TeamChatView.vue",
+          "tokens_estimated": 123,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/TeamChatView.vue",
+          "tokens_estimated": 153,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/TeamChatView.vue",
+          "tokens_estimated": 83,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/views/TeamChatView.vue",
+          "tokens_estimated": 81,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 669,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 137182,
+        "output_tokens_estimated": 15236,
+        "reads_count": 34,
+        "writes_count": 61,
+        "repeated_reads_blocked": 45,
+        "anatomy_lookups": 20
+      }
+    },
+    {
+      "id": "session-2026-07-11-1248",
+      "started": "2026-07-11T04:48:49.184Z",
+      "ended": "2026-07-11T04:52:32.164Z",
+      "reads": [
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/router/index.ts",
+          "tokens_estimated": 360,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/App.vue",
+          "tokens_estimated": 49,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/router/index.ts",
+          "tokens_estimated": 147,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/frontend/src/stores/auth.ts",
+          "tokens_estimated": 269,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 360,
+        "output_tokens_estimated": 465,
+        "reads_count": 1,
+        "writes_count": 3,
+        "repeated_reads_blocked": 0,
+        "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "session-2026-07-11-1318",
+      "started": "2026-07-11T05:18:18.802Z",
+      "ended": "2026-07-11T05:23:40.902Z",
+      "reads": [
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 13957,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/home/gugumur/whucs-training-project/reports/gen_pdf_report.py",
+          "tokens_estimated": 2562,
+          "action": "create"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/reports/gen_docx_report.py",
+          "tokens_estimated": 1834,
+          "action": "create"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 730,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/reports/experiment_plasmolysis.md",
+          "tokens_estimated": 984,
+          "action": "create"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 13957,
+        "output_tokens_estimated": 6110,
+        "reads_count": 1,
+        "writes_count": 4,
+        "repeated_reads_blocked": 1,
+        "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "session-2026-07-11-1318",
+      "started": "2026-07-11T05:18:18.802Z",
+      "ended": "2026-07-11T05:24:06.787Z",
+      "reads": [
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 13957,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/home/gugumur/whucs-training-project/reports/gen_pdf_report.py",
+          "tokens_estimated": 2562,
+          "action": "create"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/reports/gen_docx_report.py",
+          "tokens_estimated": 1834,
+          "action": "create"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 730,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/reports/experiment_plasmolysis.md",
+          "tokens_estimated": 984,
+          "action": "create"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 13957,
+        "output_tokens_estimated": 6110,
+        "reads_count": 1,
+        "writes_count": 4,
+        "repeated_reads_blocked": 1,
+        "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "session-2026-07-11-1318",
+      "started": "2026-07-11T05:18:18.802Z",
+      "ended": "2026-07-11T05:27:45.353Z",
+      "reads": [
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 13957,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/home/gugumur/whucs-training-project/reports/gen_pdf_report.py",
+          "tokens_estimated": 2562,
+          "action": "create"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/reports/gen_docx_report.py",
+          "tokens_estimated": 1834,
+          "action": "create"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 730,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/reports/experiment_plasmolysis.md",
+          "tokens_estimated": 984,
+          "action": "create"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/reports/gen_ppt_report.py",
+          "tokens_estimated": 2882,
+          "action": "create"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/reports/experiment_bacterial_growth.txt",
+          "tokens_estimated": 2651,
+          "action": "create"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 13957,
+        "output_tokens_estimated": 11643,
+        "reads_count": 1,
+        "writes_count": 6,
+        "repeated_reads_blocked": 1,
+        "anatomy_lookups": 1
       }
     }
   ],

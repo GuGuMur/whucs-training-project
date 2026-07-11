@@ -76,7 +76,7 @@ const mentionOptions = computed(() => {
 })
 
 // ── Polling fallback for real-time team messages ──
-let _pollTimer: ReturnType<typeof setInterval> | null = null
+let _pollTimer: number | null = null
 onBeforeUnmount(() => {
   if (_pollTimer !== null) { window.clearInterval(_pollTimer); _pollTimer = null }
 })

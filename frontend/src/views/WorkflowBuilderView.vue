@@ -36,15 +36,28 @@ import { useWorkspaceNavigation } from '@/composables/useWorkspaceNavigation'
 import DesktopWorkspaceLayout from '@/layouts/DesktopWorkspaceLayout.vue'
 import MobileWorkspaceLayout from '@/layouts/MobileWorkspaceLayout.vue'
 import AgentExecutionTimeline from '@/components/workflow/AgentExecutionTimeline.vue'
+import AgentTaskCreateModal from '@/components/workflow/AgentTaskCreateModal.vue'
 import AgentTaskDetailPanel from '@/components/workflow/AgentTaskDetailPanel.vue'
-import AgentTaskComposer from '@/components/workflow/AgentTaskComposer.vue'
+import AgentTaskList from '@/components/workflow/AgentTaskList.vue'
+import WorkflowInputConfigForm from '@/components/workflow/WorkflowInputConfigForm.vue'
+import WorkflowNodePalette from '@/components/workflow/WorkflowNodePalette.vue'
+import WorkflowValueBindingEditor from '@/components/workflow/WorkflowValueBindingEditor.vue'
 import ToolCatalogPanel from '@/components/workflow/ToolCatalogPanel.vue'
 import ToolResultViewer from '@/components/workflow/ToolResultViewer.vue'
 import { useAgentStore } from '@/stores/agent'
 import { useWorkspaceStore } from '@/stores/workspace'
+import type { ToolDefinition } from '@/client/workspace'
+import type {
+  WorkflowInputBlockConfig,
+  WorkflowInputKind,
+  WorkflowInputOption,
+  WorkflowNodeOutputOption,
+  WorkflowPaletteNodePayload,
+  WorkflowValueBinding,
+} from '@/components/workflow/workflowDesignerTypes'
 
 type NodeStatus = 'idle' | 'running' | 'success' | 'error'
-type ParamValue = string | number | boolean | string[]
+type ParamValue = string | number | boolean | string[] | Record<string, unknown> | WorkflowValueBinding | null
 
 interface ToolNodeData {
   label: string
@@ -52,6 +65,9 @@ interface ToolNodeData {
   description: string
   status: NodeStatus
   params: Record<string, ParamValue>
+  input?: WorkflowInputBlockConfig
+  toolName?: string | null
+  inputType?: string | null
 }
 
 interface NodePreset {
@@ -92,7 +108,6 @@ const agent = useAgentStore()
 const { apiState, files, knowledgeBases, summary } = storeToRefs(workspace)
 const {
   activeTask,
-  clarificationQuestion,
   executionSteps,
   finalAnswer,
   loading: agentLoading,
@@ -115,11 +130,24 @@ const running = ref(false)
 const executionProgress = ref(0)
 const debugCollapsed = ref(true)
 const debugHeight = ref(320)
+const showAgentTaskModal = ref(false)
 const versionLog = ref<string[]>([])
 
 const templateWorkflows = computed(() =>
   workspace.workflows.filter((wf) => wf.status === 'template'),
 )
+const catalogTools = computed<ToolDefinition[]>(() =>
+  agentTools.value.length ? agentTools.value : (workspace.tools as ToolDefinition[]),
+)
+const toolOptions = computed(() =>
+  catalogTools.value.map((tool) => ({ label: tool.name, value: tool.name })),
+)
+const selectedToolDefinition = computed(() =>
+  selectedData.value?.toolName
+    ? catalogTools.value.find((tool) => tool.name === selectedData.value?.toolName) ?? null
+    : null,
+)
+const selectedToolSchemaFields = computed(() => schemaFields(selectedToolDefinition.value))
 
 function loadTemplateToCanvas(workflowId: string) {
   const template = templateWorkflows.value.find((wf) => wf.id === workflowId)
@@ -131,13 +159,14 @@ function loadTemplateToCanvas(workflowId: string) {
     type: n.type,
     position: n.position ?? { x: 80 + nodes.value.length * 48, y: 120 + nodes.value.length * 24 },
     class: `workflow-node is-${n.type || 'tool'}`,
-    data: {
-      label: n.name,
-      kind: n.type || 'tool',
-      description: n.tool_name || '',
-      status: 'idle' as const,
-      params: n.parameters ?? {},
-    },
+      data: {
+        label: n.name,
+        kind: n.type || 'tool',
+        description: n.tool_name || '',
+        status: 'idle' as const,
+        params: n.parameters ?? {},
+        toolName: n.tool_name ?? null,
+      },
   }))
   edges.value = (template.edges ?? []).map((e: any) => ({
     id: e.id,
@@ -179,10 +208,44 @@ const edges = ref<WorkflowEdge[]>([])
 const selectedNode = computed<WorkflowNode | null>(() => nodes.value.find((node) => node.id === selectedNodeId.value) ?? null)
 const selectedData = computed<ToolNodeData | null>(() => selectedNode.value?.data ?? null)
 const selectedParams = computed<Record<string, ParamValue>>(() => selectedData.value?.params ?? {})
+const selectedInputConfig = computed<WorkflowInputBlockConfig>({
+  get() {
+    return inputConfigFromData(selectedData.value)
+  },
+  set(config) {
+    if (!selectedData.value || selectedData.value.kind !== 'input') return
+    selectedData.value.input = config
+    selectedData.value.inputType = config.kind
+    selectedData.value.label = config.label
+    selectedData.value.description = config.description ?? ''
+    selectedData.value.params = inputParametersFromConfig(config)
+  },
+})
+const workflowInputOptions = computed<WorkflowInputOption[]>(() =>
+  nodes.value
+    .filter((node) => node.data.kind === 'input')
+    .map((node) => {
+      const input = inputConfigFromData(node.data)
+      return { key: input.key, kind: input.kind, label: input.label }
+    }),
+)
+const selectedNodeOutputOptions = computed<WorkflowNodeOutputOption[]>(() => {
+  if (!selectedNode.value) return []
+  const upstreamIds = collectUpstreamNodeIds(selectedNode.value.id)
+  return nodes.value
+    .filter((node) => upstreamIds.has(node.id))
+    .flatMap((node) => nodeOutputOptions(node))
+})
 const canvasAreaStyle = computed(() => ({
   height: debugCollapsed.value ? 'clamp(560px, calc(100vh - 270px), 780px)' : `calc(clamp(560px, calc(100vh - 270px), 780px) - ${debugHeight.value}px)`,
 }))
-const jsonDefinition = computed(() => JSON.stringify({ name: flowName.value, version: currentVersion.value, trigger: triggerMode.value, nodes: nodes.value, edges: edges.value }, null, 2))
+const jsonDefinition = computed(() => JSON.stringify({
+  name: flowName.value,
+  version: currentVersion.value,
+  trigger: triggerMode.value,
+  nodes: workflowNodesPayload(),
+  edges: workflowEdgesPayload(),
+}, null, 2))
 
 const validationIssues = computed<ValidationIssue[]>(() => {
   const issues: ValidationIssue[] = []
@@ -200,13 +263,26 @@ const validationIssues = computed<ValidationIssue[]>(() => {
   }
 
   for (const node of nodes.value) {
-    if (Object.values(node.data.params).some((value) => value === '' || value === null || value === undefined)) {
+    if (node.data.kind === 'tool') {
+      if (!node.data.toolName) {
+        issues.push({ type: 'error', title: '缺少工具', detail: `${node.data.label} 未选择工具` })
+      } else if (!catalogTools.value.some((tool) => tool.name === node.data.toolName)) {
+        issues.push({ type: 'error', title: '未知工具', detail: `${node.data.label} 引用了未注册工具 ${node.data.toolName}` })
+      }
+      const tool = catalogTools.value.find((item) => item.name === node.data.toolName)
+      for (const field of schemaFields(tool ?? null)) {
+        const value = node.data.params[field.key]
+        if (field.required && isMissingParamValue(value)) {
+          issues.push({ type: 'error', title: '缺少参数', detail: `${node.data.label} 缺少必填参数 ${field.key}` })
+        }
+      }
+    } else if (Object.values(node.data.params).some((value) => value === null || value === undefined)) {
       issues.push({ type: 'error', title: '缺少参数', detail: `${node.data.label} 存在未填写参数` })
     }
-    if (node.type !== 'input' && !targets.has(node.id)) {
+    if (node.data.kind !== 'input' && !targets.has(node.id)) {
       issues.push({ type: 'warning', title: '孤立上游', detail: `${node.data.label} 没有上游输入` })
     }
-    if (node.type !== 'output' && !sources.has(node.id)) {
+    if (node.data.kind !== 'output' && !sources.has(node.id)) {
       issues.push({ type: 'warning', title: '孤立下游', detail: `${node.data.label} 没有连接到后续节点` })
     }
   }
@@ -223,7 +299,9 @@ const validationSummary = computed(() => (validationIssues.value.length === 0 ? 
 
 onMounted(() => {
   void workspace.loadWorkspace()
-  void agent.loadTools()
+  void agent.loadTools().catch(() => {
+    message.warning('工具目录加载失败，已尝试使用工作区快照')
+  })
   void agent.loadTaskHistory().catch(() => {
     message.warning('历史任务加载失败，可继续创建新任务')
   })
@@ -242,6 +320,46 @@ function makeNode(id: string, kind: string, label: string, description: string, 
     data: { label, kind, description, status: 'idle', params },
   }
 }
+
+function inputConfigFromData(data: ToolNodeData | null): WorkflowInputBlockConfig {
+  if (data?.input) return data.input
+  const rawKind = String(data?.inputType ?? data?.params.kind ?? 'text')
+  const kind: WorkflowInputKind = ['text', 'number', 'json', 'file', 'knowledge_base'].includes(rawKind)
+    ? rawKind as WorkflowInputKind
+    : 'text'
+  return {
+    defaultValue: data?.params.defaultValue ?? defaultValueForInputKind(kind),
+    description: data?.description ?? '',
+    key: String(data?.params.key ?? defaultInputKey(kind)),
+    kind,
+    label: data?.label ?? '文本输入',
+    required: Boolean(data?.params.required),
+  }
+}
+
+function defaultInputKey(kind: WorkflowInputKind) {
+  if (kind === 'file') return 'file_id'
+  if (kind === 'knowledge_base') return 'target_kb_id'
+  if (kind === 'json') return 'payload'
+  return kind
+}
+
+function defaultValueForInputKind(kind: WorkflowInputKind) {
+  if (kind === 'json') return {}
+  if (kind === 'number') return 0
+  return ''
+}
+
+function inputParametersFromConfig(config: WorkflowInputBlockConfig): Record<string, ParamValue> {
+  return {
+    [config.key]: { input_key: config.key, mode: 'input' },
+    defaultValue: config.defaultValue as ParamValue,
+    key: config.key,
+    kind: config.kind,
+    required: config.required,
+  }
+}
+
 function presetByKind(kind: string) {
   return nodePresets.find((preset) => preset.kind === kind)
 }
@@ -254,26 +372,6 @@ function nodeIcon(kind: string) {
 function nodeColor(kind: string) {
   if (kind === 'input') return '#0f766e'
   return presetByKind(kind)?.color ?? '#64748b'
-}
-
-function stepColor(type: string) {
-  switch (type) {
-    case 'thought': return '#7c3aed'
-    case 'action': return '#246bfe'
-    case 'observation': return '#ea580c'
-    case 'answer': return '#16a34a'
-    default: return '#64748b'
-  }
-}
-
-function stepTypeLabel(type: string) {
-  switch (type) {
-    case 'thought': return '思考'
-    case 'action': return '动作'
-    case 'observation': return '观察'
-    case 'answer': return '回答'
-    default: return type
-  }
 }
 
 function hasCycle() {
@@ -299,26 +397,86 @@ function hasCycle() {
   return nodes.value.some((node) => dfs(node.id))
 }
 
-function wait(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
+function collectUpstreamNodeIds(nodeId: string) {
+  const incoming = new Map<string, string[]>()
+  edges.value.forEach((edge) => {
+    incoming.set(edge.target, [...(incoming.get(edge.target) ?? []), edge.source])
+  })
+  const result = new Set<string>()
+  const visit = (id: string) => {
+    for (const source of incoming.get(id) ?? []) {
+      if (result.has(source)) continue
+      result.add(source)
+      visit(source)
+    }
+  }
+  visit(nodeId)
+  return result
+}
+
+function nodeOutputOptions(node: WorkflowNode): WorkflowNodeOutputOption[] {
+  const baseLabel = node.data.label || node.id
+  const options: WorkflowNodeOutputOption[] = [
+    { label: `${baseLabel} · output`, nodeId: node.id, path: 'output' },
+  ]
+  if (node.data.kind === 'input') {
+    const input = inputConfigFromData(node.data)
+    options.push({ label: `${baseLabel} · ${input.key}`, nodeId: node.id, path: `output.${input.key}` })
+  } else if (node.data.kind === 'tool') {
+    options.push(
+      { label: `${baseLabel} · result`, nodeId: node.id, path: 'output.result' },
+      { label: `${baseLabel} · summary`, nodeId: node.id, path: 'output.summary' },
+    )
+  }
+  return options
 }
 
 function onNodeClick(event: NodeMouseEvent) {
   selectedNodeId.value = event.node.id
 }
 
-function onDragStart(event: DragEvent, preset: NodePreset) {
-  event.dataTransfer?.setData('application/vueflow', preset.kind)
+function onPresetDragStart(event: DragEvent, preset: NodePreset) {
+  event.dataTransfer?.setData('application/vueflow', JSON.stringify({ kind: 'preset', value: preset.kind }))
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
 }
 
 function onDrop(event: DragEvent) {
-  const kind = event.dataTransfer?.getData('application/vueflow') ?? ''
-  const preset = presetByKind(kind)
-  if (!preset) return
+  const payload = parseDragPayload(
+    event.dataTransfer?.getData('application/x-whucs-workflow-node')
+      || event.dataTransfer?.getData('application/vueflow')
+      || '',
+  )
   const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect()
   const position = flow.project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top })
-  addNodeFromPreset(preset, position.x, position.y)
+  addNodeFromPalettePayload(payload, position.x, position.y)
+}
+
+function parseDragPayload(raw: string): WorkflowPaletteNodePayload | { kind: 'preset'; value: string } {
+  try {
+    const parsed = JSON.parse(raw) as WorkflowPaletteNodePayload | { kind?: string; value?: string }
+    if (parsed.kind === 'input' || parsed.kind === 'tool') return parsed as WorkflowPaletteNodePayload
+    return { kind: 'preset', value: ('value' in parsed ? parsed.value : raw) || raw }
+  } catch {
+    return { kind: 'preset', value: raw }
+  }
+}
+
+function handlePaletteAddNode(payload: WorkflowPaletteNodePayload) {
+  addNodeFromPalettePayload(payload, 260 + nodes.value.length * 48, 120 + nodes.value.length * 24)
+  nextTick(() => flow.fitView({ padding: 0.25 }))
+}
+
+function addNodeFromPalettePayload(payload: WorkflowPaletteNodePayload | { kind: 'preset'; value: string }, x: number, y: number) {
+  if (payload.kind === 'tool') {
+    addNodeFromTool(payload.tool, x, y)
+    return
+  }
+  if (payload.kind === 'input') {
+    addNodeFromInput(payload.input, x, y)
+    return
+  }
+  const preset = presetByKind(payload.value)
+  if (preset) addNodeFromPreset(preset, x, y)
 }
 
 function addPresetNode(preset: NodePreset) {
@@ -328,9 +486,50 @@ function addPresetNode(preset: NodePreset) {
 
 function addNodeFromPreset(preset: NodePreset, x: number, y: number) {
   const id = `${preset.kind}-${Date.now().toString(36)}`
-  nodes.value.push(makeNode(id, preset.kind, preset.title, preset.description, x, y, { ...preset.params }, preset.kind === 'output' ? 'output' : undefined))
+  nodes.value.push(makeNode(id, preset.kind, preset.title, preset.description, x, y, { ...preset.params }, preset.kind === 'output' ? preset.kind : undefined))
   selectedNodeId.value = id
   message.success(`已添加${preset.title}`)
+}
+
+function addNodeFromInput(input: WorkflowInputBlockConfig, x: number, y: number) {
+  const normalizedInput = {
+    ...input,
+    key: input.key || defaultInputKey(input.kind),
+  }
+  const id = `input-${normalizedInput.key}-${Date.now().toString(36)}`
+  const params = inputParametersFromConfig(normalizedInput)
+  nodes.value.push({
+    ...makeNode(id, 'input', normalizedInput.label, normalizedInput.description ?? '', x, y, params, 'input'),
+    data: {
+      label: normalizedInput.label,
+      kind: 'input',
+      description: normalizedInput.description ?? '',
+      status: 'idle',
+      params,
+      input: normalizedInput,
+      inputType: normalizedInput.kind,
+    },
+  })
+  selectedNodeId.value = id
+  message.success(`已添加输入块「${normalizedInput.label}」`)
+}
+
+function addNodeFromTool(tool: ToolDefinition, x: number, y: number) {
+  const id = `tool-${tool.name}-${Date.now().toString(36)}`
+  const params = defaultParamsFromSchema(tool)
+  nodes.value.push({
+    ...makeNode(id, 'tool', tool.name, tool.description, x, y, params),
+    data: {
+      label: tool.name,
+      kind: 'tool',
+      description: tool.description,
+      status: 'idle',
+      params,
+      toolName: tool.name,
+    },
+  })
+  selectedNodeId.value = id
+  message.success(`已添加工具「${tool.name}」`)
 }
 
 function updateParam(key: string, value: ParamValue) {
@@ -338,9 +537,138 @@ function updateParam(key: string, value: ParamValue) {
   selectedData.value.params[key] = value
 }
 
+function updateToolName(toolName: string | null) {
+  if (!selectedData.value) return
+  const tool = catalogTools.value.find((item) => item.name === toolName)
+  selectedData.value.toolName = toolName
+  if (tool) {
+    selectedData.value.label = tool.name
+    selectedData.value.description = tool.description
+    selectedData.value.params = defaultParamsFromSchema(tool, selectedData.value.params)
+  }
+}
+
+function schemaFields(tool: ToolDefinition | null) {
+  const properties = tool?.input_schema?.properties
+  if (!properties || typeof properties !== 'object') return []
+  const rawRequired = tool?.input_schema?.required
+  const required = new Set(Array.isArray(rawRequired) ? rawRequired.map(String) : [])
+  return Object.entries(properties as Record<string, Record<string, unknown>>).map(([key, schema]) => ({
+    key,
+    required: required.has(key),
+    schema,
+    type: String(schema?.type ?? 'string'),
+  }))
+}
+
+function defaultParamsFromSchema(tool: ToolDefinition, existing: Record<string, ParamValue> = {}) {
+  const params: Record<string, ParamValue> = {}
+  for (const field of schemaFields(tool)) {
+    if (field.key in existing) {
+      params[field.key] = bindingValue(existing[field.key])
+      continue
+    }
+    params[field.key] = { mode: 'literal', value: defaultLiteralValueForSchemaField(field.type) }
+  }
+  return params
+}
+
+function defaultLiteralValueForSchemaField(type: string) {
+  if (type === 'integer' || type === 'number') return 0
+  if (type === 'boolean') return false
+  if (type === 'array') return []
+  if (type === 'object') return {}
+  return ''
+}
+
+function bindingValue(value: ParamValue | undefined): WorkflowValueBinding {
+  if (isWorkflowValueBinding(value)) return value
+  return { mode: 'literal', value: value ?? '' }
+}
+
+function isMissingParamValue(value: ParamValue | undefined) {
+  if (isWorkflowValueBinding(value)) {
+    if (value.mode !== 'literal') return false
+    const literal = value.value
+    return literal === '' || literal === null || literal === undefined || (Array.isArray(literal) && literal.length === 0)
+  }
+  return value === '' || value === null || value === undefined || (Array.isArray(value) && value.length === 0)
+}
+
+function isWorkflowValueBinding(value: unknown): value is WorkflowValueBinding {
+  if (!value || typeof value !== 'object') return false
+  const mode = (value as { mode?: unknown }).mode
+  return mode === 'literal' || mode === 'input' || mode === 'node' || mode === 'expression'
+}
+
+function serializeParamValue(value: ParamValue | undefined): unknown {
+  if (Array.isArray(value)) return value.map((item) => serializeParamValue(item as ParamValue))
+  if (isWorkflowValueBinding(value)) {
+    if (value.mode === 'literal') return { mode: 'literal', value: value.value }
+    if (value.mode === 'input') return { input_key: value.inputKey, mode: 'input' }
+    if (value.mode === 'node') return { mode: 'node', node_id: value.nodeId, path: value.path }
+    return { mode: 'ref', value: value.expression }
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, serializeParamValue(item as ParamValue)]),
+    )
+  }
+  return value
+}
+
+function arrayParamValue(value: ParamValue | undefined) {
+  return Array.isArray(value) ? value : []
+}
+
+function collectWorkflowInputs() {
+  const inputs: Record<string, unknown> = {}
+  for (const node of nodes.value) {
+    if (node.data.kind !== 'input') continue
+    const config = inputConfigFromData(node.data)
+    if (config.defaultValue !== undefined) {
+      inputs[config.key] = config.defaultValue
+    }
+  }
+  return inputs
+}
+
+function workflowNodeParametersPayload(node: WorkflowNode) {
+  if (node.data.kind !== 'input') {
+    return Object.fromEntries(
+      Object.entries(node.data.params).map(([key, value]) => [key, serializeParamValue(value)]),
+    )
+  }
+  const config = inputConfigFromData(node.data)
+  return {
+    [config.key]: { input_key: config.key, mode: 'input' },
+  }
+}
+
+function workflowNodesPayload() {
+  return nodes.value.map((node) => ({
+    id: node.id,
+    name: node.data.label,
+    type: node.data.kind,
+    tool_name: node.data.toolName || null,
+    parameters: workflowNodeParametersPayload(node),
+    position: node.position,
+  }))
+}
+
+function workflowEdgesPayload() {
+  return edges.value.map((edge) => ({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    source_handle: null,
+    target_handle: null,
+  }))
+}
+
 async function saveFlow() {
   try {
-    const payload = { name: flowName.value || '新建流程', trigger: triggerMode.value, nodes: nodes.value as any, edges: edges.value as any }
+    const payload = { name: flowName.value || '新建流程', trigger: triggerMode.value, nodes: workflowNodesPayload() as any, edges: workflowEdgesPayload() as any }
     if (activeWorkflowId.value) {
       await workspace.updateWorkflow(activeWorkflowId.value, payload)
     } else {
@@ -363,11 +691,40 @@ async function runFlow() {
   if (!activeWorkflowId.value) { message.warning('请先保存流程定义'); return }
   try {
     running.value = true
-    const exec = await workspace.executeWorkflow(activeWorkflowId.value, { fileId: '', targetKbId: null })
+    executionProgress.value = 5
+    activeRunStep.value = 1
+    nodes.value.forEach((node) => {
+      node.data.status = 'running'
+    })
+    const inputs = collectWorkflowInputs()
+    const exec = await workspace.executeWorkflow(activeWorkflowId.value, {
+      fileId: typeof inputs.file_id === 'string' ? inputs.file_id : null,
+      inputs,
+      targetKbId: typeof inputs.target_kb_id === 'string' ? inputs.target_kb_id : null,
+    })
+    applyWorkflowExecutionToCanvas(exec)
     versionLog.value.unshift(`执行完成: ${exec.status} (${new Date().toLocaleString()})`)
-    message.success('流程执行完成')
-  } catch { message.error('流程执行失败') }
-  finally { running.value = false }
+    if (exec.status === 'failed') message.error('流程执行失败')
+    else message.success('流程执行完成')
+  } catch {
+    nodes.value.forEach((node) => {
+      if (node.data.status === 'running') node.data.status = 'error'
+    })
+    executionProgress.value = 100
+    message.error('流程执行失败')
+  } finally { running.value = false }
+}
+
+function applyWorkflowExecutionToCanvas(exec: Awaited<ReturnType<typeof workspace.executeWorkflow>>) {
+  const statusByNodeId = new Map(exec.node_executions.map((item) => [item.node_id, item.status]))
+  nodes.value.forEach((node) => {
+    const status = statusByNodeId.get(node.id)
+    if (status === 'success') node.data.status = 'success'
+    else if (status === 'failed') node.data.status = 'error'
+    else node.data.status = exec.status === 'failed' ? 'idle' : 'success'
+  })
+  activeRunStep.value = exec.node_executions.length
+  executionProgress.value = 100
 }
 
 const debugStepResult = ref<{ done?: boolean; node_name?: string; status?: string; remaining?: number } | null>(null)
@@ -442,6 +799,15 @@ async function loadAgentTask(taskId: string) {
   }
 }
 
+async function deleteAgentTaskAction(taskId: string) {
+  try {
+    await agent.deleteTask(taskId)
+    message.success('任务已删除')
+  } catch {
+    message.error('任务删除失败')
+  }
+}
+
 async function cancelAgentTask(taskId: string) {
   try {
     await agent.cancelTask(taskId)
@@ -449,6 +815,11 @@ async function cancelAgentTask(taskId: string) {
   } catch {
     message.error('任务取消失败')
   }
+}
+
+function openAgentTaskModal() {
+  agent.clearPlanPreview()
+  showAgentTaskModal.value = true
 }
 
 function toggleDebugPanel() {
@@ -477,225 +848,62 @@ function startDebugResize(event: MouseEvent) {
   <component :is="workspaceLayout" :api-state-label="apiStateLabel" :api-state-type="apiStateType" :nav-items="navItems"
     :unread-notifications="summary.unread_notifications" page-title="工具流编排">
     <section class="workflow-builder">
-      <div class="builder-heading">
-        <NSpace align="center">
-          <NSelect v-model:value="triggerMode" :options="triggerOptions" class="trigger-select" />
-          <NButton circle secondary @click="showVersionDrawer = true">
-            <template #icon>
-              <NIcon>
-                <History />
-              </NIcon>
-            </template>
-          </NButton>
-          <NButton secondary type="info" @click="showJson = true">
-            <template #icon>
-              <NIcon>
-                <Download />
-              </NIcon>
-            </template>
-            定义
-          </NButton>
-          <NButton secondary type="primary" @click="saveFlow">
-            <template #icon>
-              <NIcon>
-                <Save />
-              </NIcon>
-            </template>
-            保存
-          </NButton>
-          <NButton type="primary" :loading="running" @click="runFlow">
-            <template #icon>
-              <NIcon>
-                <Play />
-              </NIcon>
-            </template>
-            执行
-          </NButton>
-        </NSpace>
+      <div class="agent-console-heading">
+        <div>
+          <h1 class="agent-console-heading__title">智能体任务</h1>
+          <p class="agent-console-heading__subtitle">创建、查看和管理自然语言工具流任务</p>
+        </div>
+        <NButton type="primary" @click="openAgentTaskModal">
+          <template #icon><NIcon aria-hidden="true"><Plus /></NIcon></template>
+          创建任务
+        </NButton>
       </div>
 
-      <div class="builder-shell">
-        <aside class="builder-sidebar">
-          <NCard size="small" title="节点库" :bordered="false" class="builder-card">
-            <div class="node-palette">
-              <button v-for="item in nodePresets" :key="item.kind" class="palette-item" draggable="true"
-                @dragstart="onDragStart($event, item)" @click="addPresetNode(item)">
-                <span class="palette-icon" :style="{ color: item.color, backgroundColor: `${item.color}14` }">
-                  <NIcon :component="item.icon" />
-                </span>
-                <span><strong>{{ item.title }}</strong><small>{{ item.description }}</small></span>
-                <Plus :size="16" />
-              </button>
-            </div>
-          </NCard>
+      <section class="agent-console" aria-label="智能体任务控制台">
+        <div class="agent-console__main">
+          <section class="agent-composer-panel" aria-label="智能体任务列表">
+            <AgentTaskList
+              :active-task-id="activeTask?.id"
+              :loading="agentLoading || agentStreaming"
+              :tasks="taskHistory"
+              @delete-task="deleteAgentTaskAction"
+              @select-task="loadAgentTask"
+            />
+          </section>
 
-          <NCard size="small" title="校验状态" :bordered="false" class="builder-card">
-            <NAlert :type="hasBlockingIssue ? 'error' : validationIssues.length ? 'warning' : 'success'"
-              :show-icon="false">
-              {{ validationSummary }}
-            </NAlert>
-            <div v-if="validationIssues.length" class="issue-list">
-              <div v-for="issue in validationIssues" :key="`${issue.title}-${issue.detail}`" class="issue-row">
-                <NIcon :component="issue.type === 'error' ? XCircle : CheckCircle2" />
-                <span>{{ issue.detail }}</span>
-              </div>
-            </div>
-          </NCard>
+          <section class="agent-console__results" aria-label="智能体执行结果">
+            <AgentExecutionTimeline v-if="executionSteps.length" :steps="executionSteps" />
+            <NEmpty v-else size="small" description="提交任务后展示执行轨迹" />
+            <ToolResultViewer :final-answer="finalAnswer" :result-view="resultView" />
+          </section>
+        </div>
+
+        <aside class="agent-console__side">
+          <AgentTaskDetailPanel
+            :active-task="activeTask"
+            :loading="agentLoading"
+            @cancel="cancelAgentTask"
+            @continue="continueActiveAgentTask"
+          />
+          <ToolCatalogPanel :tools="catalogTools" />
         </aside>
-
-        <main class="builder-main">
-          <div class="builder-toolbar">
-            <NInput v-model:value="flowName" size="large" class="title-input" placeholder="输入流程名称" />
-            <NSelect v-if="templateWorkflows.length" :value="null"
-              :options="templateWorkflows.map(t => ({ label: t.name, value: t.id }))" placeholder="从模板创建..."
-              class="template-select" @update:value="loadTemplateToCanvas" />
-            <NTag type="info" round>{{ currentVersion }}</NTag>
-            <NTag :type="hasBlockingIssue ? 'error' : 'success'" round>{{ hasBlockingIssue ? '待修复' : '可执行' }}</NTag>
-          </div>
-
-          <section class="agent-composer-panel" aria-label="自然语言工具流">
-            <AgentTaskComposer :clarification-question="clarificationQuestion" :files="files"
-              :knowledge-bases="knowledgeBases" :loading="agentLoading || agentStreaming" :plan-preview="planPreview"
-              @continue="continueActiveAgentTask" @preview="previewAgentTask"
-              @stream="streamAgentTaskAction"
-              @submit="submitAgentTask" />
-          </section>
-
-          <div class="canvas-area" :style="canvasAreaStyle" @drop="onDrop" @dragover.prevent>
-            <VueFlow v-model:nodes="nodes" v-model:edges="edges" :default-viewport="{ zoom: 0.92, x: 40, y: 28 }"
-              :fit-view-on-init="true" class="workflow-canvas" @node-click="onNodeClick">
-              <Background pattern-color="#d6e0ee" :gap="18" />
-              <MiniMap pannable zoomable />
-              <Controls />
-              <template #node-default="nodeProps">
-                <div class="custom-node" :class="`status-${nodeProps.data.status}`">
-                  <div class="node-head">
-                    <span class="node-icon"
-                      :style="{ color: nodeColor(nodeProps.data.kind), backgroundColor: `${nodeColor(nodeProps.data.kind)}16` }">
-                      <NIcon :component="nodeIcon(nodeProps.data.kind)" />
-                    </span>
-                    <span>{{ nodeProps.data.label }}</span>
-                  </div>
-                  <p>{{ nodeProps.data.description }}</p>
-                  <NTag size="small" :bordered="false">{{ nodeProps.data.kind }}</NTag>
-                </div>
-              </template>
-              <template #node-input="nodeProps">
-                <div class="custom-node input-node" :class="`status-${nodeProps.data.status}`">
-                  <div class="node-head">
-                    <FileInput :size="18" />{{ nodeProps.data.label }}
-                  </div>
-                  <p>{{ nodeProps.data.description }}</p>
-                  <NTag size="small" type="info" :bordered="false">输入</NTag>
-                </div>
-              </template>
-              <template #node-output="nodeProps">
-                <div class="custom-node output-node" :class="`status-${nodeProps.data.status}`">
-                  <div class="node-head">
-                    <UploadCloud :size="18" />{{ nodeProps.data.label }}
-                  </div>
-                  <p>{{ nodeProps.data.description }}</p>
-                  <NTag size="small" type="success" :bordered="false">输出</NTag>
-                </div>
-              </template>
-            </VueFlow>
-          </div>
-
-          <div class="debug-entry">
-            <div>
-              <strong>参数与调试</strong>
-              <span>查看当前节点参数、执行进度和单步调试结果</span>
-            </div>
-            <NButton secondary type="primary" @click="toggleDebugPanel">
-              {{ debugCollapsed ? '打开参数调试' : '收起参数调试' }}
-            </NButton>
-          </div>
-
-          <section v-if="!debugCollapsed" class="debug-panel" :style="{ height: `${debugHeight}px` }">
-            <div class="resize-handle" title="上下拖拽调整面板高度" @mousedown="startDebugResize"></div>
-            <div class="debug-panel-body">
-              <NCard size="small" :bordered="false" class="builder-card">
-                <NStatistic label="执行进度" :value="`${executionProgress}%`" />
-                <NProgress type="line" :percentage="executionProgress" :show-indicator="false" />
-                <NSpace class="run-actions">
-                  <NButton size="small" secondary @click="singleStep"><template #icon>
-                      <NIcon>
-                        <Bug />
-                      </NIcon>
-                    </template>单步调试
-                  </NButton>
-                  <NButton size="small" quaternary @click="resetRunState">重置</NButton>
-                </NSpace>
-              </NCard>
-
-              <NCard size="small" title="节点参数" :bordered="false" class="builder-card grow-card">
-                <template v-if="selectedData">
-                  <NThing>
-                    <template #avatar><span class="detail-icon"
-                        :style="{ color: nodeColor(selectedData.kind), backgroundColor: `${nodeColor(selectedData.kind)}16` }">
-                        <NIcon :component="nodeIcon(selectedData.kind)" />
-                      </span></template>
-                    <template #header>{{ selectedData.label }}</template>
-                    <template #description>{{ selectedData.description }}</template>
-                  </NThing>
-                  <NDivider />
-                  <NForm label-placement="top" size="small">
-                    <NFormItem label="节点名称">
-                      <NInput v-model:value="selectedData.label" />
-                    </NFormItem>
-                    <NFormItem label="说明">
-                      <NInput v-model:value="selectedData.description" type="textarea"
-                        :autosize="{ minRows: 2, maxRows: 4 }" />
-                    </NFormItem>
-                    <NFormItem v-for="(value, key) in selectedParams" :key="key" :label="String(key)">
-                      <NSwitch v-if="typeof value === 'boolean'" :value="value"
-                        @update:value="updateParam(String(key), $event)" />
-                      <NInputNumber v-else-if="typeof value === 'number'" :value="value"
-                        @update:value="updateParam(String(key), $event ?? 0)" />
-                      <NDynamicInput v-else-if="Array.isArray(value)" :value="value"
-                        @update:value="updateParam(String(key), $event.map(String))" />
-                      <NInput v-else :value="String(value)" @update:value="updateParam(String(key), $event)" />
-                    </NFormItem>
-                  </NForm>
-                </template>
-                <NEmpty v-else description="选择一个节点查看参数" />
-              </NCard>
-
-              <NCard size="small" :bordered="false" class="builder-card">
-                <ToolCatalogPanel :tools="agentTools" />
-              </NCard>
-
-              <NCard size="small" :bordered="false" class="builder-card grow-card">
-                <AgentTaskDetailPanel
-                  :active-task="activeTask"
-                  :loading="agentLoading"
-                  :task-history="taskHistory"
-                  @cancel="cancelAgentTask"
-                  @continue="continueActiveAgentTask"
-                  @select-task="loadAgentTask"
-                />
-              </NCard>
-
-              <NCard size="small" :bordered="false" class="builder-card">
-                <AgentExecutionTimeline v-if="executionSteps.length" :steps="executionSteps" />
-                <NSteps v-else vertical size="small" :current="activeRunStep"
-                  :status="running ? 'process' : executionProgress === 100 ? 'finish' : 'wait'">
-                  <NStep v-for="node in [...nodes].sort((a, b) => a.position.x - b.position.x)" :key="node.id"
-                    :title="node.data.label" :description="node.data.status" />
-                </NSteps>
-              </NCard>
-
-              <NCard size="small" :bordered="false" class="builder-card">
-                <ToolResultViewer :final-answer="finalAnswer" :result-view="resultView" />
-              </NCard>
-            </div>
-          </section>
-        </main>
-      </div>
+      </section>
+      <AgentTaskCreateModal
+        v-model:show="showAgentTaskModal"
+        :files="files"
+        :knowledge-bases="knowledgeBases"
+        :loading="agentLoading || agentStreaming"
+        :plan-preview="planPreview"
+        @preview="previewAgentTask"
+        @stream="streamAgentTaskAction"
+        @submit="submitAgentTask"
+      />
     </section>
 
     <NModal v-model:show="showJson" preset="card" title="流程定义 JSON" class="json-modal">
-      <pre>{{ jsonDefinition }}</pre>
+      <div class="json-code-panel">
+        <NCode :code="jsonDefinition" language="json" word-wrap />
+      </div>
     </NModal>
 
     <NDrawer v-model:show="showVersionDrawer" :width="360">
@@ -712,6 +920,46 @@ function startDebugResize(event: MouseEvent) {
 .workflow-builder {
   display: grid;
   gap: 4px;
+}
+
+.agent-console-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.agent-console-heading__title {
+  margin: 0;
+  color: #172033;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.agent-console-heading__subtitle {
+  margin: 2px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.agent-console {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 14px;
+  align-items: start;
+}
+
+.agent-console__main,
+.agent-console__side,
+.agent-console__results {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.agent-console__side {
+  align-content: start;
 }
 
 .builder-heading {
@@ -748,6 +996,7 @@ function startDebugResize(event: MouseEvent) {
   grid-template-columns: 292px minmax(0, 1fr);
   gap: 14px;
   align-items: stretch;
+  height: clamp(620px, calc(100vh - 190px), 900px);
   min-height: 0;
 }
 
@@ -755,11 +1004,20 @@ function startDebugResize(event: MouseEvent) {
   display: grid;
   align-content: start;
   gap: 12px;
+  max-height: 100%;
   min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .builder-main {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
   border: 1px solid #d8e0ea;
   border-radius: 8px;
@@ -784,7 +1042,6 @@ function startDebugResize(event: MouseEvent) {
 }
 
 .agent-composer-panel {
-  margin: 12px 12px 0;
   padding: 12px;
   border: 1px solid #d8e0ea;
   border-radius: 8px;
@@ -802,6 +1059,12 @@ function startDebugResize(event: MouseEvent) {
 .node-palette {
   display: grid;
   gap: 10px;
+  max-height: 220px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .palette-item {
@@ -875,6 +1138,7 @@ function startDebugResize(event: MouseEvent) {
   width: 100%;
   min-width: 0;
   min-height: 420px;
+  overflow: hidden;
   padding: 12px 12px 0;
 }
 
@@ -1010,6 +1274,14 @@ function startDebugResize(event: MouseEvent) {
   font-weight: 800;
 }
 
+@media (max-width: 1080px) {
+  .agent-console,
+  .builder-shell {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+}
+
 .node-icon {
   width: 30px;
   height: 30px;
@@ -1025,16 +1297,22 @@ function startDebugResize(event: MouseEvent) {
 }
 
 .json-modal {
-  width: min(900px, 92vw);
+  width: min(860px, calc(100vw - 32px));
 }
 
-.json-modal pre {
+.json-code-panel {
   overflow: auto;
+  max-width: 100%;
   max-height: 62vh;
-  padding: 14px;
-  color: #dbeafe;
-  background: #0f172a;
   border-radius: 8px;
+  background: #0f172a;
+  padding: 14px;
+}
+
+.json-code-panel :deep(.n-code) {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 :deep(.vue-flow__node.selected .custom-node) {
@@ -1135,6 +1413,11 @@ function startDebugResize(event: MouseEvent) {
 }
 
 @media (max-width: 1100px) {
+  .agent-console-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .builder-heading {
     align-items: flex-start;
     flex-direction: column;

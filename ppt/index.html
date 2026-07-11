@@ -196,19 +196,19 @@
 
 <!-- ====== 01: COVER ====== -->
 <section class="slide hero dark">
-  <div class="chrome"><div>WHUCS · 毕业设计开发汇报</div><div>2026.07.11</div></div>
+  <div class="chrome"><div>WHUCS · 软件工程实践设计开发汇报</div><div>2026.07.11</div></div>
   <div class="frame" style="display:grid; gap:4vh; align-content:center; min-height:82vh">
-    <h1 class="h-hero" style="font-size:7.5vw" data-anim>基于大模型的</h1>
+    <h1 class="h-sub" style="font-size:7.5vw" data-anim>基于大模型的</h1>
     <h2 class="h-sub" data-anim>智能文件管理与智能体协同平台</h2>
     <h3 class="h-md" style="opacity:.6; margin-top:1.5vh" data-anim>开发汇报</h3>
     <div style="margin-top:6vh; display:flex; flex-direction:column; gap:2vh; font-family:var(--serif-zh)">
       <div data-anim style="display:flex; gap:2vw; align-items:baseline">
         <span style="font-family:var(--mono); font-size:13px; letter-spacing:.2em; opacity:.5; text-transform:uppercase">汇报人</span>
-        <span style="font-size:2vw; font-weight:500; border-bottom:1px solid currentColor; padding-bottom:.3vh; min-width:12vw; opacity:.5">________</span>
+        <span style="font-size:2vw; font-weight:500; border-bottom:1px solid currentColor; padding-bottom:.3vh; min-width:12vw; opacity:.5">霍从儒 何因绚</span>
       </div>
       <div data-anim style="display:flex; gap:2vw; align-items:baseline">
         <span style="font-family:var(--mono); font-size:13px; letter-spacing:.2em; opacity:.5; text-transform:uppercase">指导老师</span>
-        <span style="font-size:2vw; font-weight:500; border-bottom:1px solid currentColor; padding-bottom:.3vh; min-width:12vw; opacity:.5">________</span>
+        <span style="font-size:2vw; font-weight:500; border-bottom:1px solid currentColor; padding-bottom:.3vh; min-width:12vw; opacity:.5">苏科华 教授</span>
       </div>
     </div>
   </div>
@@ -237,12 +237,12 @@
       </div>
       <div class="pillar" data-anim>
         <div class="ic"><i data-lucide="layers" class="ico-lg"></i></div>
-        <div class="t" style="font-size:1.4vw">七层架构</div>
+        <div class="t" style="font-size:1.4vw">六层架构</div>
         <div class="d">表现层 → API 层 → 领域服务 → AI 能力 → 异步任务 → 存储层</div>
       </div>
     </div>
   </div>
-  <div class="foot"><div>五类目标用户 · 六大业务目标 · 七大功能模块</div><div>Overview</div></div>
+  <div class="foot"><div>五类目标用户 · 六大业务目标 · 六大功能模块</div><div>Overview</div></div>
 </section>
 
 <!-- ====== 04: SYSTEM ARCHITECTURE ====== -->
@@ -359,53 +359,34 @@
   <div class="foot"><div>文档解析 · 向量嵌入 · 语义检索 · 引用溯源</div><div>RAG Pipeline</div></div>
 </section>
 
-<!-- ====== 08: AGENT TOOL FLOW ====== -->
-<section class="slide light">
-  <div class="chrome"><div>Agent 编排 · Agent Orchestration</div><div>08 / 12</div></div>
-  <div class="frame grid-2-6-6" style="padding-top:3vh; gap:2.5vw">
-    <div style="display:flex; flex-direction:column; gap:2vh">
-      <div>
-        <div class="kicker" data-anim>ReAct 执行模式</div>
-        <h2 class="h-xl" style="font-size:4.4vw" data-anim>智能体编排</h2>
-        <h3 class="h-md" style="opacity:.65; margin-top:1.5vh" data-anim>Thought → Action → Observation → Answer</h3>
-      </div>
-      <div class="pipeline" data-cols="5" style="margin-top:1.5vh">
-        <div class="step" data-anim><div class="step-nb">T</div><div class="step-title">思考</div><div class="step-desc">分析任务意图</div></div>
-        <div class="step" data-anim><div class="step-nb">A</div><div class="step-title">行动</div><div class="step-desc">选择工具调用</div></div>
-        <div class="step" data-anim><div class="step-nb">O</div><div class="step-title">观察</div><div class="step-desc">收集执行结果</div></div>
-        <div class="step" data-anim><div class="step-nb">→</div><div class="step-title">循环</div><div class="step-desc">ReAct 迭代</div></div>
-        <div class="step" data-anim><div class="step-nb">A</div><div class="step-title">回答</div><div class="step-desc">合成最终结果</div></div>
-      </div>
-      <div class="callout" data-anim><span class="q-big">支持多步工具调用、缺失参数澄清、超时重试、Schema 校验与降级处理</span><div class="callout-src">— AgentExecutor · 有界循环执行</div></div>
-    </div>
-    <figure class="frame-img r-4x3 fit-contain" data-anim><img src="images/05-agent-react.png" alt="Agent ReAct 时序图"><figcaption class="img-cap">PlantUML · Agent ReAct 工具调用时序图</figcaption></figure>
-  </div>
-  <div class="foot"><div>工具注册 · ReAct 循环 · 多步执行 · 结果视图</div><div>Agent Flow</div></div>
-</section>
-
-<!-- ====== 09: WORKFLOW BUILDER ====== -->
+<!-- ====== 08: AGENT SYSTEM ====== -->
 <section class="slide dark">
-  <div class="chrome"><div>工具流 · Workflow Builder</div><div>09 / 12</div></div>
+  <div class="chrome"><div>智能体系统 · Agent System</div><div>08 / 11</div></div>
   <div class="frame grid-2-6-6" style="padding-top:2vh; gap:2vw">
-    <div>
-      <div class="kicker" data-anim>可视化流程编排</div>
-      <h2 class="h-xl" style="font-size:4.4vw" data-anim>可视化工具流</h2>
-      <p class="lead" style="margin-top:1vh; margin-bottom:1.5vh; font-size:1.35vw" data-anim>
-        Vue Flow 拖拽式编辑器 + DAG 拓扑调度 + WebSocket 实时推送。
-      </p>
-      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">编辑器</div><div class="v" style="font-size:max(13px,1.05vw)">Vue Flow 拖拽 / 连线 / 参数绑定 / 模板</div><div class="m">FE</div></div>
-      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">校验</div><div class="v" style="font-size:max(13px,1.05vw)">DAG 环检测 / 孤立节点 / 缺失参数 / 权限</div><div class="m">Validate</div></div>
-      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">调度</div><div class="v" style="font-size:max(13px,1.05vw)">拓扑排序 / 并行批次 / 失败策略</div><div class="m">Engine</div></div>
-      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">调试</div><div class="v" style="font-size:max(13px,1.05vw)">单步执行 / 输入输出追踪 / 历史回放</div><div class="m">Debug</div></div>
+    <div style="display:flex; flex-direction:column; gap:1.8vh">
+      <div>
+        <div class="kicker" data-anim>ReAct · Thought → Action → Observation → Answer</div>
+        <h2 class="h-xl" style="font-size:4.4vw" data-anim>智能体编排</h2>
+      </div>
+      <div class="pipeline" data-cols="4" style="margin-top:0.5vh">
+        <div class="step" data-anim><div class="step-nb">01</div><div class="step-title">理解</div><div class="step-desc">NLU 解析意图</div></div>
+        <div class="step" data-anim><div class="step-nb">02</div><div class="step-title">规划</div><div class="step-desc">LLM 生成计划</div></div>
+        <div class="step" data-anim><div class="step-nb">03</div><div class="step-title">执行</div><div class="step-desc">工具调用·重试</div></div>
+        <div class="step" data-anim><div class="step-nb">04</div><div class="step-title">回答</div><div class="step-desc">合成·结果视图</div></div>
+      </div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.4vw">规划器</div><div class="v" style="font-size:max(12px,.95vw)">AgentPlanner · 确定性 NLU + LLM JSON Schema · CI 降级</div><div class="m">Plan</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.4vw">执行器</div><div class="v" style="font-size:max(12px,.95vw)">AgentExecutor · ≤6 次调用 · 澄清/重试/超时 · 结果合成</div><div class="m">Loop</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.4vw">工具中心</div><div class="v" style="font-size:max(12px,.95vw)">ToolRegistry · 四工具注册 · Schema 校验 · 权限检查</div><div class="m">Tools</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.4vw">LLM 网关</div><div class="v" style="font-size:max(12px,.95vw)">ToolCallingLLM · OpenAI 兼容 · 超时/重试/降级</div><div class="m">LLM</div></div>
     </div>
-    <figure class="frame-img r-4x3 fit-contain" data-anim><img src="images/09-dag-flow.png" alt="工具流 DAG"><figcaption class="img-cap">PlantUML · DAG 校验与执行流程</figcaption></figure>
+    <figure class="frame-img r-4x3 fit-contain" data-anim><img src="images/05-agent-react.png" alt="Agent ReAct"><figcaption class="img-cap">PlantUML · Agent ReAct 工具调用时序图</figcaption></figure>
   </div>
-  <div class="foot"><div>Vue Flow 编辑器 · DAG 调度 · 单步调试 · 执行历史</div><div>Workflow</div></div>
+  <div class="foot"><div>AgentPlanner · AgentExecutor · ToolRegistry · ToolCallingLLM</div><div>Agent System</div></div>
 </section>
 
-<!-- ====== 10: TEAM COLLABORATION ====== -->
+<!-- ====== 10: 09: TEAM COLLABORATION ====== -->
 <section class="slide light">
-  <div class="chrome"><div>团队协作 · Team Collaboration</div><div>10 / 12</div></div>
+  <div class="chrome"><div>团队协作 · Team Collaboration</div><div>09 / 11</div></div>
   <div class="frame" style="padding-top:3vh">
     <div class="kicker" data-anim>团队协作能力</div>
     <h2 class="h-xl" data-anim>团队协作体系</h2>
@@ -422,9 +403,9 @@
   <div class="foot"><div>团队管理 · 实时沟通 · 批注通知 · 活动动态</div><div>Collaboration</div></div>
 </section>
 
-<!-- ====== 12: PERMISSION & SECURITY ====== -->
+<!-- ====== 12: 10: PERMISSION & SECURITY ====== -->
 <section class="slide light">
-  <div class="chrome"><div>权限与安全 · Security</div><div>11 / 12</div></div>
+  <div class="chrome"><div>权限与安全 · Security</div><div>10 / 11</div></div>
   <div class="frame grid-2-7-5" style="padding-top:3vh">
     <div style="display:flex; flex-direction:column; justify-content:space-between; gap:2vh">
       <div>
@@ -450,18 +431,18 @@
 
 <!-- ====== CLOSING ====== -->
 <section class="slide hero dark">
-  <div class="chrome"><div>WHUCS · 毕业设计开发汇报</div><div>2026.07.11</div></div>
+  <div class="chrome"><div>WHUCS · 软件工程实践设计开发汇报</div><div>2026.07.11</div></div>
   <div class="frame" style="display:grid; gap:4vh; align-content:center; min-height:82vh">
     <h1 class="h-hero" style="font-size:7.5vw" data-anim>谢谢</h1>
     <p class="lead" style="max-width:55vw" data-anim>基于大模型的智能文件管理与智能体协同平台</p>
     <div style="margin-top:6vh; display:flex; flex-direction:column; gap:2vh; font-family:var(--serif-zh)">
       <div data-anim style="display:flex; gap:2vw; align-items:baseline">
         <span style="font-family:var(--mono); font-size:13px; letter-spacing:.2em; opacity:.5; text-transform:uppercase">汇报人</span>
-        <span style="font-size:2vw; font-weight:500; border-bottom:1px solid currentColor; padding-bottom:.3vh; min-width:12vw; opacity:.5">________</span>
+        <span style="font-size:2vw; font-weight:500; border-bottom:1px solid currentColor; padding-bottom:.3vh; min-width:12vw; opacity:.5">霍从儒 何因绚</span>
       </div>
       <div data-anim style="display:flex; gap:2vw; align-items:baseline">
         <span style="font-family:var(--mono); font-size:13px; letter-spacing:.2em; opacity:.5; text-transform:uppercase">指导老师</span>
-        <span style="font-size:2vw; font-weight:500; border-bottom:1px solid currentColor; padding-bottom:.3vh; min-width:12vw; opacity:.5">________</span>
+        <span style="font-size:2vw; font-weight:500; border-bottom:1px solid currentColor; padding-bottom:.3vh; min-width:12vw; opacity:.5">苏科华 教授</span>
       </div>
     </div>
     <div style="margin-top:3vh; font-family:var(--mono); font-size:12px; letter-spacing:.18em; text-transform:uppercase; opacity:.4" data-anim>感谢聆听 · Questions &amp; Discussion</div>

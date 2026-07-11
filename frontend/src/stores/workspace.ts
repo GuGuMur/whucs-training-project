@@ -1860,7 +1860,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
           }
           if (payload.event === "team_message" && payload.data) {
             // Real-time team chat: append new message to local state
-            const msg = payload.data as { id: string; team_id: string; content: string; sender_name: string; sender_id: number; message_type: string; created_at: string };
+            const msg = payload.data as WorkspaceTeamMessage;
             const existing = teamMessagesById.value[msg.team_id] ?? [];
             // Avoid duplicates (e.g. if sender's own message was already optimistically added)
             if (!existing.some(m => m.id === msg.id)) {

@@ -155,7 +155,7 @@ def _run_case(case: _EvalCase):
 
 
 def test_agent_tool_flow_evaluation_covers_25_acceptance_cases(monkeypatch) -> None:
-    monkeypatch.delenv("WEATHER_API_URL", raising=False)
+    monkeypatch.delenv("QWEATHER_HOST", raising=False)
     cases = [
         _EvalCase("direct", "解释什么是机器学习", "completed", [], require_answer_contains="可直接回答"),
         _EvalCase("calc_add", "计算 2 + 3", "completed", ["calculator"], expected_args={"expression": "2 + 3"}),

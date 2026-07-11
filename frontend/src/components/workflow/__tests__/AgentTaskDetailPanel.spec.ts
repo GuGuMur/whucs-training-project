@@ -59,12 +59,11 @@ describe('AgentTaskDetailPanel', () => {
     expect(wrapper.text()).toContain('计划路径')
   })
 
-  it('emits follow-up, select, and cancel events', async () => {
+  it('emits follow-up and cancel events', async () => {
     const wrapper = mount(AgentTaskDetailPanel, {
       global: { plugins: [naive] },
       props: {
         activeTask: { ...task, status: 'running' },
-        taskHistory: [task, { ...task, id: 'task-2', task: '另一个任务' }],
       },
     })
 
@@ -74,8 +73,5 @@ describe('AgentTaskDetailPanel', () => {
 
     await wrapper.findAll('button').find((button) => button.text().includes('取消任务'))?.trigger('click')
     expect(wrapper.emitted('cancel')?.[0]).toEqual(['task-1'])
-
-    await wrapper.findAll('button').find((button) => button.text().includes('另一个任务'))?.trigger('click')
-    expect(wrapper.emitted('selectTask')?.[0]).toEqual(['task-2'])
   })
 })

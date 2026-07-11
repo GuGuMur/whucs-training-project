@@ -6,6 +6,7 @@ import {
   cancelAgentTask,
   continueAgentTask,
   createAgentTask,
+  deleteAgentTask,
   getAgentTask,
   listAgentTasks,
   listTools,
@@ -208,6 +209,35 @@ export const useAgentStore = defineStore('agent', () => {
     }
   }
 
+  async function deleteTask(taskId: string) {
+    const accessToken = requireAccessToken()
+
+    loading.value = true
+    errorMessage.value = ''
+    try {
+      await deleteAgentTask(accessToken, taskId)
+      taskHistory.value = taskHistory.value.filter((task) => task.id !== taskId)
+      if (activeTask.value?.id === taskId) {
+        const nextTask = taskHistory.value[0] ?? null
+        if (nextTask) {
+          applyTask(nextTask)
+        } else {
+          activeTask.value = null
+          executionSteps.value = []
+          clarificationQuestion.value = ''
+          resultView.value = null
+          planPreview.value = null
+          streamedAnswer.value = ''
+        }
+      }
+    } catch (error) {
+      errorMessage.value = '智能体任务删除失败，请稍后重试'
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
   function resetAgent() {
     activeTask.value = null
     planPreview.value = null
@@ -218,6 +248,10 @@ export const useAgentStore = defineStore('agent', () => {
     clarificationQuestion.value = ''
     resultView.value = null
     errorMessage.value = ''
+  }
+
+  function clearPlanPreview() {
+    planPreview.value = null
   }
 
   function applyTask(task: WorkspaceAgentTask) {
@@ -248,8 +282,10 @@ export const useAgentStore = defineStore('agent', () => {
     activeTask,
     cancelTask,
     clarificationQuestion,
+    clearPlanPreview,
     continueTask,
     createTask,
+    deleteTask,
     errorMessage,
     executionSteps,
     finalAnswer,

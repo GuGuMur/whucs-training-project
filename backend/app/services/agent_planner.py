@@ -117,6 +117,45 @@ class AgentPlanner:
         inputs: dict[str, Any],
     ) -> AgentPlan:
         planned: list[PlannedToolCall] = []
+        if _is_arxiv_interest_task(task):
+            planned.extend([
+                PlannedToolCall(
+                    tool_name="kb_interest_extract",
+                    arguments={
+                        "kb_id": inputs.get("kb_id") or kb_id or "",
+                        "query": inputs.get("query") or "",
+                        "max_terms": inputs.get("max_terms") or 8,
+                    },
+                    rationale="读取知识库文档并提取兴趣关键词",
+                ),
+                PlannedToolCall(
+                    tool_name="arxiv_search",
+                    arguments={
+                        "interests": "$kb_interest_extract.interests",
+                        "days": inputs.get("days") or _extract_days(task),
+                        "max_results": inputs.get("max_results") or _extract_max_results(task),
+                    },
+                    rationale="根据兴趣关键词查询 arXiv 近期论文",
+                ),
+                PlannedToolCall(
+                    tool_name="arxiv_markdown_render",
+                    arguments={
+                        "interests": "$kb_interest_extract.interests",
+                        "papers": "$arxiv_search.papers",
+                        "days": inputs.get("days") or _extract_days(task),
+                    },
+                    rationale="把论文列表整理成 Markdown 报告",
+                ),
+                PlannedToolCall(
+                    tool_name="knowledge_markdown_write",
+                    arguments={
+                        "kb_id": inputs.get("kb_id") or kb_id or "",
+                        "markdown": "$arxiv_markdown_render.markdown",
+                        "tags": ["arxiv", "research-interest", "auto-report"],
+                    },
+                    rationale="把 Markdown 报告写回知识库",
+                ),
+            ])
         if "计算" in task or re.search(r"\d+\s*[-+*/]", task):
             planned.append(PlannedToolCall(
                 tool_name="calculator",
@@ -166,7 +205,7 @@ class AgentPlanner:
                 },
                 rationale="查询受限只读数据表",
             ))
-        elif "知识库" in task or "rag" in task.lower() or inputs.get("kb_id") or kb_id:
+        elif not _is_arxiv_interest_task(task) and ("知识库" in task or "rag" in task.lower() or inputs.get("kb_id") or kb_id):
             if "知识库" in task or "rag" in task.lower() or inputs.get("question"):
                 planned.append(PlannedToolCall(
                     tool_name="rag_query",
@@ -312,6 +351,22 @@ class AgentPlanner:
                 arguments.setdefault("query", inputs.get("query") or _extract_database_query(task))
             elif step.tool_name == "weather_lookup":
                 arguments.setdefault("location", inputs.get("location") or _extract_weather_location(task))
+            elif step.tool_name == "kb_interest_extract":
+                arguments.setdefault("kb_id", inputs.get("kb_id") or kb_id or "")
+                arguments.setdefault("query", inputs.get("query") or "")
+                arguments.setdefault("max_terms", inputs.get("max_terms") or 8)
+            elif step.tool_name == "arxiv_search":
+                arguments.setdefault("interests", "$kb_interest_extract.interests")
+                arguments.setdefault("days", inputs.get("days") or _extract_days(task))
+                arguments.setdefault("max_results", inputs.get("max_results") or _extract_max_results(task))
+            elif step.tool_name == "arxiv_markdown_render":
+                arguments.setdefault("interests", "$kb_interest_extract.interests")
+                arguments.setdefault("papers", "$arxiv_search.papers")
+                arguments.setdefault("days", inputs.get("days") or _extract_days(task))
+            elif step.tool_name == "knowledge_markdown_write":
+                arguments.setdefault("kb_id", inputs.get("kb_id") or kb_id or "")
+                arguments.setdefault("markdown", "$arxiv_markdown_render.markdown")
+                arguments.setdefault("tags", ["arxiv", "research-interest", "auto-report"])
 
             spec = self._registry.get(step.tool_name)
             step_missing: list[str] = []
@@ -444,10 +499,37 @@ def _extract_weather_location(task: str) -> str:
     return cleaned
 
 
+def _is_arxiv_interest_task(task: str) -> bool:
+    lowered = task.lower()
+    return (
+        "arxiv" in lowered
+        and ("知识库" in task or "文档" in task or "兴趣" in task)
+        and ("论文" in task or "paper" in lowered)
+    )
+
+
+def _extract_days(task: str) -> int:
+    match = re.search(r"(?:近|最近)\s*(\d+)\s*(?:天|日|days?)", task, flags=re.IGNORECASE)
+    if match:
+        return max(1, min(int(match.group(1)), 30))
+    if "几天" in task or "近期" in task or "最近" in task:
+        return 7
+    return 7
+
+
+def _extract_max_results(task: str) -> int:
+    match = re.search(r"(\d+)\s*(?:篇|papers?)", task, flags=re.IGNORECASE)
+    if match:
+        return max(1, min(int(match.group(1)), 20))
+    return 8
+
+
 def _describe_intent(steps: list[PlannedToolCall], task: str) -> str:
     tools = [step.tool_name for step in steps]
     if tools == ["calculator", "course_lookup"]:
         return "计算并查询课程"
+    if tools == ["kb_interest_extract", "arxiv_search", "arxiv_markdown_render", "knowledge_markdown_write"]:
+        return "生成 arXiv 兴趣论文报告"
     if not tools:
         return "直接回答"
     return "、".join(tools) or task[:40]

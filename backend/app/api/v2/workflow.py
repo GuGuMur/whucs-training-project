@@ -32,7 +32,7 @@ async def list_workflows(
     user: Annotated[UserPublic, Depends(current_user)],
     svc: WorkspaceServiceDB = Depends(get_svc),
 ) -> WorkflowListResponse:
-    return WorkflowListResponse(items=await svc.list_workflows())
+    return WorkflowListResponse(items=await svc.list_workflows(user))
 
 
 @router.patch("/workflows/{workflow_id}", response_model=WorkflowDefinition)
@@ -83,7 +83,7 @@ async def debug_start(
     user: Annotated[UserPublic, Depends(current_user)],
     svc: WorkspaceServiceDB = Depends(get_svc),
 ) -> dict:
-    return svc.start_debug(workflow_id, {}, user)
+    return await svc.start_debug(workflow_id, {}, user)
 
 
 @router.post("/workflows/{workflow_id}/debug/step")
@@ -93,4 +93,4 @@ async def debug_step(
     user: Annotated[UserPublic, Depends(current_user)],
     svc: WorkspaceServiceDB = Depends(get_svc),
 ) -> dict:
-    return svc.step_debug(body.get("session_id", ""), workflow_id)
+    return svc.step_debug(body.get("session_id", ""), workflow_id, user)

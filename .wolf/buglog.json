@@ -3661,6 +3661,134 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-11T03:40:04.693Z"
+    },
+    {
+      "id": "bug-223",
+      "timestamp": "2026-07-11T04:24:34.564Z",
+      "error_message": "Significant refactor of ",
+      "file": "ppt/index.html",
+      "root_cause": "14 lines replaced/restructured",
+      "fix": "Rewrote 19→26 lines (14 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "html"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T04:24:34.564Z"
+    },
+    {
+      "id": "bug-224",
+      "timestamp": "2026-07-11T04:43:41.692Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "frontend/src/App.vue",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T04:43:41.692Z"
+    },
+    {
+      "id": "bug-225",
+      "timestamp": "2026-07-11T04:49:44.883Z",
+      "error_message": "Significant refactor of ",
+      "file": "frontend/src/App.vue",
+      "root_cause": "10 lines replaced/restructured",
+      "fix": "Rewrote 18→6 lines (10 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "vue"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T04:49:44.883Z"
+    },
+    {
+      "id": "bug-226",
+      "timestamp": "2026-07-11T04:51:49.744Z",
+      "error_message": "Missing guard clause",
+      "file": "frontend/src/stores/auth.ts",
+      "root_cause": "No early return/throw for edge case: !s?.accessToken",
+      "fix": "Added guard clause: if (!s?.accessToken)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T04:51:49.744Z"
+    },
+    {
+      "id": "bug-227",
+      "timestamp": "2026-07-11T05:13:35.089Z",
+      "error_message": "Significant refactor of ",
+      "file": "backend/app/services/tool_registry.py",
+      "root_cause": "15 lines replaced/restructured",
+      "fix": "Rewrote 20→45 lines (15 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T05:13:35.089Z"
+    },
+    {
+      "id": "bug-228",
+      "timestamp": "2026-07-11T05:16:05.568Z",
+      "error_message": "Incorrect value in code",
+      "file": "backend/tests/test_tool_registry.py",
+      "root_cause": "Had \"WEATHER_API_URL\"",
+      "fix": "Changed to \"QWEATHER_HOST\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T05:16:05.568Z"
+    },
+    {
+      "id": "bug-229",
+      "timestamp": "2026-07-11T05:16:44.577Z",
+      "error_message": "Incorrect value in code",
+      "file": "backend/tests/test_agent_evaluation.py",
+      "root_cause": "Had \"WEATHER_API_URL\"",
+      "fix": "Changed to \"QWEATHER_HOST\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T05:16:44.577Z"
+    },
+    {
+      "id": "bug-230",
+      "timestamp": "2026-07-11T05:22:23.995Z",
+      "error_message": "Significant refactor of ",
+      "file": "ppt/index.html",
+      "root_cause": "36 lines replaced/restructured",
+      "fix": "Rewrote 50→25 lines (36 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "html"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T05:22:23.995Z"
     }
   ]
 }

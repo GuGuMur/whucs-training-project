@@ -122,7 +122,7 @@ class AgentExecutor:
 
             step = pending_steps.pop(0)
             selected_tool = step.tool_name
-            params = step.arguments
+            params = self._resolve_tool_params(step.arguments, raw_observations)
             spec = self._registry.get(selected_tool)
             tool_call_count += 1
             execution = await self._registry.execute(selected_tool, params, workspace, user)
@@ -303,6 +303,13 @@ class AgentExecutor:
             return None
         return _AGENT_TASKS.get(task_id)
 
+    def delete(self, task_id: str, user: UserPublic) -> None:
+        if _AGENT_OWNERS.get(task_id) != user.id:
+            return
+        _AGENT_TASKS.pop(task_id, None)
+        _AGENT_OWNERS.pop(task_id, None)
+        _AGENT_REQUESTS.pop(task_id, None)
+
     async def continue_task(
         self,
         task_id: str,
@@ -478,7 +485,53 @@ class AgentExecutor:
             return f"查询表 {output.get('table', '')}，返回 {len(output.get('rows', []))} 行。"
         if tool_name == "weather_lookup":
             return f"天气服务返回：{output.get('provider_response', {})}"
+        if tool_name == "kb_interest_extract":
+            return f"提取到兴趣关键词：{', '.join(output.get('interests', []))}"
+        if tool_name == "arxiv_search":
+            return f"从 arXiv 查询到 {len(output.get('papers', []))} 篇相关论文。"
+        if tool_name == "arxiv_markdown_render":
+            return f"已生成 Markdown 报告，包含 {output.get('paper_count', 0)} 篇论文。"
+        if tool_name == "knowledge_markdown_write":
+            return f"已写入知识库文档：{output.get('file_name', '')}。"
         return str(output)
+
+    def _resolve_tool_params(self, value: Any, observations: list[dict[str, Any]]) -> Any:
+        if isinstance(value, str):
+            return self._resolve_reference(value, observations)
+        if isinstance(value, list):
+            return [self._resolve_tool_params(item, observations) for item in value]
+        if isinstance(value, dict):
+            return {key: self._resolve_tool_params(item, observations) for key, item in value.items()}
+        return value
+
+    def _resolve_reference(self, value: str, observations: list[dict[str, Any]]) -> Any:
+        if not value.startswith("$"):
+            return value
+        path = value[1:].split(".")
+        if len(path) < 2:
+            return value
+        tool_name = path[0]
+        selected = next(
+            (
+                item.get("output", {})
+                for item in reversed(observations)
+                if item.get("tool") == tool_name and item.get("status") == "success"
+            ),
+            None,
+        )
+        if selected is None:
+            return value
+        current: Any = selected
+        for part in path[1:]:
+            if isinstance(current, dict):
+                current = current.get(part)
+            elif isinstance(current, list) and part.isdigit():
+                current = current[int(part)]
+            else:
+                return value
+            if current is None:
+                return value
+        return current
 
     def _format_final_answer(self, tool_name: str, output: dict[str, Any]) -> str:
         if tool_name == "calculator":
@@ -518,6 +571,16 @@ class AgentExecutor:
             return f"受限数据表 {output.get('table')} 返回 {len(rows)} 行记录。"
         if tool_name == "weather_lookup":
             return f"{output.get('location')} 天气查询已返回真实服务结果。"
+        if tool_name == "kb_interest_extract":
+            return f"已从知识库提取兴趣关键词：{', '.join(output.get('interests', []))}。"
+        if tool_name == "arxiv_search":
+            papers = output.get("papers", [])
+            interests = output.get("interests", [])
+            return f"已根据兴趣（{', '.join(interests)}）检索 arXiv，返回 {len(papers)} 篇论文。"
+        if tool_name == "arxiv_markdown_render":
+            return f"已整理 Markdown 报告，包含 {output.get('paper_count', 0)} 篇论文。"
+        if tool_name == "knowledge_markdown_write":
+            return f"已将 Markdown 报告写入知识库，文件：{output.get('file_name')}，文档 ID：{output.get('document_id')}。"
         return str(output)
 
     def _result_view(self, tool_name: str, output: dict[str, Any], final_answer: str) -> dict[str, Any]:
@@ -553,6 +616,33 @@ class AgentExecutor:
             }
         if tool_name == "weather_lookup":
             return {"type": "text", "content": final_answer, "raw": output.get("provider_response", {})}
+        if tool_name == "kb_interest_extract":
+            return {
+                "type": "table",
+                "content": final_answer,
+                "columns": ["file_name", "summary"],
+                "rows": output.get("documents", []),
+                "key_results": output.get("interests", []),
+            }
+        if tool_name == "arxiv_search":
+            return {
+                "type": "table",
+                "content": final_answer,
+                "columns": ["title", "published", "categories", "link"],
+                "rows": output.get("papers", []),
+                "key_results": output.get("interests", []),
+            }
+        if tool_name == "arxiv_markdown_render":
+            return {"type": "text", "content": output.get("markdown", final_answer)}
+        if tool_name == "knowledge_markdown_write":
+            return {
+                "type": "text",
+                "content": final_answer,
+                "key_results": [
+                    f"报告文件：{output.get('file_name')}",
+                    f"知识库文档：{output.get('document_id')}",
+                ],
+            }
         return {"type": "text", "content": final_answer}
 
     def _combine_final_answers(self, observations: list[tuple[str, dict[str, Any], str, str]]) -> str:
@@ -593,9 +683,9 @@ class AgentExecutor:
         return False
 
     def _tool_risk(self, tool_name: str) -> tuple[str, str]:
-        if tool_name in {"database_query", "weather_lookup"}:
+        if tool_name in {"database_query", "weather_lookup", "arxiv_search"}:
             return "high", "将访问受限系统数据或外部服务，执行前需要确认。"
-        if tool_name in {"rag_query", "file_content_search", "python_data", "file_metadata_query"}:
+        if tool_name in {"rag_query", "file_content_search", "python_data", "file_metadata_query", "kb_interest_extract", "knowledge_markdown_write"}:
             return "medium", "将读取用户可访问的文件或知识库内容，执行前建议确认。"
         return "low", "仅使用本地低风险工具。"
 

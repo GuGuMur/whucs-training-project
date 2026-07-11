@@ -79,7 +79,7 @@ function outputSummary(value: unknown) {
       <article
         v-for="(step, index) in steps"
         :key="`${step.phase ?? step.type}-${index}`"
-        class="border border-line rounded-2 bg-surface px-3 py-2"
+        class="execution-step border border-line rounded-2 bg-surface px-3 py-2"
       >
         <div class="flex flex-wrap items-center gap-2">
           <NTag size="small" round :bordered="false" type="info">{{ phaseLabel(step.phase) }}</NTag>
@@ -104,10 +104,39 @@ function outputSummary(value: unknown) {
         <p v-if="outputSummary(step.output_json)" class="m-0 mt-2 text-#475569 text-12px leading-[1.55]">
           输出摘要：{{ outputSummary(step.output_json) }}
         </p>
-        <pre v-if="formatJson(step.input_json)" class="mt-2 overflow-auto rounded-1 bg-#F8FAFD p-2 text-11px">{{ formatJson(step.input_json) }}</pre>
-        <pre v-if="formatJson(step.output_json)" class="mt-2 overflow-auto rounded-1 bg-#F8FAFD p-2 text-11px">{{ formatJson(step.output_json) }}</pre>
+        <div v-if="formatJson(step.input_json)" class="execution-json">
+          <NCode :code="formatJson(step.input_json)" language="json" word-wrap />
+        </div>
+        <div v-if="formatJson(step.output_json)" class="execution-json">
+          <NCode :code="formatJson(step.output_json)" language="json" word-wrap />
+        </div>
         <p v-if="step.error_message" class="m-0 mt-2 text-danger text-12px">{{ step.error_message }}</p>
       </article>
     </div>
   </section>
 </template>
+
+<style scoped>
+.execution-step {
+  min-width: 0;
+}
+
+.execution-json {
+  overflow: auto;
+  max-width: 100%;
+  max-height: 220px;
+  margin-top: 8px;
+  border-radius: 6px;
+  background: #f8fafd;
+  padding: 8px;
+}
+
+.execution-json :deep(.n-code) {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-size: 11px;
+  line-height: 1.55;
+}
+</style>

@@ -4,3 +4,4 @@ task_plan.md
 OPEN_DESIGN.md
 **/*.png
 **/.db
+reports_temp/

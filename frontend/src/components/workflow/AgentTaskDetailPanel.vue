@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, shallowRef } from 'vue'
+import { computed, shallowRef } from 'vue'
 import { Ban, Clock3, MessageSquarePlus, RotateCw } from '@lucide/vue'
 
 import type {
@@ -10,29 +10,19 @@ import type {
 const props = withDefaults(defineProps<{
   activeTask?: WorkspaceAgentTask | null
   loading?: boolean
-  taskHistory?: WorkspaceAgentTask[]
 }>(), {
   activeTask: null,
   loading: false,
-  taskHistory: () => [],
 })
 
 const emit = defineEmits<{
   cancel: [taskId: string]
   continue: [payload: WorkspaceAgentTaskContinueInput]
-  selectTask: [taskId: string]
 }>()
 
 const followUpText = shallowRef('')
 const activeTab = shallowRef<'messages' | 'tools' | 'plans'>('messages')
 
-const historyItems = computed(() =>
-  props.taskHistory.map((task) => ({
-    label: `${statusLabel(task.status)} · ${task.task || task.id}`,
-    value: task.id,
-  })),
-)
-const selectedTaskId = computed(() => props.activeTask?.id ?? null)
 const messages = computed(() => props.activeTask?.messages ?? [])
 const toolCalls = computed(() => props.activeTask?.tool_calls ?? [])
 const planRevisions = computed(() => props.activeTask?.plan_revisions ?? [])
@@ -102,15 +92,6 @@ function planToolNames(planJson: unknown) {
   return names.length ? names.join(' -> ') : 'direct_answer'
 }
 
-function renderHistoryLabel(option: { label?: string }) {
-  return h('span', { class: 'agent-detail__history-option' }, option.label ?? '')
-}
-
-function selectTask(taskId: string | null) {
-  if (!taskId) return
-  emit('selectTask', taskId)
-}
-
 function submitFollowUp() {
   const message = followUpText.value.trim()
   if (!message) return
@@ -134,28 +115,6 @@ function cancelActiveTask() {
       <NTag v-if="activeTask" round :bordered="false" :type="statusType(activeTask.status)">
         {{ statusLabel(activeTask.status) }}
       </NTag>
-    </div>
-
-    <NSelect
-      :value="selectedTaskId"
-      clearable
-      :options="historyItems"
-      placeholder="选择历史任务"
-      :render-label="renderHistoryLabel"
-      @update:value="selectTask"
-    />
-
-    <div v-if="taskHistory.length" class="agent-detail__history-list" aria-label="任务历史">
-      <NButton
-        v-for="task in taskHistory.slice(0, 5)"
-        :key="task.id"
-        size="small"
-        :type="task.id === selectedTaskId ? 'primary' : 'default'"
-        :secondary="task.id !== selectedTaskId"
-        @click="selectTask(task.id)"
-      >
-        {{ task.task || task.id }}
-      </NButton>
     </div>
 
     <NEmpty v-if="!activeTask" size="small" description="尚未选择任务" />
@@ -287,14 +246,9 @@ function cancelActiveTask() {
 }
 
 .agent-detail__actions,
-.agent-detail__list,
-.agent-detail__history-list {
+.agent-detail__list {
   display: grid;
   gap: 10px;
-}
-
-.agent-detail__history-list {
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .agent-detail__summary {
@@ -315,12 +269,6 @@ function cancelActiveTask() {
   display: block;
   color: #64748b;
   font-size: 12px;
-}
-
-.agent-detail__history-option {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .agent-detail__item {

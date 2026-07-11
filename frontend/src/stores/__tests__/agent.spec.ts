@@ -237,4 +237,26 @@ describe('agent store', () => {
     expect(agent.finalAnswer).toBe('任务已取消。')
     expect(agent.executionSteps[agent.executionSteps.length - 1]?.title).toBe('任务已取消')
   })
+
+  it('deletes the active task and selects the next history item', async () => {
+    saveSession()
+    const deleteSpy = vi.spyOn(workspaceClient, 'deleteAgentTask').mockResolvedValue()
+    const nextTask: WorkspaceAgentTask = {
+      ...completedTask,
+      final_answer: '备用任务已完成。',
+      id: 'task-next',
+      task: '备用任务',
+    }
+    const agent = useAgentStore()
+    agent.activeTask = completedTask
+    agent.taskHistory = [completedTask, nextTask]
+    agent.executionSteps = completedTask.steps
+
+    await agent.deleteTask('task-course')
+
+    expect(deleteSpy).toHaveBeenCalledWith('access-token', 'task-course')
+    expect(agent.taskHistory.map((task) => task.id)).toEqual(['task-next'])
+    expect(agent.activeTask?.id).toBe('task-next')
+    expect(agent.finalAnswer).toBe('备用任务已完成。')
+  })
 })

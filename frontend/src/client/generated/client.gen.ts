@@ -14,26 +14,3 @@ import type { ClientOptions as ClientOptions2 } from './types.gen';
 export type CreateClientConfig<T extends ClientOptions = ClientOptions2> = (override?: Config<ClientOptions & T>) => Config<Required<ClientOptions> & T>;
 
 export const client: Client = createClient(createConfig<ClientOptions2>({ baseUrl: '/' }));
-
-// Global auth error interceptor — redirect to login on token expiry
-client.interceptors.response.fns.push(async (response) => {
-  if (response.status === 401 || response.status === 403) {
-    try {
-      const clone = response.clone()
-      const body = await clone.json()
-      const detail = body?.detail
-      if (detail && typeof detail === 'object' && (detail as Record<string, unknown>).code === 'TOKEN_EXPIRED') {
-        import('@/stores/auth').then(({ useAuthStore }) => {
-          const auth = useAuthStore()
-          if (auth.isAuthenticated) {
-            auth.logout()
-            window.location.href = '/login'
-          }
-        })
-      }
-    } catch {
-      // Not JSON or unparseable — ignore
-    }
-  }
-  return response
-})

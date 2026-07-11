@@ -253,6 +253,16 @@ async def get_agent_task(
     return await svc.get_agent_task(task_id, user)
 
 
+@router.delete("/agents/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_agent_task(
+    task_id: str,
+    user: Annotated[UserPublic, Depends(current_user)],
+    svc: WorkspaceServiceDB = Depends(get_svc),
+) -> Response:
+    await svc.delete_agent_task(task_id, user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.post("/agents/tasks/{task_id}/continue", response_model=AgentTaskResponse)
 async def continue_agent_task(
     task_id: str,

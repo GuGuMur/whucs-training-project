@@ -44,6 +44,14 @@ const steps: AgentStep[] = [
 describe('AgentExecutionTimeline', () => {
   it('renders phase labels, tool parameters, and clarification errors', () => {
     const wrapper = shallowMount(AgentExecutionTimeline, {
+      global: {
+        stubs: {
+          NCode: {
+            props: ['code'],
+            template: '<code>{{ code }}</code>',
+          },
+        },
+      },
       props: { steps },
     })
 
@@ -58,5 +66,6 @@ describe('AgentExecutionTimeline', () => {
     expect(wrapper.text()).toContain('输出摘要')
     expect(wrapper.text()).toContain('course_name is required')
     expect(wrapper.text()).toContain('需要补充')
+    expect(wrapper.findAll('.execution-json').length).toBeGreaterThan(0)
   })
 })

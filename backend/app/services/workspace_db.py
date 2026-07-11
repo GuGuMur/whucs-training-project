@@ -350,6 +350,47 @@ class WorkspaceServiceDB:
                 raise WorkspaceError(403, "FOLDER_WRITE_FORBIDDEN", "无权写入该团队文件夹", {"folder_id": folder.id})
         return folder
 
+    async def _team_member_for_user(self, team_id: str | None, user: UserPublic) -> TeamMember | None:
+        if not team_id:
+            return None
+        members = await _safe_list_members(self, team_id)
+        return next((m for m in members if m.user_id == user.id and m.status == "active"), None)
+
+    async def _file_folder(self, file: File) -> Folder | None:
+        return await self._folders.get_by_id(file.folder_id)
+
+    async def _file_team_id(self, file: File) -> str | None:
+        if file.team_id:
+            return file.team_id
+        folder = await self._file_folder(file)
+        return folder.team_id if folder and folder.scope == "team" else None
+
+    async def _can_read_file(self, file: File, user: UserPublic) -> bool:
+        if file.owner_id is None or file.owner_id == user.id:
+            return True
+        team_id = await self._file_team_id(file)
+        if team_id:
+            return await self._team_member_for_user(team_id, user) is not None
+        return False
+
+    async def _ensure_can_read_file(self, file: File, user: UserPublic) -> None:
+        if await self._can_read_file(file, user):
+            return
+        raise WorkspaceError(403, "FILE_READ_FORBIDDEN", "没有读取该文件的权限", {"file_id": file.id})
+
+    async def _ensure_can_write_file(self, file: File, user: UserPublic) -> None:
+        team_id = await self._file_team_id(file)
+        if team_id:
+            member = await self._team_member_for_user(team_id, user)
+            if member is None:
+                raise WorkspaceError(403, "FILE_WRITE_FORBIDDEN", "没有修改该文件的权限", {"file_id": file.id})
+            if member.role == "guest":
+                raise WorkspaceError(403, "FILE_WRITE_FORBIDDEN", "访客只能查看团队文件", {"file_id": file.id})
+            return
+        if file.owner_id == user.id:
+            return
+        raise WorkspaceError(403, "FILE_WRITE_FORBIDDEN", "没有修改该文件的权限", {"file_id": file.id})
+
     async def _ensure_personal_kb(self, user: UserPublic) -> Any:
         """Get or create the user's personal knowledge base for auto-indexing."""
         import secrets as _s
@@ -365,16 +406,7 @@ class WorkspaceServiceDB:
     # ── Files ──
     async def list_files(self, user: UserPublic) -> list[FileItem]:
         all_files = await self._files.list_all()
-        team_ids = set()
-        for t in await self._teams.list_all():
-            try:
-                tms = await self._members.list_by_team(t.id)
-                if any(m.user_id == user.id and m.status == "active" for m in tms):
-                    team_ids.add(t.id)
-            except Exception:
-                pass
-        files = [f for f in all_files if f.owner_id is None or f.owner_id ==
-                 user.id or (f.team_id and f.team_id in team_ids)]
+        files = [f for f in all_files if await self._can_read_file(f, user)]
         return [_file_to_item(f) for f in files]
 
     async def upload_file(self, filename: str, folder_id: str, content: bytes, tags: list[str], user: UserPublic) -> FileItem:
@@ -398,6 +430,8 @@ class WorkspaceServiceDB:
             await self.add_knowledge_document(personal_kb.id, type('payload', (), {'file_id': fid})(), user)
         except Exception:
             pass  # Non-fatal: file upload succeeds even if auto-index fails
+        # Refresh to pick up parse_status updated by add_knowledge_document
+        await self._s.refresh(f)
         return _file_to_item(f)
 
     async def reparse_file(self, file_id: str, user: UserPublic) -> FileItem:
@@ -405,6 +439,7 @@ class WorkspaceServiceDB:
         if not f:
             from fastapi import HTTPException
             raise HTTPException(404, detail="文件不存在")
+        await self._ensure_can_write_file(f, user)
         content = _read_file_content(f)
         if content is None:
             from fastapi import HTTPException
@@ -448,6 +483,7 @@ class WorkspaceServiceDB:
         f = await self._files.get_by_id(file_id)
         if not f:
             raise ValueError("NOT_FOUND")
+        await self._ensure_can_write_file(f, user)
         await self._deleted.create(DeletedFile(id=f"del-{secrets.token_hex(4)}", file_id=file_id, deleted_by=user.username))
         await self._files.delete(f)
         await self._s.commit()
@@ -500,11 +536,15 @@ class WorkspaceServiceDB:
     async def update_file(self, file_id: str, payload: Any, user: UserPublic) -> FileItem:
         f = await self._files.get_by_id(file_id)
         if not f:
-            return FileItem(id=file_id, name="文件", folder_id="personal-root", type="unknown", size=0, sha256="", content_type="", permission_scope="个人", parse_status="queued", tags=[], knowledge_base_ids=[], updated_at="", created_at="", created_by=user.username)
+            raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
+        await self._ensure_can_write_file(f, user)
         if (getattr(payload, "name", None)):
             f.name = getattr(payload, "name", None)
         if (getattr(payload, "folder_id", None)):
-            f.folder_id = getattr(payload, "folder_id", None)
+            target_folder = await self._resolve_upload_folder(getattr(payload, "folder_id", None), user)
+            f.folder_id = target_folder.id
+            f.permission_scope = "团队" if target_folder.scope == "team" else "个人"
+            f.team_id = target_folder.team_id if target_folder.scope == "team" else None
         if getattr(payload, "tags", None) is not None:
             f.tags = ",".join(getattr(payload, "tags", []))
         await self._files.update(f)
@@ -514,12 +554,16 @@ class WorkspaceServiceDB:
     async def copy_file(self, file_id: str, payload: Any, user: UserPublic) -> FileItem:
         src = await self._files.get_by_id(file_id)
         if not src:
-            return _file_to_item(File(id=file_id, name="文件", folder_id="personal-root", type="unknown", size=0, sha256="", created_by=user.username))
+            raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
+        await self._ensure_can_read_file(src, user)
         import secrets as _s
         cid = f"file-{_s.token_hex(6)}"
         target = (getattr(payload, "target_folder_id", None) or src.folder_id)
-        cp = File(id=cid, name=f"副本_{src.name}", folder_id=target, type=src.type, size=src.size, sha256=src.sha256,
-                  content_type=src.content_type, permission_scope=src.permission_scope, tags=src.tags, created_by=user.username, owner_id=user.id)
+        target_folder = await self._resolve_upload_folder(target, user)
+        cp = File(id=cid, name=f"副本_{src.name}", folder_id=target_folder.id, type=src.type, size=src.size, sha256=src.sha256,
+                  content_type=src.content_type, permission_scope="团队" if target_folder.scope == "team" else "个人",
+                  tags=src.tags, created_by=user.username, owner_id=user.id,
+                  team_id=target_folder.team_id if target_folder.scope == "team" else None)
         content = _read_file_content(src)
         if content is not None:
             _FILE_CONTENTS[cid] = content
@@ -528,6 +572,10 @@ class WorkspaceServiceDB:
         return _file_to_item(cp)
 
     async def create_share_link(self, file_id: str, payload: Any, user: UserPublic) -> ShareLinkPublic:
+        f = await self._files.get_by_id(file_id)
+        if not f:
+            raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
+        await self._ensure_can_read_file(f, user)
         import secrets as _s
         from datetime import UTC, datetime, timedelta
         tok = _s.token_hex(16)
@@ -539,10 +587,18 @@ class WorkspaceServiceDB:
         return ShareLinkPublic(id=sl.id, file_id=file_id, token=tok, url=f"/api/v2/share-links/{tok}/download", expires_at=str(sl.expires_at), download_limit=10, download_count=0, has_password=False)
 
     async def list_file_annotations(self, file_id: str, user: UserPublic) -> list[FileAnnotationItem]:
+        f = await self._files.get_by_id(file_id)
+        if not f:
+            raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
+        await self._ensure_can_read_file(f, user)
         anns = await self._annotations.list_by_file(file_id)
         return [FileAnnotationItem(id=a.id, file_id=a.file_id, author_id=a.author_id, author_name=a.author_name, content=a.content, created_at=str(a.created_at)) for a in anns]
 
     async def create_file_annotation(self, file_id: str, payload: Any, user: UserPublic) -> FileAnnotationItem:
+        f = await self._files.get_by_id(file_id)
+        if not f:
+            raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
+        await self._ensure_can_read_file(f, user)
         import secrets as _s
         aid = f"ann-{_s.token_hex(4)}"
         a = FileAnnotation(id=aid, file_id=file_id, author_id=user.id,
@@ -554,8 +610,14 @@ class WorkspaceServiceDB:
     async def reply_file_annotation(self, annotation_id: str, payload: Any, user: UserPublic) -> Any:
         import secrets as _s
         parent = await self._annotations.get_by_id(annotation_id)
+        if not parent:
+            raise WorkspaceError(404, "ANNOTATION_NOT_FOUND", "批注不存在或无权访问", {"annotation_id": annotation_id})
+        f = await self._files.get_by_id(parent.file_id)
+        if not f:
+            raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": parent.file_id})
+        await self._ensure_can_read_file(f, user)
         rid = f"reply-{_s.token_hex(4)}"
-        reply = FileAnnotation(id=rid, file_id=parent.file_id if parent else "", author_id=user.id,
+        reply = FileAnnotation(id=rid, file_id=parent.file_id, author_id=user.id,
                                author_name=user.display_name, content=getattr(payload, "content", ""), parent_id=annotation_id)
         await self._annotations.create(reply)
         await self._s.commit()
@@ -564,6 +626,13 @@ class WorkspaceServiceDB:
     async def delete_file_annotation(self, file_id: str, annotation_id: str, user: UserPublic) -> None:
         a = await self._annotations.get_by_id(annotation_id)
         if a:
+            f = await self._files.get_by_id(a.file_id)
+            if not f:
+                raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": a.file_id})
+            if a.file_id != file_id:
+                raise WorkspaceError(404, "ANNOTATION_NOT_FOUND", "批注不存在或无权访问", {"annotation_id": annotation_id})
+            if a.author_id != user.id:
+                await self._ensure_can_write_file(f, user)
             await self._annotations.delete(a)
             await self._s.commit()
 
@@ -572,6 +641,7 @@ class WorkspaceServiceDB:
         if not f:
             from fastapi import HTTPException
             raise HTTPException(404, detail="文件不存在")
+        await self._ensure_can_read_file(f, user)
         content = _read_file_content(f)
         if content is None:
             from fastapi import HTTPException
@@ -583,6 +653,7 @@ class WorkspaceServiceDB:
         if not f:
             from fastapi import HTTPException
             raise HTTPException(404, detail="文件不存在")
+        await self._ensure_can_read_file(f, user)
         content = _read_file_content(f)
         if content is None:
             from fastapi import HTTPException
@@ -601,6 +672,7 @@ class WorkspaceServiceDB:
         if not f:
             from fastapi import HTTPException
             raise HTTPException(404, detail="文件不存在")
+        await self._ensure_can_write_file(f, user)
         if f.type.lower() not in _EDITABLE_FILE_TYPES:
             from fastapi import HTTPException
             raise HTTPException(415, detail="该文件类型暂不支持在线编辑")
@@ -618,10 +690,12 @@ class WorkspaceServiceDB:
     async def list_file_versions(self, file_id: str, user: UserPublic) -> list[FileVersionItem]:
         vs = await self._versions.list_by_file(file_id)
         f = await self._files.get_by_id(file_id)
+        if not f:
+            raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": file_id})
+        await self._ensure_can_read_file(f, user)
         current_version_no = None
-        if f:
-            matching = [v.version_no for v in vs if v.sha256 == f.sha256]
-            current_version_no = max(matching) if matching else None
+        matching = [v.version_no for v in vs if v.sha256 == f.sha256]
+        current_version_no = max(matching) if matching else None
         return [
             FileVersionItem(
                 id=v.id,
@@ -643,6 +717,7 @@ class WorkspaceServiceDB:
         if not f or not version or version.file_id != file_id:
             from fastapi import HTTPException
             raise HTTPException(404, detail="文件版本不存在")
+        await self._ensure_can_write_file(f, user)
         content = _read_content_by_sha(version.content_key or version.sha256)
         if content is None:
             from fastapi import HTTPException
@@ -659,7 +734,11 @@ class WorkspaceServiceDB:
         return _file_to_item(f)
 
     async def restore_deleted_file(self, file_id: str, user: UserPublic) -> FileItem:
-        return FileItem(id=file_id, name="restored", folder_id="personal-root", type="unknown", size=0, sha256="", content_type="", permission_scope="个人", parse_status="queued", tags=[], knowledge_base_ids=[], updated_at="", created_at="", created_by=user.username)
+        deleted_items = await self._deleted.list_all()
+        deleted = next((item for item in deleted_items if item.file_id == file_id and item.deleted_by == user.username), None)
+        if deleted is None:
+            raise WorkspaceError(404, "DELETED_FILE_NOT_FOUND", "回收站文件不存在", {"file_id": file_id})
+        return FileItem(id=file_id, name="restored", folder_id="personal-root", type="unknown", size=0, sha256="", content_type="", permission_scope="个人", parse_status="queued", tags=[], knowledge_base_ids=[], updated_at=deleted.deleted_at, created_at=deleted.deleted_at, created_by=user.username)
 
     async def init_multipart_upload(self, payload: Any, user: UserPublic) -> Any:
         import secrets as _s
@@ -735,7 +814,30 @@ class WorkspaceServiceDB:
 
     async def list_deleted_files(self, user: UserPublic) -> list[RecycleBinItem]:
         items = await self._deleted.list_all()
-        return [RecycleBinItem(file_id=d.file_id, deleted_at=str(d.deleted_at), deleted_by=d.deleted_by) for d in items]
+        items = [item for item in items if item.deleted_by == user.username]
+        return [
+            RecycleBinItem(
+                file=FileItem(
+                    id=d.file_id,
+                    name="已删除文件",
+                    folder_id="",
+                    type="unknown",
+                    size=0,
+                    sha256="",
+                    content_type="",
+                    permission_scope="个人",
+                    parse_status="queued",
+                    tags=[],
+                    knowledge_base_ids=[],
+                    updated_at=d.deleted_at,
+                    created_at=d.deleted_at,
+                    created_by=d.deleted_by,
+                ),
+                deleted_at=d.deleted_at,
+                deleted_by=d.deleted_by,
+            )
+            for d in items
+        ]
 
     # ── Folders (extended) ──
     async def create_folder(self, payload: Any, user: UserPublic) -> FolderItem:
@@ -962,6 +1064,18 @@ class WorkspaceServiceDB:
         return member
 
     async def join_team(self, team_id: str, payload: Any, user: UserPublic) -> Any:
+        invite_token = getattr(payload, "invite_token", None)
+        invite = await self._invites.get_by_token(invite_token) if invite_token else None
+        if not invite or invite.team_id != team_id or invite.status != "pending":
+            raise WorkspaceError(404, "TEAM_INVITE_NOT_FOUND", "邀请不存在或已失效", {"team_id": team_id})
+        if invite.email != user.email:
+            raise WorkspaceError(403, "TEAM_INVITE_EMAIL_MISMATCH", "当前账号与邀请邮箱不一致", {"team_id": team_id})
+        now = datetime.now(UTC)
+        expires_at = invite.expires_at.replace(tzinfo=UTC) if invite.expires_at and invite.expires_at.tzinfo is None else invite.expires_at
+        if expires_at and expires_at < now:
+            invite.status = "expired"
+            await self._s.commit()
+            raise WorkspaceError(410, "TEAM_INVITE_EXPIRED", "邀请已过期", {"team_id": team_id})
         # Check user isn't already a member
         try:
             await self._ensure_team_member(team_id, user)
@@ -970,14 +1084,14 @@ class WorkspaceServiceDB:
             if "NOT_TEAM_MEMBER" not in str(e):
                 raise
         import secrets as _s
-        now = datetime.now(UTC)
         mid = f"mem-{_s.token_hex(4)}"
-        m = TeamMember(id=mid, team_id=team_id, user_id=user.id, role="member")
+        m = TeamMember(id=mid, team_id=team_id, user_id=user.id, role=invite.role)
+        invite.status = "accepted"
         await self._members.create(m)
         await self._s.commit()
         return {"id": mid, "team_id": team_id, "user_id": user.id,
                 "username": user.username, "email": user.email,
-                "display_name": user.display_name, "role": "member",
+                "display_name": user.display_name, "role": invite.role,
                 "status": "active", "joined_at": now.isoformat()}
 
     async def update_team_member(self, team_id: str, member_id: str, payload: Any, user: UserPublic) -> Any:
@@ -1050,13 +1164,20 @@ class WorkspaceServiceDB:
         members = await self._members.list_by_team(team_id)
         return any(member.user_id == user.id and member.status == "active" for member in members)
 
+    async def _team_member_role(self, team_id: str | None, user: UserPublic) -> str | None:
+        member = await self._team_member_for_user(team_id, user)
+        return member.role if member else None
+
     async def _ensure_kb_access(self, kb_id: str, user: UserPublic, *, manage: bool = False) -> KnowledgeBase:
         kb = await self._kbs.get_by_id(kb_id)
         if not kb or kb.status == "deleted":
             raise WorkspaceError(404, "KB_NOT_FOUND", "知识库不存在", {"kb_id": kb_id})
         if kb.scope_type == "team":
-            if not await self._user_can_access_team(kb.scope_id, user):
+            role = await self._team_member_role(kb.scope_id, user)
+            if role is None:
                 raise WorkspaceError(403, "KB_SCOPE_DENIED", "无权访问该团队知识库", {"kb_id": kb_id})
+            if manage and role == "guest":
+                raise WorkspaceError(403, "KB_MANAGE_FORBIDDEN", "访客只能查看团队知识库", {"kb_id": kb_id})
             return kb
         if kb.owner_id != user.id:
             raise WorkspaceError(403, "KB_SCOPE_DENIED", "无权访问该个人知识库", {"kb_id": kb_id})
@@ -1226,6 +1347,25 @@ class WorkspaceServiceDB:
         docs = await self._docs.list_by_kb(kb_id)
         return [await self._knowledge_document_public(d) for d in docs]
 
+    async def list_knowledge_document_profiles(self, kb_id: str, user: UserPublic) -> list[dict[str, Any]]:
+        await self._ensure_kb_access(kb_id, user)
+        docs = await self._docs.list_by_kb(kb_id)
+        profiles: list[dict[str, Any]] = []
+        for doc in docs:
+            profiles.append({
+                "id": doc.id,
+                "file_id": doc.file_id,
+                "file_name": doc.file_name,
+                "index_status": doc.index_status,
+                "summary": doc.summary or "",
+                "keywords": _json_loads_list(doc.keywords),
+                "outline": _json_loads_list(doc.outline),
+                "content_preview": (doc.content_text or "")[:5000],
+                "char_count": doc.char_count or 0,
+                "token_count": doc.token_count or 0,
+            })
+        return profiles
+
     async def add_knowledge_document(self, kb_id: str, payload: Any, user: UserPublic) -> KnowledgeDocumentPublic:
         import secrets as _s
         kb = await self._ensure_kb_access(kb_id, user, manage=True)
@@ -1233,6 +1373,7 @@ class WorkspaceServiceDB:
         f = await self._files.get_by_id(fid)
         if not f:
             raise WorkspaceError(404, "FILE_NOT_FOUND", "文件不存在或无权访问", {"file_id": fid})
+        await self._ensure_can_read_file(f, user)
         await self._ensure_file_matches_kb_scope(kb, f)
         content = _read_file_content(f) or b""
         did = f"doc-{_s.token_hex(4)}"
@@ -1278,6 +1419,58 @@ class WorkspaceServiceDB:
         self._faiss.pop(kb_id, None)
         await self._s.commit()
         return await self._knowledge_document_public(d)
+
+    async def create_markdown_knowledge_document(
+        self,
+        kb_id: str,
+        filename: str,
+        markdown: str,
+        tags: list[str],
+        user: UserPublic,
+    ) -> KnowledgeDocumentPublic:
+        kb = await self._ensure_kb_access(kb_id, user, manage=True)
+        folder_id = await self._knowledge_document_target_folder(kb, user)
+        content = markdown.encode("utf-8")
+        digest = hashlib.sha256(content).hexdigest()
+        fid = f"file-{digest[:12]}"
+        if await self._files.get_by_id(fid):
+            fid = f"file-{digest[:8]}-{secrets.token_hex(4)}"
+        folder = await self._resolve_upload_folder(folder_id, user)
+        file = File(
+            id=fid,
+            name=filename,
+            folder_id=folder.id,
+            type=_file_type(filename),
+            size=len(content),
+            sha256=digest,
+            content_type="text/markdown",
+            owner_id=user.id,
+            team_id=folder.team_id if folder.scope == "team" else None,
+            permission_scope="团队" if folder.scope == "team" else "个人",
+            tags=",".join(tags),
+            created_by=user.username,
+        )
+        _store_file_content(fid, digest, content)
+        await self._files.create(file)
+        await self._append_file_version(file, content, user)
+        await self._s.commit()
+        return await self.add_knowledge_document(kb_id, type("_Payload", (), {"file_id": fid})(), user)
+
+    async def _knowledge_document_target_folder(self, kb: KnowledgeBase, user: UserPublic) -> str:
+        if kb.scope_type != "team":
+            return await self._ensure_personal_root(user)
+        if not kb.scope_id:
+            raise WorkspaceError(400, "KB_SCOPE_MISSING", "团队知识库缺少团队范围", {"kb_id": kb.id})
+        root_id = f"folder-team-{kb.scope_id}"
+        if not await self._folders.get_by_id(root_id):
+            await self._folders.create(Folder(
+                id=root_id,
+                name="团队空间",
+                scope="team",
+                team_id=kb.scope_id,
+            ))
+            await self._s.commit()
+        return root_id
 
     async def remove_knowledge_document(self, kb_id: str, doc_id: str, user: UserPublic) -> None:
         """Remove a document from a knowledge base."""
@@ -1706,6 +1899,101 @@ class WorkspaceServiceDB:
             params.setdefault("query", "算法")
         return params
 
+    def _workflow_payload_inputs(self, payload: Any) -> dict[str, Any]:
+        inputs = getattr(payload, "inputs", None)
+        if not isinstance(inputs, dict):
+            inputs = {}
+        result = dict(inputs)
+        file_id = getattr(payload, "file_id", None)
+        target_kb_id = getattr(payload, "target_kb_id", None)
+        if file_id is not None:
+            result.setdefault("file_id", file_id)
+        if target_kb_id is not None:
+            result.setdefault("target_kb_id", target_kb_id)
+        return result
+
+    def _workflow_node_maps(self, nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> tuple[dict[str, dict[str, Any]], dict[str, list[str]], dict[str, int]]:
+        node_by_id = {str(node.get("id")): node for node in nodes if node.get("id")}
+        outgoing = {node_id: [] for node_id in node_by_id}
+        indegree = {node_id: 0 for node_id in node_by_id}
+        for edge in edges:
+            source = edge.get("source")
+            target = edge.get("target")
+            if source in node_by_id and target in node_by_id:
+                outgoing[source].append(target)
+                indegree[target] += 1
+        return node_by_id, outgoing, indegree
+
+    def _workflow_topological_order(self, nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> list[dict[str, Any]] | None:
+        node_by_id, outgoing, indegree = self._workflow_node_maps(nodes, edges)
+        original_index = {str(node.get("id")): index for index, node in enumerate(nodes) if node.get("id")}
+        ready = sorted((node_id for node_id, degree in indegree.items() if degree == 0), key=lambda item: original_index.get(item, 0))
+        ordered_ids: list[str] = []
+        while ready:
+            node_id = ready.pop(0)
+            ordered_ids.append(node_id)
+            for target in sorted(outgoing.get(node_id, []), key=lambda item: original_index.get(item, 0)):
+                indegree[target] -= 1
+                if indegree[target] == 0:
+                    ready.append(target)
+                    ready.sort(key=lambda item: original_index.get(item, 0))
+        if len(ordered_ids) != len(node_by_id):
+            return None
+        return [node_by_id[node_id] for node_id in ordered_ids]
+
+    def _workflow_read_path(self, value: Any, path: str) -> Any:
+        current = value
+        parts = [part for part in path.strip(".").split(".") if part]
+        for part in parts:
+            if isinstance(current, dict):
+                current = current.get(part)
+            elif isinstance(current, list) and part.isdigit():
+                index = int(part)
+                current = current[index] if 0 <= index < len(current) else None
+            else:
+                return None
+        return current
+
+    def _workflow_resolve_ref(self, ref: str, node_outputs: dict[str, dict[str, Any]], workflow_inputs: dict[str, Any]) -> Any:
+        if not ref.startswith("$"):
+            return ref
+        body = ref[1:]
+        node_id, _, path = body.partition(".")
+        if node_id in {"input", "inputs"}:
+            return self._workflow_read_path(workflow_inputs, path.removeprefix("output."))
+        node_record = node_outputs.get(node_id, {})
+        if not path:
+            return node_record
+        return self._workflow_read_path(node_record, path)
+
+    def _workflow_resolve_value(self, value: Any, node_outputs: dict[str, dict[str, Any]], workflow_inputs: dict[str, Any]) -> Any:
+        if isinstance(value, str):
+            return self._workflow_resolve_ref(value, node_outputs, workflow_inputs)
+        if isinstance(value, list):
+            return [self._workflow_resolve_value(item, node_outputs, workflow_inputs) for item in value]
+        if isinstance(value, dict):
+            mode = value.get("mode")
+            if mode == "literal":
+                return value.get("value")
+            if mode == "input":
+                input_key = str(value.get("input_key") or value.get("key") or "")
+                return self._workflow_read_path(workflow_inputs, input_key)
+            if mode == "node":
+                node_id = str(value.get("node_id") or "")
+                path = str(value.get("path") or "output")
+                return self._workflow_read_path(node_outputs.get(node_id, {}), path)
+            if mode == "ref":
+                return self._workflow_resolve_ref(str(value.get("value") or ""), node_outputs, workflow_inputs)
+            return {key: self._workflow_resolve_value(item, node_outputs, workflow_inputs) for key, item in value.items()}
+        return value
+
+    def _workflow_resolve_parameters(self, node: dict[str, Any], node_outputs: dict[str, dict[str, Any]], workflow_inputs: dict[str, Any]) -> dict[str, Any]:
+        parameters = node.get("parameters") or {}
+        if not isinstance(parameters, dict):
+            return {}
+        resolved = self._workflow_resolve_value(parameters, node_outputs, workflow_inputs)
+        return resolved if isinstance(resolved, dict) else {}
+
     async def create_agent_task(self, payload: Any, user: UserPublic) -> AgentTaskResponse:
         kb_id = getattr(payload, "kb_id", None)
         if kb_id:
@@ -1764,6 +2052,21 @@ class WorkspaceServiceDB:
             if loaded is not None:
                 items.append(loaded)
         return AgentTaskListResponse(items=items)
+
+    async def delete_agent_task(self, task_id: str, user: UserPublic) -> None:
+        task = await self._agent_tasks.get_by_id(task_id)
+        if not task or task.owner_id != user.id:
+            raise WorkspaceError(404, "AGENT_TASK_NOT_FOUND", "智能体任务不存在", {"task_id": task_id})
+        task_name = task.task[:100]
+        await self._agent_tasks.delete(task)
+        self._agent_executor.delete(task_id, user)
+        await self._audit.create(AuditLog(
+            actor=user.username,
+            action="agent.delete_task",
+            resource_type="agent_task",
+            resource_name=task_name,
+        ))
+        await self._s.commit()
 
     async def preview_agent_plan(self, payload: Any, user: UserPublic) -> AgentPlanPreviewResponse:
         kb_id = getattr(payload, "kb_id", None)
@@ -2165,10 +2468,23 @@ class WorkspaceServiceDB:
             ))
         return revisions
 
-    async def list_workflows(self) -> list[WorkflowDefinition]:
+    def _can_read_workflow(self, workflow: Workflow, user: UserPublic) -> bool:
+        return workflow.status == "template" or str(workflow.created_by) == str(user.id)
+
+    async def _ensure_workflow_access(self, workflow_id: str, user: UserPublic, *, manage: bool = False) -> Workflow:
+        workflow = await self._workflows.get_by_id(workflow_id)
+        if not workflow or not self._can_read_workflow(workflow, user):
+            raise WorkspaceError(404, "WORKFLOW_NOT_FOUND", "流程不存在", {"workflow_id": workflow_id})
+        if manage and str(workflow.created_by) != str(user.id):
+            raise WorkspaceError(403, "WORKFLOW_MANAGE_FORBIDDEN", "没有管理该流程的权限", {"workflow_id": workflow_id})
+        return workflow
+
+    async def list_workflows(self, user: UserPublic) -> list[WorkflowDefinition]:
         wfs = await self._workflows.list_all()
+        wfs = [wf for wf in wfs if self._can_read_workflow(wf, user)]
         return [WorkflowDefinition(id=wf.id, name=wf.name, description=wf.description or "",
                                    trigger=wf.trigger, version=wf.version, status=wf.status,
+                                   node_count=0,
                                    nodes=[], edges=[]) for wf in wfs]
 
     async def create_workflow(self, payload: Any, user: UserPublic) -> WorkflowDefinition:
@@ -2192,9 +2508,7 @@ class WorkspaceServiceDB:
 
     async def update_workflow(self, workflow_id: str, payload: Any, user: UserPublic) -> WorkflowDefinition:
         import json as _json
-        wf = await self._workflows.get_by_id(workflow_id)
-        if not wf:
-            return WorkflowDefinition(id=workflow_id, name="流程", description="", trigger="manual", version="0.1.0", status="draft", nodes=[], edges=[])
+        wf = await self._ensure_workflow_access(workflow_id, user, manage=True)
         if getattr(payload, "name", None):
             wf.name = getattr(payload, "name")
         if getattr(payload, "description", None) is not None:
@@ -2219,27 +2533,35 @@ class WorkspaceServiceDB:
 
     async def validate_workflow(self, workflow_id: str, user: UserPublic) -> Any:
         import json as _json
-        wf = await self._workflows.get_by_id(workflow_id)
-        if not wf:
-            return {"valid": False, "issues": [{"code": "NOT_FOUND", "message": "流程不存在"}]}
+        wf = await self._ensure_workflow_access(workflow_id, user)
         nodes = _json.loads(wf.nodes) if wf.nodes else []
         edges = _json.loads(wf.edges) if wf.edges else []
         issues = []
         tool_names = {t.name for t in await self.list_tools()}
-        node_ids = {n.get("id") for n in nodes}
+        node_ids = set()
+        for n in nodes:
+            node_id = n.get("id")
+            if not node_id:
+                issues.append({"code": "WORKFLOW_NODE_ID_REQUIRED", "message": "流程节点缺少 ID"})
+                continue
+            if node_id in node_ids:
+                issues.append({"code": "WORKFLOW_NODE_DUPLICATE", "message": f"流程节点 ID 重复: {node_id}", "node_id": node_id})
+            node_ids.add(node_id)
         for n in nodes:
             tn = n.get("tool_name")
-            if tn and tn not in tool_names:
+            if n.get("type") == "tool" and not tn:
+                issues.append({"code": "WORKFLOW_TOOL_REQUIRED", "message": "工具节点缺少 tool_name", "node_id": n.get("id")})
+            elif tn and tn not in tool_names:
                 issues.append({"code": "WORKFLOW_TOOL_UNKNOWN", "message": f"工具节点引用了未注册工具: {tn}", "node_id": n.get("id")})
         for e in edges:
             if e.get("source") not in node_ids or e.get("target") not in node_ids:
                 issues.append({"code": "WORKFLOW_EDGE_INVALID", "message": f"连线 {e.get('id')} 引用了不存在的节点", "edge_id": e.get("id")})
+        if self._workflow_topological_order(nodes, edges) is None:
+            issues.append({"code": "WORKFLOW_CYCLE", "message": "流程连线存在环，不能形成 DAG"})
         return {"valid": len(issues) == 0, "issues": issues, "node_count": len(nodes), "edge_count": len(edges)}
 
     async def publish_workflow(self, workflow_id: str, user: UserPublic) -> WorkflowDefinition:
-        wf = await self._workflows.get_by_id(workflow_id)
-        if not wf:
-            return WorkflowDefinition(id=workflow_id, name="已发布", description="", trigger="manual", version="0.1.0", status="published", nodes=[], edges=[])
+        wf = await self._ensure_workflow_access(workflow_id, user, manage=True)
         wf.status = "published"
         # Bump minor version
         parts = wf.version.split(".")
@@ -2257,33 +2579,91 @@ class WorkspaceServiceDB:
     async def execute_workflow(self, workflow_id: str, payload: Any, user: UserPublic) -> WorkflowExecutionResponse:
         import secrets as _s
         import json as _json
-        wf = await self._workflows.get_by_id(workflow_id)
-        if not wf:
-            return WorkflowExecutionResponse(id=f"exec-{_s.token_hex(4)}", workflow_id=workflow_id, status="failed", node_executions=[], output={"summary": "流程不存在"})
+        wf = await self._ensure_workflow_access(workflow_id, user)
         nodes = _json.loads(wf.nodes) if wf.nodes else []
+        edges = _json.loads(wf.edges) if wf.edges else []
         if not nodes:
             return WorkflowExecutionResponse(id=f"exec-{_s.token_hex(4)}", workflow_id=workflow_id, status="completed", node_executions=[], output={"summary": f"流程「{wf.name}」无节点，执行完成"})
+        ordered_nodes = self._workflow_topological_order(nodes, edges)
+        if ordered_nodes is None:
+            return WorkflowExecutionResponse(id=f"exec-{_s.token_hex(4)}", workflow_id=workflow_id, status="failed", node_executions=[], output={"summary": f"流程「{wf.name}」包含环路，无法执行 DAG"})
+
         node_executions = []
-        for node in nodes:
+        node_outputs: dict[str, dict[str, Any]] = {}
+        workflow_inputs = self._workflow_payload_inputs(payload)
+        workflow_failed = False
+        final_output: dict[str, Any] = {}
+        for node in ordered_nodes:
+            node_id = str(node.get("id", ""))
+            node_type = str(node.get("type", "tool"))
+            resolved_parameters = self._workflow_resolve_parameters(node, node_outputs, workflow_inputs)
             tool_name = node.get("tool_name")
             if tool_name:
-                tool_input = self._workflow_tool_params(tool_name, node, payload)
+                resolved_node = dict(node)
+                resolved_node["parameters"] = resolved_parameters
+                tool_input = self._workflow_tool_params(tool_name, resolved_node, payload)
                 execution = await self._tool_registry.execute(tool_name, tool_input, self, user)
                 status = "success" if execution.status == "success" else "failed"
                 output = execution.output if execution.status == "success" else {
                     "error": execution.error_message or execution.clarification or "工具执行失败",
                 }
                 node_executions.append({
-                    "node_id": node.get("id", ""),
+                    "node_id": node_id,
                     "name": node.get("name", ""),
                     "tool_name": tool_name,
                     "status": status,
                     "input": tool_input,
                     "output": output,
                 })
+                node_outputs[node_id] = {"input": tool_input, "output": output, "status": status}
+                if status == "failed":
+                    workflow_failed = True
+                    final_output = output
+                    break
+            elif node_type in {"input", "trigger"}:
+                output = {**workflow_inputs, **resolved_parameters}
+                node_executions.append({
+                    "node_id": node_id,
+                    "name": node.get("name", ""),
+                    "tool_name": "",
+                    "status": "success",
+                    "input": workflow_inputs,
+                    "output": output,
+                })
+                node_outputs[node_id] = {"input": workflow_inputs, "output": output, "status": "success"}
+                final_output = output
+            elif node_type == "output":
+                output = resolved_parameters
+                if not output:
+                    incoming_sources = [edge.get("source") for edge in edges if edge.get("target") == node_id]
+                    if incoming_sources:
+                        source_id = str(incoming_sources[-1])
+                        output = dict(node_outputs.get(source_id, {}).get("output") or {})
+                node_executions.append({
+                    "node_id": node_id,
+                    "name": node.get("name", ""),
+                    "tool_name": "",
+                    "status": "success",
+                    "input": resolved_parameters,
+                    "output": output,
+                })
+                node_outputs[node_id] = {"input": resolved_parameters, "output": output, "status": "success"}
+                final_output = output
             else:
-                node_executions.append({"node_id": node.get("id", ""), "name": node.get("name", ""), "tool_name": "", "status": "success", "input": {}, "output": {}})
-        return WorkflowExecutionResponse(id=f"exec-{_s.token_hex(4)}", workflow_id=workflow_id, status="completed", node_executions=node_executions, output={"summary": f"流程「{wf.name}」执行完成，共 {len(nodes)} 个节点"})
+                output = resolved_parameters
+                node_executions.append({
+                    "node_id": node_id,
+                    "name": node.get("name", ""),
+                    "tool_name": "",
+                    "status": "success",
+                    "input": resolved_parameters,
+                    "output": output,
+                })
+                node_outputs[node_id] = {"input": resolved_parameters, "output": output, "status": "success"}
+                final_output = output
+        summary = f"流程「{wf.name}」执行{'失败' if workflow_failed else '完成'}，共执行 {len(node_executions)} 个节点"
+        output = {"summary": summary, "result": final_output, "nodes": node_outputs}
+        return WorkflowExecutionResponse(id=f"exec-{_s.token_hex(4)}", workflow_id=workflow_id, status="failed" if workflow_failed else "completed", node_executions=node_executions, output=output)
 
     async def _seed_workflow_templates(self) -> None:
         """Seed built-in workflow templates if none exist."""
@@ -2388,6 +2768,7 @@ class WorkspaceServiceDB:
             db_file = await self._files.get_by_id(fid)
             if db_file is None:
                 raise ValueError(f"FILE_NOT_FOUND: {fid}")
+            await self._ensure_can_read_file(db_file, user)
             content = _read_file_content(db_file)
             if content is None:
                 raise ValueError(f"CONTENT_MISSING: {fid}")
@@ -2412,12 +2793,12 @@ class WorkspaceServiceDB:
             raise ValueError(f"UNSUPPORTED_ALGORITHM: {algorithm}")
 
         compressed = buf.getvalue()
-        archive_name = f"archive-{_s().token_hex(4)}{ext}"
+        archive_name = f"archive-{secrets.token_hex(4)}{ext}"
         content_sha = hashlib.sha256(compressed).hexdigest()
         _store_file_content("", content_sha, compressed)
 
         archive_file = File(
-            id=f"file-{_s().token_hex(6)}",
+            id=f"file-{secrets.token_hex(6)}",
             name=archive_name,
             folder_id="",
             type=ext.lstrip("."),
@@ -2447,6 +2828,7 @@ class WorkspaceServiceDB:
         db_file = await self._files.get_by_id(file_id)
         if db_file is None:
             raise ValueError(f"FILE_NOT_FOUND: {file_id}")
+        await self._ensure_can_read_file(db_file, user)
         content = _read_file_content(db_file)
         if content is None:
             raise ValueError(f"CONTENT_MISSING: {file_id}")
@@ -2461,7 +2843,7 @@ class WorkspaceServiceDB:
                     sha = hashlib.sha256(data).hexdigest()
                     _store_file_content("", sha, data)
                     new_file = File(
-                        id=f"file-{_s().token_hex(6)}", name=name, folder_id="",
+                        id=f"file-{secrets.token_hex(6)}", name=name, folder_id="",
                         type=name.rsplit(".", 1)[-1] if "." in name else "",
                         size=len(data), sha256=sha,
                         content_type="application/octet-stream",
@@ -2485,7 +2867,7 @@ class WorkspaceServiceDB:
                     sha = hashlib.sha256(raw).hexdigest()
                     _store_file_content("", sha, raw)
                     new_file = File(
-                        id=f"file-{_s().token_hex(6)}", name=member.name, folder_id="",
+                        id=f"file-{secrets.token_hex(6)}", name=member.name, folder_id="",
                         type=member.name.rsplit(".", 1)[-1] if "." in member.name else "",
                         size=len(raw), sha256=sha,
                         content_type="application/octet-stream",
@@ -2504,8 +2886,61 @@ class WorkspaceServiceDB:
         return results
 
     # ── Permissions / Notifications / Audit ──
+    async def _ensure_can_manage_permission_resource(self, resource_type: str, resource_id: str, user: UserPublic) -> None:
+        if resource_type == "file":
+            file = await self._files.get_by_id(resource_id)
+            if not file:
+                raise WorkspaceError(404, "PERMISSION_RESOURCE_NOT_FOUND", "权限资源不存在", {"resource_type": resource_type, "resource_id": resource_id})
+            team_id = await self._file_team_id(file)
+            if team_id:
+                member = await self._team_member_for_user(team_id, user)
+                if not member or member.role not in {"owner", "admin"}:
+                    raise WorkspaceError(403, "PERMISSION_RESOURCE_FORBIDDEN", "没有管理该资源权限规则的权限", {"resource_type": resource_type, "resource_id": resource_id})
+                return
+            if file.owner_id != user.id:
+                raise WorkspaceError(403, "PERMISSION_RESOURCE_FORBIDDEN", "没有管理该资源权限规则的权限", {"resource_type": resource_type, "resource_id": resource_id})
+            return
+        if resource_type == "folder":
+            folder = await self._folders.get_by_id(resource_id)
+            if not folder:
+                raise WorkspaceError(404, "PERMISSION_RESOURCE_NOT_FOUND", "权限资源不存在", {"resource_type": resource_type, "resource_id": resource_id})
+            if folder.scope == "team":
+                member = await self._team_member_for_user(folder.team_id, user)
+                if not member or member.role not in {"owner", "admin"}:
+                    raise WorkspaceError(403, "PERMISSION_RESOURCE_FORBIDDEN", "没有管理该资源权限规则的权限", {"resource_type": resource_type, "resource_id": resource_id})
+                return
+            if folder.owner_id not in {None, user.id}:
+                raise WorkspaceError(403, "PERMISSION_RESOURCE_FORBIDDEN", "没有管理该资源权限规则的权限", {"resource_type": resource_type, "resource_id": resource_id})
+            return
+        if resource_type == "team":
+            await self._ensure_team_admin(resource_id, user)
+            return
+        if resource_type == "knowledge_base":
+            await self._ensure_kb_access(resource_id, user, manage=True)
+            return
+        if resource_type == "workflow":
+            await self._ensure_workflow_access(resource_id, user, manage=True)
+            return
+        if resource_type == "tool":
+            tools = await self.list_tools()
+            if resource_id not in {tool.id for tool in tools} and resource_id not in {tool.name for tool in tools}:
+                raise WorkspaceError(404, "PERMISSION_RESOURCE_NOT_FOUND", "权限资源不存在", {"resource_type": resource_type, "resource_id": resource_id})
+            return
+        raise WorkspaceError(422, "PERMISSION_RESOURCE_INVALID", "资源类型不支持", {"resource_type": resource_type})
+
+    async def _can_manage_permission_resource(self, resource_type: str, resource_id: str, user: UserPublic) -> bool:
+        try:
+            await self._ensure_can_manage_permission_resource(resource_type, resource_id, user)
+        except (ValueError, WorkspaceError):
+            return False
+        return True
+
     async def list_permission_rules(self, user: UserPublic) -> list[PermissionRulePublic]:
         rules = await self._perms.list_all()
+        visible_rules = []
+        for rule in rules:
+            if await self._can_manage_permission_resource(rule.resource_type, rule.resource_id, user):
+                visible_rules.append(rule)
         return [
             PermissionRulePublic(
                 id=r.id,
@@ -2521,11 +2956,16 @@ class WorkspaceServiceDB:
                 created_at=r.created_at,
                 created_by=user.username,
             )
-            for r in rules
+            for r in visible_rules
         ]
 
     async def create_permission_rule(self, payload: Any, user: UserPublic) -> PermissionRulePublic:
         import secrets as _s
+        await self._ensure_can_manage_permission_resource(
+            getattr(payload, "resource_type", "file"),
+            getattr(payload, "resource_id", ""),
+            user,
+        )
         rid = f"rule-{_s.token_hex(4)}"
         r = PermissionRule(id=rid, subject_type=getattr(payload, "subject_type", "user"),
                            subject_id=getattr(
@@ -2556,6 +2996,7 @@ class WorkspaceServiceDB:
     async def delete_permission_rule(self, rule_id: str, user: UserPublic) -> None:
         r = await self._perms.get_by_id(rule_id)
         if r:
+            await self._ensure_can_manage_permission_resource(r.resource_type, r.resource_id, user)
             await self._perms.delete(r)
             await self._s.commit()
 
@@ -2594,7 +3035,6 @@ class WorkspaceServiceDB:
     # ── Workspace snapshot ──
     async def snapshot(self, user: UserPublic) -> WorkspaceSnapshot:
         import json as _json
-        files = [f for f in await self._files.list_all() if f.owner_id is None or f.owner_id == user.id]
         all_folders = await self._folders.list_all()
         team_ids_snap = set()
         for t in await self._teams.list_all():
@@ -2604,6 +3044,10 @@ class WorkspaceServiceDB:
                     team_ids_snap.add(t.id)
             except Exception:
                 pass
+        files = [
+            f for f in await self._files.list_all()
+            if f.owner_id is None or f.owner_id == user.id or (f.team_id and f.team_id in team_ids_snap)
+        ]
         folders = [f for f in all_folders if f.owner_id is None or f.owner_id ==
                    user.id or (f.team_id and f.team_id in team_ids_snap)]
         teams_db = await self._teams.list_all()
@@ -2616,7 +3060,10 @@ class WorkspaceServiceDB:
                 continue
             team_summaries.append({"id": t.id, "name": t.name, "role": my_member.role, "member_count": len(
                 members), "unread_count": 0})
-        workflows_db = await self._workflows.list_all()
+        workflows_db = [
+            workflow for workflow in await self._workflows.list_all()
+            if self._can_read_workflow(workflow, user)
+        ]
         workflow_defs = []
         for w in workflows_db:
             try:
@@ -2653,18 +3100,19 @@ class WorkspaceServiceDB:
         )
 
     # ── Debug (FR-W07) ──
-    def start_debug(self, workflow_id: str, payload: dict, user) -> dict:
+    async def start_debug(self, workflow_id: str, payload: dict, user: UserPublic) -> dict:
         """Start a debug session, returns first node."""
+        await self._ensure_workflow_access(workflow_id, user)
         import secrets as _s
         sid = f"debug-{_s.token_hex(4)}"
         self._debug_sessions[sid] = {
-            "workflow_id": workflow_id, "cursor": 0, "results": []}
+            "workflow_id": workflow_id, "owner_id": user.id, "cursor": 0, "results": []}
         return {"session_id": sid, "status": "ready"}
 
-    def step_debug(self, session_id: str, workflow_id: str) -> dict:
+    def step_debug(self, session_id: str, workflow_id: str, user: UserPublic) -> dict:
         """Execute next node in debug session."""
         session = self._debug_sessions.get(session_id)
-        if not session:
+        if not session or session.get("workflow_id") != workflow_id or session.get("owner_id") != user.id:
             from fastapi import HTTPException
             raise HTTPException(404, detail="Debug session not found")
         session["cursor"] += 1

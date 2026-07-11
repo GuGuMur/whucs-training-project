@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import secrets
+import zipfile
 from datetime import UTC, datetime, timedelta
 from itertools import count
 
@@ -500,6 +502,15 @@ def test_v2_permission_rule_response_contains_audit_fields() -> None:
     assert session.status_code == 201
     token = session.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
+    outsider_headers = auth_headers_v2("v2-permission-rule-outsider")
+    upload_response = client.post(
+        "/api/v2/files/upload",
+        headers=headers,
+        data={"folder_id": "personal-root", "tags": "permission"},
+        files={"file": ("permission-owned.txt", b"owned permission target", "text/plain")},
+    )
+    assert upload_response.status_code == 201
+    file_id = upload_response.json()["id"]
 
     response = client.post(
         "/api/v2/permissions/rules",
@@ -508,7 +519,7 @@ def test_v2_permission_rule_response_contains_audit_fields() -> None:
             "subject_type": "user",
             "subject_id": str(session.json()["user"]["id"]),
             "resource_type": "file",
-            "resource_id": "file-demo",
+            "resource_id": file_id,
             "action": "write",
             "effect": "allow",
             "inherit": False,
@@ -519,7 +530,31 @@ def test_v2_permission_rule_response_contains_audit_fields() -> None:
     rule = response.json()
     assert rule["created_at"]
     assert rule["created_by"] == username
-    assert rule["resource_label"] == "file-demo"
+    assert rule["resource_label"] == file_id
+
+    outsider_list = client.get("/api/v2/permissions/rules", headers=outsider_headers)
+    assert outsider_list.status_code == 200
+    assert all(item["id"] != rule["id"] for item in outsider_list.json()["items"])
+
+    outsider_create = client.post(
+        "/api/v2/permissions/rules",
+        headers=outsider_headers,
+        json={
+            "subject_type": "user",
+            "subject_id": str(session.json()["user"]["id"]),
+            "resource_type": "file",
+            "resource_id": file_id,
+            "action": "read",
+            "effect": "allow",
+            "inherit": False,
+        },
+    )
+    assert outsider_create.status_code == 403
+    assert outsider_create.json()["code"] == "PERMISSION_RESOURCE_FORBIDDEN"
+
+    outsider_delete = client.delete(f"/api/v2/permissions/rules/{rule['id']}", headers=outsider_headers)
+    assert outsider_delete.status_code == 403
+    assert outsider_delete.json()["code"] == "PERMISSION_RESOURCE_FORBIDDEN"
 
 
 def test_file_listing_filters_by_updated_time_range() -> None:
@@ -1345,6 +1380,16 @@ def test_team_file_read_and_write_permissions_are_enforced_across_resources() ->
     )
     assert upload_response.status_code == 201
     team_file = upload_response.json()
+
+    for visible_headers in [owner_headers, member_headers, guest_headers]:
+        snapshot_response = client.get("/api/v1/workspace/snapshot", headers=visible_headers)
+        assert snapshot_response.status_code == 200
+        snapshot_files = snapshot_response.json()["files"]
+        assert any(item["id"] == team_file["id"] for item in snapshot_files)
+
+    outsider_snapshot_response = client.get("/api/v1/workspace/snapshot", headers=outsider_headers)
+    assert outsider_snapshot_response.status_code == 200
+    assert all(item["id"] != team_file["id"] for item in outsider_snapshot_response.json()["files"])
 
     outsider_list_response = client.get(
         "/api/v1/files",
@@ -2475,6 +2520,27 @@ def test_v2_agent_calculator_task_uses_understand_call_observe_answer_flow() -> 
     assert detail_response.json()["id"] == task["id"]
 
 
+def test_v2_agent_task_can_be_deleted_from_history() -> None:
+    headers = auth_headers_v2("agent-delete-owner")
+
+    response = client.post(
+        "/api/v2/agents/tasks",
+        headers=headers,
+        json={"task": "计算 9 - 4"},
+    )
+    assert response.status_code == 201
+    task = response.json()
+
+    delete_response = client.delete(f"/api/v2/agents/tasks/{task['id']}", headers=headers)
+    assert delete_response.status_code == 204
+
+    detail_response = client.get(f"/api/v2/agents/tasks/{task['id']}", headers=headers)
+    assert detail_response.status_code == 404
+    history_response = client.get("/api/v2/agents/tasks", headers=headers)
+    assert history_response.status_code == 200
+    assert task["id"] not in {item["id"] for item in history_response.json()["items"]}
+
+
 def test_v2_agent_multi_tool_task_runs_ordered_tools() -> None:
     headers = auth_headers_v2("agent-multi-tool-owner")
 
@@ -2853,6 +2919,148 @@ def test_v2_workflow_execution_uses_registered_tool_registry() -> None:
     assert tool_node["output"]["matches"][0]["file_id"] == file_id
 
 
+def test_v2_workflow_execution_runs_dag_and_resolves_parameter_bindings() -> None:
+    headers = auth_headers_v2("workflow-dag-owner")
+    create_response = client.post(
+        "/api/v2/workflows",
+        headers=headers,
+        json={
+            "name": "DAG 参数绑定流程",
+            "description": "按拓扑顺序执行并传递上游输出",
+            "trigger": "manual",
+            "nodes": [
+                {
+                    "id": "finish",
+                    "name": "输出结果",
+                    "type": "output",
+                    "parameters": {
+                        "answer": {"mode": "node", "node_id": "calc", "path": "output.result"},
+                        "expression": "$start.output.expression",
+                    },
+                },
+                {
+                    "id": "calc",
+                    "name": "计算表达式",
+                    "type": "tool",
+                    "tool_name": "calculator",
+                    "parameters": {"expression": "$start.output.expression"},
+                },
+                {
+                    "id": "start",
+                    "name": "输入表达式",
+                    "type": "input",
+                    "parameters": {"expression": {"mode": "input", "input_key": "expression"}},
+                },
+            ],
+            "edges": [
+                {"id": "e-start-calc", "source": "start", "target": "calc"},
+                {"id": "e-calc-finish", "source": "calc", "target": "finish"},
+            ],
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    validate_response = client.post(f"/api/v2/workflows/{workflow_id}/validate", headers=headers)
+    assert validate_response.status_code == 200
+    assert validate_response.json()["valid"] is True
+
+    execution_response = client.post(
+        f"/api/v2/workflows/{workflow_id}/executions",
+        headers=headers,
+        json={"inputs": {"expression": "2 + 3 * 4"}},
+    )
+
+    assert execution_response.status_code == 201
+    execution = execution_response.json()
+    assert execution["status"] == "completed"
+    assert [node["node_id"] for node in execution["node_executions"]] == ["start", "calc", "finish"]
+    calc_node = execution["node_executions"][1]
+    assert calc_node["input"] == {"expression": "2 + 3 * 4"}
+    assert calc_node["output"]["result"] == 14
+    finish_node = execution["node_executions"][2]
+    assert finish_node["output"] == {"answer": 14, "expression": "2 + 3 * 4"}
+    assert execution["output"]["result"] == {"answer": 14, "expression": "2 + 3 * 4"}
+
+
+def test_v2_workflow_validation_rejects_dag_cycles() -> None:
+    headers = auth_headers_v2("workflow-cycle-owner")
+    create_response = client.post(
+        "/api/v2/workflows",
+        headers=headers,
+        json={
+            "name": "循环 DAG",
+            "description": "不能执行",
+            "trigger": "manual",
+            "nodes": [
+                {"id": "a", "name": "A", "type": "tool", "tool_name": "calculator", "parameters": {"expression": "1 + 1"}},
+                {"id": "b", "name": "B", "type": "tool", "tool_name": "calculator", "parameters": {"expression": "2 + 2"}},
+            ],
+            "edges": [
+                {"id": "e-a-b", "source": "a", "target": "b"},
+                {"id": "e-b-a", "source": "b", "target": "a"},
+            ],
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    validate_response = client.post(f"/api/v2/workflows/{workflow_id}/validate", headers=headers)
+
+    assert validate_response.status_code == 200
+    validation = validate_response.json()
+    assert validation["valid"] is False
+    assert "WORKFLOW_CYCLE" in {issue["code"] for issue in validation["issues"]}
+
+
+def test_v2_workflow_permissions_are_owner_scoped() -> None:
+    owner_headers = auth_headers_v2("workflow-owner-scope")
+    outsider_headers = auth_headers_v2("workflow-outsider-scope")
+    create_response = client.post(
+        "/api/v2/workflows",
+        headers=owner_headers,
+        json={
+            "name": "私有流程",
+            "description": "只有创建者可管理和执行",
+            "trigger": "manual",
+            "nodes": [{"id": "input", "name": "输入", "type": "input"}],
+            "edges": [],
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    owner_list = client.get("/api/v2/workflows", headers=owner_headers)
+    outsider_list = client.get("/api/v2/workflows", headers=outsider_headers)
+    assert owner_list.status_code == 200
+    assert outsider_list.status_code == 200
+    assert any(item["id"] == workflow_id for item in owner_list.json()["items"])
+    assert all(item["id"] != workflow_id for item in outsider_list.json()["items"])
+
+    outsider_snapshot = client.get("/api/v2/workspace/snapshot", headers=outsider_headers)
+    assert outsider_snapshot.status_code == 200
+    assert all(item["id"] != workflow_id for item in outsider_snapshot.json()["workflows"])
+
+    for method, path, kwargs in [
+        ("patch", f"/api/v2/workflows/{workflow_id}", {"json": {"name": "越权修改"}}),
+        ("post", f"/api/v2/workflows/{workflow_id}/validate", {}),
+        ("post", f"/api/v2/workflows/{workflow_id}/publish", {}),
+        ("post", f"/api/v2/workflows/{workflow_id}/executions", {"json": {"inputs": {}}}),
+        ("post", f"/api/v2/workflows/{workflow_id}/debug/start", {}),
+    ]:
+        response = getattr(client, method)(path, headers=outsider_headers, **kwargs)
+        assert response.status_code == 404, f"{method.upper()} {path}: {response.status_code} {response.text}"
+
+    debug_start = client.post(f"/api/v2/workflows/{workflow_id}/debug/start", headers=owner_headers)
+    assert debug_start.status_code == 200
+    debug_step = client.post(
+        f"/api/v2/workflows/{workflow_id}/debug/step",
+        headers=outsider_headers,
+        json={"session_id": debug_start.json()["session_id"]},
+    )
+    assert debug_step.status_code == 404
+
+
 def test_v2_knowledge_base_scope_metadata_delete_and_access_control() -> None:
     owner_headers = auth_headers_v2("kb-scope-owner")
     outsider_headers = auth_headers_v2("kb-scope-outsider")
@@ -3072,6 +3280,253 @@ def test_v2_team_knowledge_base_rejects_personal_files_and_accepts_team_files() 
     files_response = client.get(f"/api/v2/knowledge-bases/{kb_id}/files", headers=headers)
     assert files_response.status_code == 200
     assert {item["file_id"] for item in files_response.json()["items"]} == {team_file_id}
+
+
+def test_v2_team_file_permissions_are_consistent_across_file_endpoints() -> None:
+    owner_session = auth_session_v2("v2-team-file-owner")
+    member_session = auth_session_v2("v2-team-file-member")
+    guest_session = auth_session_v2("v2-team-file-guest")
+    outsider_headers = auth_headers_v2("v2-team-file-outsider")
+    owner_headers = session_headers(owner_session)
+    member_headers = session_headers(member_session)
+    guest_headers = session_headers(guest_session)
+
+    team_response = client.post(
+        "/api/v2/teams",
+        headers=owner_headers,
+        json={"name": "v2团队网盘权限", "description": "跨入口权限一致性"},
+    )
+    assert team_response.status_code == 201
+    team = team_response.json()
+    team_folder_id = team["root_folder"]["id"]
+
+    for invited_session, role, headers in [
+        (member_session, "member", member_headers),
+        (guest_session, "guest", guest_headers),
+    ]:
+        invited_email = invited_session["user"]["email"]
+        assert isinstance(invited_email, str)
+        invite_response = client.post(
+            f"/api/v2/teams/{team['id']}/invites",
+            headers=owner_headers,
+            json={"email": invited_email, "role": role},
+        )
+        assert invite_response.status_code == 201
+        join_response = client.post(
+            f"/api/v2/teams/{team['id']}/members",
+            headers=headers,
+            json={"invite_token": invite_response.json()["token"]},
+        )
+        assert join_response.status_code == 201
+
+    upload_response = client.post(
+        "/api/v2/files/upload",
+        headers=member_headers,
+        data={"folder_id": team_folder_id, "tags": "团队,权限"},
+        files={"file": ("v2-team-note.txt", b"shared team content", "text/plain")},
+    )
+    assert upload_response.status_code == 201
+    team_file = upload_response.json()
+    file_id = team_file["id"]
+    assert team_file["permission_scope"] == "团队"
+
+    for visible_headers in [owner_headers, member_headers, guest_headers]:
+        snapshot_response = client.get("/api/v2/workspace/snapshot", headers=visible_headers)
+        assert snapshot_response.status_code == 200
+        assert any(item["id"] == file_id for item in snapshot_response.json()["files"])
+
+        list_response = client.get("/api/v2/files", params={"query": "v2-team-note"}, headers=visible_headers)
+        assert list_response.status_code == 200
+        assert any(item["id"] == file_id for item in list_response.json()["items"])
+
+        download_response = client.get(f"/api/v2/files/{file_id}/download", headers=visible_headers)
+        assert download_response.status_code == 200
+        assert download_response.content == b"shared team content"
+
+        content_response = client.get(f"/api/v2/files/{file_id}/content", headers=visible_headers)
+        assert content_response.status_code == 200
+        assert content_response.json()["content"] == "shared team content"
+
+        versions_response = client.get(f"/api/v2/files/{file_id}/versions", headers=visible_headers)
+        assert versions_response.status_code == 200
+        assert versions_response.json()["items"]
+
+    outsider_snapshot_response = client.get("/api/v2/workspace/snapshot", headers=outsider_headers)
+    assert outsider_snapshot_response.status_code == 200
+    assert all(item["id"] != file_id for item in outsider_snapshot_response.json()["files"])
+
+    for method, path, kwargs in [
+        ("get", f"/api/v2/files/{file_id}/download", {}),
+        ("get", f"/api/v2/files/{file_id}/content", {}),
+        ("get", f"/api/v2/files/{file_id}/versions", {}),
+        ("get", f"/api/v2/files/{file_id}/annotations", {}),
+        ("post", f"/api/v2/files/{file_id}/share-links", {"json": {}}),
+        ("post", f"/api/v2/files/{file_id}/copy", {"json": {"target_folder_id": team_folder_id}}),
+        ("patch", f"/api/v2/files/{file_id}", {"json": {"tags": ["越权"]}}),
+        ("delete", f"/api/v2/files/{file_id}", {}),
+    ]:
+        response = getattr(client, method)(path, headers=outsider_headers, **kwargs)
+        assert response.status_code == 403, f"{method.upper()} {path}: {response.status_code} {response.text}"
+
+    guest_update_response = client.patch(
+        f"/api/v2/files/{file_id}/content",
+        headers=guest_headers,
+        json={"content": "guest edit"},
+    )
+    assert guest_update_response.status_code == 403
+    assert guest_update_response.json()["code"] == "FILE_WRITE_FORBIDDEN"
+
+    guest_copy_response = client.post(
+        f"/api/v2/files/{file_id}/copy",
+        headers=guest_headers,
+        json={"target_folder_id": team_folder_id},
+    )
+    assert guest_copy_response.status_code == 403
+    assert guest_copy_response.json()["code"] == "FOLDER_WRITE_FORBIDDEN"
+
+    member_copy_response = client.post(
+        f"/api/v2/files/{file_id}/copy",
+        headers=member_headers,
+        json={"target_folder_id": team_folder_id},
+    )
+    assert member_copy_response.status_code == 201
+    copied = member_copy_response.json()
+    assert copied["permission_scope"] == "团队"
+    assert copied["folder_id"] == team_folder_id
+
+    owner_snapshot_after_copy = client.get("/api/v2/workspace/snapshot", headers=owner_headers)
+    assert owner_snapshot_after_copy.status_code == 200
+    assert any(item["id"] == copied["id"] for item in owner_snapshot_after_copy.json()["files"])
+
+
+def test_v2_team_knowledge_base_guest_is_readonly() -> None:
+    owner_session = auth_session_v2("v2-kb-owner")
+    guest_session = auth_session_v2("v2-kb-guest")
+    owner_headers = session_headers(owner_session)
+    guest_headers = session_headers(guest_session)
+
+    team_response = client.post(
+        "/api/v2/teams",
+        headers=owner_headers,
+        json={"name": "v2团队知识库只读", "description": "guest 只读"},
+    )
+    assert team_response.status_code == 201
+    team = team_response.json()
+    invite_response = client.post(
+        f"/api/v2/teams/{team['id']}/invites",
+        headers=owner_headers,
+        json={"email": guest_session["user"]["email"], "role": "guest"},
+    )
+    assert invite_response.status_code == 201
+    join_response = client.post(
+        f"/api/v2/teams/{team['id']}/members",
+        headers=guest_headers,
+        json={"invite_token": invite_response.json()["token"]},
+    )
+    assert join_response.status_code == 201
+    assert join_response.json()["role"] == "guest"
+
+    kb_response = client.post(
+        "/api/v2/knowledge-bases",
+        headers=owner_headers,
+        json={"name": "团队KB", "scope_type": "team", "scope_id": team["id"]},
+    )
+    assert kb_response.status_code == 201
+    kb_id = kb_response.json()["id"]
+
+    guest_list = client.get("/api/v2/knowledge-bases", headers=guest_headers)
+    assert guest_list.status_code == 200
+    assert any(item["id"] == kb_id for item in guest_list.json()["items"])
+
+    guest_update = client.patch(
+        f"/api/v2/knowledge-bases/{kb_id}",
+        headers=guest_headers,
+        json={"description": "guest edit"},
+    )
+    assert guest_update.status_code == 403
+    assert guest_update.json()["code"] == "KB_MANAGE_FORBIDDEN"
+
+    guest_reindex = client.post(f"/api/v2/knowledge-bases/{kb_id}/reindex", headers=guest_headers)
+    assert guest_reindex.status_code == 403
+    assert guest_reindex.json()["code"] == "KB_MANAGE_FORBIDDEN"
+
+
+def test_v2_file_compression_respects_read_permissions() -> None:
+    owner_headers = auth_headers_v2("v2-compress-owner")
+    outsider_headers = auth_headers_v2("v2-compress-outsider")
+    upload_response = client.post(
+        "/api/v2/files/upload",
+        headers=owner_headers,
+        data={"folder_id": "personal-root", "tags": "private"},
+        files={"file": ("private-note.txt", b"private compression content", "text/plain")},
+    )
+    assert upload_response.status_code == 201
+    file_id = upload_response.json()["id"]
+
+    outsider_compress = client.post(
+        "/api/v2/files/compress",
+        headers=outsider_headers,
+        json={"file_ids": [file_id], "algorithm": "zip"},
+    )
+    assert outsider_compress.status_code == 403
+    assert outsider_compress.json()["code"] == "FILE_READ_FORBIDDEN"
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("inside.txt", "private archive content")
+    archive_upload = client.post(
+        "/api/v2/files/upload",
+        headers=owner_headers,
+        data={"folder_id": "personal-root", "tags": "private"},
+        files={"file": ("private.zip", zip_buffer.getvalue(), "application/zip")},
+    )
+    assert archive_upload.status_code == 201
+    archive_id = archive_upload.json()["id"]
+
+    outsider_decompress = client.post(f"/api/v2/files/{archive_id}/decompress", headers=outsider_headers)
+    assert outsider_decompress.status_code == 403
+    assert outsider_decompress.json()["code"] == "FILE_READ_FORBIDDEN"
+
+
+def test_v2_personal_file_cannot_be_added_to_other_users_kb_or_recycle_bin() -> None:
+    owner_headers = auth_headers_v2("v2-personal-file-owner")
+    outsider_headers = auth_headers_v2("v2-personal-file-outsider")
+    upload_response = client.post(
+        "/api/v2/files/upload",
+        headers=owner_headers,
+        data={"folder_id": "personal-root", "tags": "private"},
+        files={"file": ("owner-private.txt", b"owner private content", "text/plain")},
+    )
+    assert upload_response.status_code == 201
+    file_id = upload_response.json()["id"]
+
+    outsider_download = client.get(f"/api/v2/files/{file_id}/download", headers=outsider_headers)
+    assert outsider_download.status_code == 403
+    assert outsider_download.json()["code"] == "FILE_READ_FORBIDDEN"
+
+    kb_response = client.post(
+        "/api/v2/knowledge-bases",
+        headers=outsider_headers,
+        json={"name": "外部用户个人KB"},
+    )
+    assert kb_response.status_code == 201
+    add_response = client.post(
+        f"/api/v2/knowledge-bases/{kb_response.json()['id']}/files:batch-add",
+        headers=outsider_headers,
+        json={"file_ids": [file_id]},
+    )
+    assert add_response.status_code == 200
+    assert add_response.json()["added"] == []
+    assert add_response.json()["skipped"] == [{"file_id": file_id, "code": "FILE_READ_FORBIDDEN"}]
+
+    delete_response = client.delete(f"/api/v2/files/{file_id}", headers=owner_headers)
+    assert delete_response.status_code == 204
+    owner_recycle_bin = client.get("/api/v2/files/recycle-bin", headers=owner_headers)
+    outsider_recycle_bin = client.get("/api/v2/files/recycle-bin", headers=outsider_headers)
+    assert owner_recycle_bin.status_code == 200
+    assert outsider_recycle_bin.status_code == 200
+    assert any(item["file"]["id"] == file_id for item in owner_recycle_bin.json()["items"])
+    assert all(item["file"]["id"] != file_id for item in outsider_recycle_bin.json()["items"])
 
 
 def test_v2_rag_multi_turn_conversation_persists_messages_and_citations() -> None:

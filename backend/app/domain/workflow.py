@@ -102,8 +102,16 @@ class AgentTaskListResponse(BaseModel):
     items: list[AgentTaskResponse]
 
 
-WorkflowNodeType = Literal["trigger", "tool",
-                           "condition", "loop", "aggregate", "output"]
+WorkflowNodeType = Literal[
+    "input",
+    "trigger",
+    "tool",
+    "condition",
+    "loop",
+    "transform",
+    "aggregate",
+    "output",
+]
 
 
 class WorkflowNodeDefinition(BaseModel):
@@ -170,8 +178,9 @@ class WorkflowListResponse(BaseModel):
 
 
 class WorkflowExecutionRequest(BaseModel):
-    file_id: str
+    file_id: str | None = None
     target_kb_id: str | None = None
+    inputs: dict[str, Any] = Field(default_factory=dict)
 
 
 class WorkflowNodeExecution(BaseModel):

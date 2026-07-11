@@ -24,12 +24,18 @@ class _UnavailableLLM:
         raise AssertionError("unavailable LLM should not be called")
 
 
-def _plan(task: str, llm_content: str | None = None, *, context_file_ids: list[str] | None = None):
+def _plan(
+    task: str,
+    llm_content: str | None = None,
+    *,
+    context_file_ids: list[str] | None = None,
+    kb_id: str | None = None,
+):
     planner = AgentPlanner(
         registry=ToolRegistry(),
         tool_llm=ToolCallingLLM(_FakeLLM(llm_content)) if llm_content is not None else _UnavailableLLM(),
     )
-    return asyncio.run(planner.plan(task, context_file_ids or [], None, {}))
+    return asyncio.run(planner.plan(task, context_file_ids or [], kb_id, {}))
 
 
 def test_agent_planner_falls_back_without_llm() -> None:
@@ -121,3 +127,32 @@ def test_agent_planner_fallback_selects_phase34_tools() -> None:
     assert weather_plan.plan_steps[0].tool_name == "weather_lookup"
     assert weather_plan.plan_steps[0].arguments["location"] == "武汉"
     assert rag_plan.plan_steps[0].tool_name == "rag_query"
+
+
+def test_agent_planner_fallback_selects_decoupled_arxiv_interest_flow() -> None:
+    plan = _plan(
+        "读取知识库内文档，提取用户兴趣，然后从 arxiv 获取最近 3 天的 5 篇相关论文，整理 markdown 存回知识库",
+        kb_id="kb-1",
+    )
+
+    assert plan.intent == "生成 arXiv 兴趣论文报告"
+    assert [step.tool_name for step in plan.plan_steps] == [
+        "kb_interest_extract",
+        "arxiv_search",
+        "arxiv_markdown_render",
+        "knowledge_markdown_write",
+    ]
+    assert plan.plan_steps[0].arguments == {
+        "kb_id": "kb-1",
+        "query": "",
+        "max_terms": 8,
+    }
+    assert plan.plan_steps[1].arguments == {
+        "interests": "$kb_interest_extract.interests",
+        "days": 3,
+        "max_results": 5,
+    }
+    assert plan.plan_steps[2].arguments["papers"] == "$arxiv_search.papers"
+    assert plan.plan_steps[3].arguments["markdown"] == "$arxiv_markdown_render.markdown"
+    assert plan.plan_steps[3].arguments["kb_id"] == "kb-1"
+    assert plan.plan_steps[3].arguments["tags"] == ["arxiv", "research-interest", "auto-report"]

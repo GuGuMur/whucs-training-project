@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-11T03:40:18.744Z
-> Files: 197 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-11T05:31:11.991Z
+> Files: 206 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../.claude/plans/
 
@@ -124,15 +124,18 @@
 - `embedding.py` — Semantic embedding service wrapping sentence-transformers. (~576 tok)
 - `llm.py` — LLM service — OpenAI-compatible multi-provider with graceful fallback. (~1824 tok)
 - `parser.py` — Multi-format document text extraction for the knowledge-base pipeline. (~3201 tok)
+- `tool_registry.py` — Declares ToolSpec (~11929 tok)
 - `websocket_manager.py` — WebSocket connection manager for real-time push. (~424 tok)
-- `workspace_db.py` — WorkspaceService backed by SQLAlchemy — full DB migration. (~38001 tok)
+- `workspace_db.py` — WorkspaceService backed by SQLAlchemy — full DB migration. (~41624 tok)
 - `workspace.py` — WorkspaceError: register_user, register_user_db, login_user (~37009 tok)
 
 ## backend/tests/
 
+- `test_agent_evaluation.py` — _UnavailableLLM: available, complete, get_by_id, list_files + 5 more (~2808 tok)
 - `test_embedding.py` — Tests for the embedding service. (~934 tok)
 - `test_llm.py` — Tests for the LLM service with graceful fallback. (~435 tok)
 - `test_parser.py` — Tests for the multi-format document parser. (~2125 tok)
+- `test_tool_registry.py` — _FakeWorkspace: list_files, list_knowledge_bases, answer_question, list_knowledge_documents + 14 mor (~3287 tok)
 - `test_workspace_api.py` — auth_session, auth_headers, upload_test_file, create_test_folder (~26425 tok)
 
 ## docs/superpowers/specs/
@@ -206,6 +209,10 @@
 - `vite.config.ts` — Vite config using Vue, Vue JSX, Vue DevTools, UnoCSS, and `@` alias (~120 tok)
 - `vitest.config.ts` — Vitest config merged with Vite using jsdom and excluding e2e tests (~120 tok)
 
+## frontend/src/
+
+- `App.vue` — Vue: setup (~116 tok)
+
 ## frontend/src/auth/
 
 - `workspaceAccess.ts` — Exports WorkspaceAuthSession, workspaceSessionStorageKey, createAuthorizationHeader, resolveWorkspaceToken, resolveOptionalAccessToken, requireAccessToken, localStorage helpers (~550 tok)
@@ -276,11 +283,11 @@
 
 ## frontend/src/router/
 
-- `index.ts` — Exports createAppRouter (~783 tok)
+- `index.ts` — Exports createAppRouter (~860 tok)
 
 ## frontend/src/stores/
 
-- `auth.ts` — Exports LoginCredentials, RegisterCredentials, useAuthStore (~1666 tok)
+- `auth.ts` — Exports LoginCredentials, RegisterCredentials, useAuthStore (~1758 tok)
 - `knowledge.ts` — Exports useKnowledgeStore (~6682 tok)
 - `permissions.ts` — Exports usePermissionsStore (~1040 tok)
 - `workflowStore.ts` — Pinia setup store for workflow lifecycle with local state (activeWorkflowId, validation, execution, operationLoading, workflows list), computed activeWorkflow, and actions (list/create/update/validate/publish/execute) calling workspace client API with requireAccessToken (~3400 tok)
@@ -313,7 +320,7 @@
 
 ## ppt/
 
-- `index.html` — 智能文件工作空间平台 · 项目进度汇报 (~13828 tok)
+- `index.html` — 智能文件工作空间平台 · 项目进度汇报 (~13531 tok)
 
 ## references/
 
@@ -330,6 +337,14 @@
 ## report/requirements/
 
 - `requirements_specification.md` — 需求规格说明书，含用户需求、PlantUML 需求模型、ER 图、数据字典、非功能需求和依赖项 (~22000 tok)
+
+## reports/
+
+- `experiment_bacterial_growth.txt` (~2320 tok)
+- `experiment_plasmolysis.md` — 细胞生物学实验报告 (~861 tok)
+- `gen_docx_report.py` — Generate DOCX: DNA提取与鉴定实验报告 (~1834 tok)
+- `gen_pdf_report.py` — Generate PDF: 温度对过氧化氢酶活性的影响 (~2562 tok)
+- `gen_ppt_report.py` — Generate PPT: 光照强度对光合作用速率的影响 (~2882 tok)
 
 ## skills/
 

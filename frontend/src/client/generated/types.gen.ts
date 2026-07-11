@@ -2170,7 +2170,10 @@ export type WorkflowExecutionRequest = {
     /**
      * File Id
      */
-    file_id: string;
+    file_id?: string | null;
+    inputs?: {
+        [key: string]: unknown;
+    };
     /**
      * Target Kb Id
      */
@@ -2246,7 +2249,7 @@ export type WorkflowNodeDefinition = {
     /**
      * Type
      */
-    type: 'trigger' | 'tool' | 'condition' | 'loop' | 'aggregate' | 'output';
+    type: 'input' | 'trigger' | 'tool' | 'condition' | 'loop' | 'transform' | 'aggregate' | 'output';
 };
 
 /**
@@ -2501,6 +2504,42 @@ export type StreamAgentTaskApiV2AgentsTasksStreamPostResponses = {
      */
     200: unknown;
 };
+
+export type DeleteAgentTaskApiV2AgentsTasksTaskIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Task Id
+         */
+        task_id: string;
+    };
+    query?: never;
+    url: '/api/v2/agents/tasks/{task_id}';
+};
+
+export type DeleteAgentTaskApiV2AgentsTasksTaskIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteAgentTaskApiV2AgentsTasksTaskIdDeleteError = DeleteAgentTaskApiV2AgentsTasksTaskIdDeleteErrors[keyof DeleteAgentTaskApiV2AgentsTasksTaskIdDeleteErrors];
+
+export type DeleteAgentTaskApiV2AgentsTasksTaskIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteAgentTaskApiV2AgentsTasksTaskIdDeleteResponse = DeleteAgentTaskApiV2AgentsTasksTaskIdDeleteResponses[keyof DeleteAgentTaskApiV2AgentsTasksTaskIdDeleteResponses];
 
 export type GetAgentTaskApiV2AgentsTasksTaskIdGetData = {
     body?: never;

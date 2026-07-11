@@ -60,6 +60,7 @@ import {
   batchRemoveKnowledgeFilesApiV2KnowledgeBasesKbIdFilesBatchRemovePost,
   cancelAgentTaskApiV2AgentsTasksTaskIdCancelPost,
   continueAgentTaskApiV2AgentsTasksTaskIdContinuePost,
+  deleteAgentTaskApiV2AgentsTasksTaskIdDelete,
   deleteKnowledgeConversationApiV2ConversationsConversationIdDelete,
   getAgentTaskApiV2AgentsTasksTaskIdGet,
   knowledgeConversationDetailApiV2ConversationsConversationIdGet,
@@ -333,7 +334,8 @@ export interface WorkspaceWorkflowUpdateInput {
   trigger?: string | null
 }
 export interface WorkspaceWorkflowExecuteInput {
-  fileId: string
+  fileId?: string | null
+  inputs?: Record<string, unknown>
   targetKbId?: string | null
 }
 export interface WorkspaceAgentTaskInput {
@@ -488,7 +490,8 @@ export async function executeWorkspaceWorkflow(
 ): Promise<WorkspaceWorkflowExecution> {
   const response = await executeWorkflowApiV2WorkflowsWorkflowIdExecutionsPost({
     body: {
-      file_id: payload.fileId,
+      file_id: payload.fileId ?? null,
+      inputs: payload.inputs ?? {},
       target_kb_id: payload.targetKbId ?? null,
     },
     headers: createAuthorizationHeader(token),
@@ -599,6 +602,17 @@ export async function cancelAgentTask(token: string, taskId: string): Promise<Ag
   }
 
   return response.data
+}
+
+export async function deleteAgentTask(token: string, taskId: string): Promise<void> {
+  const response = await deleteAgentTaskApiV2AgentsTasksTaskIdDelete({
+    headers: createAuthorizationHeader(token),
+    path: { task_id: taskId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
 }
 
 export async function listWorkspaceTools(token: string): Promise<ToolListResponse> {

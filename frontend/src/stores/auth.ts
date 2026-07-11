@@ -94,14 +94,20 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true
     try {
       const r = await meApiV2UsersMeGet({ headers: createAuthorizationHeader(s.accessToken) })
-      if (r.error || !r.data) { logout(); return false }
+      if (r.error || !r.data) {
+        // Don't logout on TOKEN_EXPIRED — caller may refresh token
+        if (r.error && typeof r.error === 'object' && 'detail' in r.error) {
+          const detail = (r.error as any).detail
+          if (detail && detail.code === 'TOKEN_EXPIRED') return false
+        }
+        logout(); return false
+      }
       currentUser.value = r.data.user
       session.value = { ...s, displayName: r.data.user.display_name, userId: String(r.data.user.id) }
       saveWorkspaceSession(session.value)
       return true
     } catch {
-      logout()
-      return false
+      return false  // Network error — don't logout, retry possible
     } finally { loading.value = false }
   }
 

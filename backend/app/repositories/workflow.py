@@ -26,6 +26,13 @@ class AgentTaskRepository:
         return list(r.scalars().all())
     async def create(self, task: AgentTask) -> AgentTask: self._s.add(task); await self._s.flush(); return task
     async def update(self, task: AgentTask) -> AgentTask: await self._s.flush(); return task
+    async def delete(self, task: AgentTask) -> None:
+        await self._s.execute(delete(AgentTaskStep).where(AgentTaskStep.task_id == task.id))
+        await self._s.execute(delete(AgentMessage).where(AgentMessage.task_id == task.id))
+        await self._s.execute(delete(AgentToolCall).where(AgentToolCall.task_id == task.id))
+        await self._s.execute(delete(AgentPlanRevision).where(AgentPlanRevision.task_id == task.id))
+        await self._s.delete(task)
+        await self._s.flush()
 
 class AgentTaskStepRepository:
     def __init__(self, session: AsyncSession): self._s = session
