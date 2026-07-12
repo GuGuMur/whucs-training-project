@@ -5,7 +5,7 @@ WORKDIR /build/frontend
 
 # Install dependencies first (better layer caching)
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
-RUN corepack enable pnpm && pnpm install
+RUN corepack enable pnpm && corepack prepare pnpm@10 --activate && pnpm install
 
 # Copy source and build
 COPY frontend/ ./
