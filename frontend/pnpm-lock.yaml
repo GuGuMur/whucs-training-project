@@ -10,14 +10,6 @@ overrides:
   '@vue/compiler-dom': beta
   '@vue/compiler-sfc': beta
   '@vue/compiler-ssr': beta
-  '@vue/compiler-vapor': beta
-  '@vue/reactivity': beta
-  '@vue/runtime-core': beta
-  '@vue/runtime-dom': beta
-  '@vue/runtime-vapor': beta
-  '@vue/server-renderer': beta
-  '@vue/shared': beta
-  '@vue/compat': beta
 
 importers:
 
@@ -1499,6 +1491,9 @@ packages:
     resolution: {integrity: sha512-C7YpoWxewo01cG+S51MouH1v6taXBU5XvmxPjPAI3E9Zn3gpzb49e/ikShA5ov8ijE9R7tyIOUk4QU2xoDiT+Q==}
     peerDependencies:
       vue: 3.6.0-beta.17
+
+  '@vue/shared@3.5.39':
+    resolution: {integrity: sha512-l1rrBtBfTnmxvtsvdQDXltUUy8S1Y+ZaqdfUzmAnJkTd8Z8rv5v/ytW+TKiqEOWyHPoqtPlNFSs0lhRmYVSHVA==}
 
   '@vue/shared@3.6.0-beta.17':
     resolution: {integrity: sha512-iuDH2UPBc8nzqgL4dcLiqpAJoJfQe70RcPM34+p+dVk0ThJD9jjpLPjzouP+RoRrXkAPOC7jmMncafdv69BGaA==}
@@ -4476,7 +4471,7 @@ snapshots:
       '@babel/types': 7.29.7
       '@vue/babel-helper-vue-transform-on': 1.5.0
       '@vue/babel-plugin-resolve-type': 1.5.0(@babel/core@7.29.7)
-      '@vue/shared': 3.6.0-beta.17
+      '@vue/shared': 3.5.39
     optionalDependencies:
       '@babel/core': 7.29.7
     transitivePeerDependencies:
@@ -4492,7 +4487,7 @@ snapshots:
       '@babel/types': 7.29.7
       '@vue/babel-helper-vue-transform-on': 2.0.1
       '@vue/babel-plugin-resolve-type': 2.0.1(@babel/core@7.29.7)
-      '@vue/shared': 3.6.0-beta.17
+      '@vue/shared': 3.5.39
     optionalDependencies:
       '@babel/core': 7.29.7
     transitivePeerDependencies:
@@ -4615,7 +4610,7 @@ snapshots:
     dependencies:
       '@volar/language-core': 2.4.28
       '@vue/compiler-dom': 3.6.0-beta.17
-      '@vue/shared': 3.6.0-beta.17
+      '@vue/shared': 3.5.39
       alien-signals: 3.2.1
       muggle-string: 0.4.1
       path-browserify: 1.0.1
@@ -4648,6 +4643,8 @@ snapshots:
       '@vue/compiler-ssr': 3.6.0-beta.17
       '@vue/shared': 3.6.0-beta.17
       vue: 3.6.0-beta.17(typescript@6.0.3)
+
+  '@vue/shared@3.5.39': {}
 
   '@vue/shared@3.6.0-beta.17': {}
 

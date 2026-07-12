@@ -5,7 +5,7 @@ WORKDIR /build/frontend
 
 # Install dependencies first (better layer caching)
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
-RUN corepack enable pnpm && pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
+RUN corepack enable pnpm && pnpm install
 
 # Copy source and build
 COPY frontend/ ./
