@@ -49,6 +49,15 @@ os.environ.setdefault("LLM_MODEL", os.environ.get("LLM_MODEL", "gpt-4.1-mini"))
 def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        # Import all models first so Base.metadata is populated before create_all
+        import app.models.user  # noqa: F401
+        import app.models.file  # noqa: F401
+        import app.models.folder  # noqa: F401
+        import app.models.knowledge  # noqa: F401
+        import app.models.team  # noqa: F401
+        import app.models.workflow  # noqa: F401
+        import app.models.general  # noqa: F401
+
         from app.core.database import init_db, async_session
         await init_db()
 

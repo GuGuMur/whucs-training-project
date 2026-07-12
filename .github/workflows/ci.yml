@@ -19,7 +19,8 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with: { enable-cache: true }
       - run: uv sync --frozen
-      - run: PYTHONPATH=. uv run python -m pytest tests/ -q --tb=short -k "not agent_task and not semantic_rag"
+      - run: rm -f whucs.db test_phase35.db
+      - run: PYTHONPATH=. uv run python -m pytest tests/ -q --tb=short
         env: { LLM_API_KEY: "" }
 
   frontend:
