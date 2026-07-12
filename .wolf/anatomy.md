@@ -1,10 +1,11 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-11T06:52:21.584Z
-> Files: 206 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-12T12:58:21.562Z
+> Files: 217 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../.claude/plans/
 
+- `crystalline-singing-seal.md` — Unified Docker Deployment Plan (~616 tok)
 - `eventual-rolling-stardust.md` — Phase 25: Document Parser Integration & Verification (~591 tok)
 - `imperative-growing-raven.md` — Streaming RAG Q&A with Incremental Markdown Rendering (~953 tok)
 - `replicated-weaving-curry.md` — Plan: Auto-Index, RAG Chat Redesign, Workflow Templates (~1825 tok)
@@ -14,10 +15,12 @@
 
 - `CLAUDE.md` — OpenWolf (~57 tok)
 - `DESIGN.md` — Open Design 项目设计系统，定义智能文件管理平台的视觉风格、组件、布局和响应式规则 (~1500 tok)
+- `docker-compose.yml` — Docker Compose services (~357 tok)
 - `findings.md` — Findings & Decisions (~5086 tok)
 - `OPEN_DESIGN.md` — Open Design 使用说明，记录导入本项目、MCP 命令和推荐 prompt (~300 tok)
 - `progress.md` — Progress Log (~20740 tok)
-- `README.md` — Project documentation (~0 tok)
+- `README.md` — 项目整体 README：架构图、技术栈、快速开始、项目结构、CI/CD 概览 (~800 tok)
+- `setup.sh` (~1090 tok)
 - `task_plan.md` — Task Plan: Intelligent File Workspace Platform (~7507 tok)
 
 ## .claude/
@@ -31,6 +34,7 @@
 ## .github/workflows/
 
 - `ci.yml` — CI: CI (~297 tok)
+- `docker-publish.yml` — CI: Docker Publish (~383 tok)
 
 ## .wolf/
 
@@ -42,20 +46,24 @@
 
 ## backend/
 
+- `.dockerignore` — Docker build exclusion rules mirroring .gitignore for faster context sends (~200 tok)
 - `.gitignore` — Python/uv generated ignore rules for bytecode, virtualenvs, build outputs, caches, local env files, SQLite DBs, and local `.data/` uploaded file content (~700 tok)
 - `app/__init__.py` — Backend package marker (~10 tok)
 - `app/api/__init__.py` — API package marker (~10 tok)
 - `app/api/routes.py` — Legacy monolithic FastAPI `/api/v1` routes (deprecated in favor of v1/ split) (~2900 tok)
 - `app/domain/__init__.py` — Domain schema package marker (~10 tok)
 - `app/domain/schemas.py` — Pydantic request/response schemas for the MVP API contracts, including auth login/register/refresh/profile, folder/file payloads, annotations, notifications, teams, workflows, knowledge bases, and permission rules (~3400 tok)
-- `app/main.py` — FastAPI application factory, CORS, health route, and structured workspace error handler (~350 tok)
+- `app/main.py` — FastAPI application factory with lifespan handler (DB init, admin seed, template seed), CORS, health route, and structured workspace error handler (~500 tok)
 - `app/openapi_export.py` — CLI/helper for exporting FastAPI OpenAPI JSON to the frontend client boundary (~250 tok)
 - `app/services/__init__.py` — Service package marker (~10 tok)
 - `app/services/parser.py` — Multi-format document parser (PDF/DOCX/PPTX/TXT/MD/CSV) with lazy-loaded extractors, segment metadata, and ParseError handling (~200 tok)
 - `app/services/workspace.py` — In-memory MVP domain service with demo auth, token-kind refresh rotation, profile updates, folder tree CRUD, files, annotations, notifications/unread counts, RAG citations, tools, agents, workflows, teams, ACL permission rules, audit logs, and integrated document parser (~8200 tok)
+- `Dockerfile` — Docker container definition (~649 tok)
 - `main.py` — Uvicorn-compatible backend entry point importing `app.main:app` (~80 tok)
+- `nginx.conf` — Nginx site config: SPA fallback (try_files), /api/ proxy to uvicorn, /assets/ caching, gzip, WebSocket upgrade headers (~400 tok)
 - `pyproject.toml` — Add your description here (~266 tok)
-- `README.md` — Project documentation (~0 tok)
+- `README.md` — 后端技术文档：FastAPI 技术栈、测试指南、API 版本/V1 端点表/V2 增强、项目结构、Docker、LLM 配置 (~1200 tok)
+- `supervisord.conf` — Process manager config: nginx (daemon off) + uvicorn (127.0.0.1:8000), autorestart, log rotation (~300 tok)
 - `tests/test_openapi_export.py` — Backend OpenAPI export contract test for title, version, server URL, workspace snapshot, folder CRUD paths, file lifecycle/annotation/notification paths, workflow paths, team paths, and permission rule paths (~600 tok)
 - `tests/test_parser.py` — Parser unit tests: 21 tests covering 6 formats (PDF/DOCX/PPTX/TXT/MD/CSV), format detection, error handling, and segment metadata (~400 tok)
 - `tests/test_workspace_api.py` — Backend API contract tests for auth, refresh-token/profile boundaries, folder CRUD/tree validations, file lifecycle/versioning, files, annotations, notifications, RAG, agent tools, workflow MVP, team RBAC, and ACL permission rules (~4200 tok)
@@ -66,7 +74,7 @@
 
 ## backend/app/
 
-- `main.py` — API: 1 endpoints (~1231 tok)
+- `main.py` — API: 1 endpoints (~1256 tok)
 - `openapi_export.py` — export_openapi, main (~229 tok)
 
 ## backend/app/api/
@@ -100,7 +108,8 @@
 
 ## backend/app/core/
 
-- `config.py` — Declares Settings (~264 tok)
+- `config.py` — Declares Settings (~311 tok)
+- `database.py` — Base: get_db, init_db (~899 tok)
 
 ## backend/app/domain/
 
@@ -121,6 +130,7 @@
 
 ## backend/app/services/
 
+- `agent_planner.py` — Pydantic: PlannedToolCall (~6487 tok)
 - `embedding.py` — Semantic embedding service wrapping sentence-transformers. (~576 tok)
 - `llm.py` — LLM service — OpenAI-compatible multi-provider with graceful fallback. (~1824 tok)
 - `parser.py` — Multi-format document text extraction for the knowledge-base pipeline. (~3201 tok)
@@ -150,7 +160,7 @@
 - `index.html` — Vite HTML shell with zh-CN language and intelligent workspace title (~80 tok)
 - `openapi-ts.config.ts` — `@hey-api/openapi-ts` config generating SDK/types from `src/client/openapi` into `src/client/generated` (~80 tok)
 - `package.json` — Frontend dependencies and scripts for Vite, Vue, Naive UI, Pinia, Vitest, Playwright, UnoCSS, and OpenAPI client generation via backend `uv`/`python3` export (~650 tok)
-- `README.md` — Project documentation (~0 tok)
+- `README.md` — 前端技术文档：Vue 3 技术栈、命令表、OpenAPI 客户端生成、项目结构、架构约定/分层/边界/响应式/测试 (~1200 tok)
 - `src/App.vue` — App-level Naive UI providers and Chinese locale wrapping the router view (~180 tok)
 - `src/assets/base.css` — Minimal global reset, typography stack, app background, and root sizing (~320 tok)
 - `src/assets/main.css` — Imports the global base CSS only (~10 tok)
@@ -325,6 +335,10 @@
 ## references/
 
 - `base.md` (~1820 tok)
+
+## report/
+
+- `个人实验总结_霍从儒.tex` — 霍从儒个人实验总结 LaTeX 源文件，涵盖分工（含 Docker/CI）、完成情况、问题与解决、总结展望、课程建议 (~600 tok)
 
 ## report/before/
 

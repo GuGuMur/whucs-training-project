@@ -9,7 +9,15 @@ _db_url = settings.DATABASE_URL
 if _db_url.startswith("sqlite:///"):
     _db_url = _db_url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
 
-engine = create_async_engine(_db_url, echo=False)
+_engine_kwargs: dict = {"echo": settings.DB_ECHO}
+if _db_url.startswith("mysql"):
+    _engine_kwargs.update(
+        pool_size=settings.DB_POOL_SIZE,
+        pool_recycle=settings.DB_POOL_RECYCLE,
+        pool_pre_ping=True,
+    )
+
+engine = create_async_engine(_db_url, **_engine_kwargs)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

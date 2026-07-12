@@ -390,6 +390,20 @@ class AgentPlanner:
             ))
             seen.add(step.tool_name)
 
+        # Normalize $stepN.field → $tool_name.field references from LLM output
+        step_index_to_name: dict[str, str] = {}
+        for i, s in enumerate(steps):
+            for prefix in (str(i + 1), str(i)):
+                step_index_to_name[f"step{prefix}"] = s.tool_name
+        _step_ref = re.compile(r"\$step(\d+)\.(\w+)")
+        for s in steps:
+            for key, value in list(s.arguments.items()):
+                if isinstance(value, str):
+                    s.arguments[key] = _step_ref.sub(
+                        lambda m: f"${step_index_to_name.get(f'step{m.group(1)}', m.group(0))}.{m.group(2)}",
+                        value,
+                    )
+
         return AgentPlan(
             intent=plan.intent or _describe_intent(steps, task),
             missing_fields=_unique(missing_fields),

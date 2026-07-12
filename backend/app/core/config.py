@@ -13,7 +13,12 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Database — defaults to SQLite for local dev; set DATABASE_URL for MySQL
     DATABASE_URL: str = f"sqlite+aiosqlite:///{_env_dir / 'whucs.db'}"
+    DB_POOL_SIZE: int = 10
+    DB_POOL_RECYCLE: int = 3600
+    DB_ECHO: bool = False
+
     REDIS_URL: str = "redis://localhost:6379/0"
     S3_ENDPOINT: str = "localhost:9000"
     S3_ACCESS_KEY: str = "minioadmin"

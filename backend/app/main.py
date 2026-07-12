@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -27,7 +28,8 @@ if _provider == "deepseek":
     os.environ.setdefault("LLM_BASE_URL", "https://api.deepseek.com")
 elif _provider == "openai":
     os.environ["LLM_API_KEY"] = os.environ.get("OPENAI_API_KEY", "")
-    os.environ.setdefault("LLM_BASE_URL", os.environ.get("OPENAI_BASE_URL", ""))
+    os.environ.setdefault(
+        "LLM_BASE_URL", os.environ.get("OPENAI_BASE_URL", ""))
 else:
     # Auto-detect: prefer env-file keys over shell OPENAI_API_KEY
     _deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
@@ -45,24 +47,8 @@ os.environ.setdefault("LLM_MODEL", os.environ.get("LLM_MODEL", "gpt-4.1-mini"))
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(
-        title="WHU Intelligent File Workspace API",
-        version="0.1.0",
-        description="Report-aligned MVP API for intelligent file management and agent collaboration.",
-        servers=[{"url": "/"}],
-    )
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-    app.include_router(api_router)
-    app.include_router(api_router_v2)
-
-    @app.on_event("startup")
-    async def _startup() -> None:
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
         from app.core.database import init_db, async_session
         await init_db()
 
@@ -78,7 +64,8 @@ def create_app() -> FastAPI:
                     username=os.environ.get("ADMIN_USER", "admin"),
                     email=os.environ.get("ADMIN_EMAIL", "admin@whucs.local"),
                     hashed_password=hashlib.sha256(
-                        f"dev-workspace-secret:{os.environ.get('ADMIN_PASSWORD', 'Admin@123')}".encode()
+                        f"dev-workspace-secret:{os.environ.get('ADMIN_PASSWORD', 'Admin@123')}".encode(
+                        )
                     ).hexdigest(),
                     display_name="系统管理员",
                     roles="admin,super_admin",
@@ -91,9 +78,29 @@ def create_app() -> FastAPI:
             svc = WorkspaceServiceDB(session)
             await svc._seed_workflow_templates()
 
+        yield
+
+    app = FastAPI(
+        title="WHU Intelligent File Workspace API",
+        version="0.1.0",
+        description="Report-aligned API for intelligent file management and agent collaboration.",
+        servers=[{"url": "/"}],
+        lifespan=lifespan,
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.include_router(api_router)
+    app.include_router(api_router_v2)
+
     @app.exception_handler(WorkspaceError)
     async def workspace_error_handler(_: Request, exc: WorkspaceError) -> JSONResponse:
-        error = ErrorResponse(code=exc.code, message=exc.message, detail=exc.detail)
+        error = ErrorResponse(
+            code=exc.code, message=exc.message, detail=exc.detail)
         return JSONResponse(status_code=exc.status_code, content=error.model_dump())
 
     @app.get("/health")

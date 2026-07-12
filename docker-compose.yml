@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-whucs-root-password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-whucs}
+      MYSQL_USER: ${MYSQL_USER:-whucs}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-whucs-password}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "${APP_PORT:-80}:80"
+    environment:
+      DATABASE_URL: "mysql+asyncmy://${MYSQL_USER:-whucs}:${MYSQL_PASSWORD:-whucs-password}@mysql:3306/${MYSQL_DATABASE:-whucs}"
+      DB_POOL_SIZE: "${DB_POOL_SIZE:-10}"
+      DB_POOL_RECYCLE: "${DB_POOL_RECYCLE:-3600}"
+      LLM_PROVIDER: "${LLM_PROVIDER:-}"
+      LLM_API_KEY: "${LLM_API_KEY:-}"
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      LLM_MODEL: "${LLM_MODEL:-gpt-4.1-mini}"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysql-data:

@@ -1085,3 +1085,27 @@
 
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|
+| 20:16 | Created setup.sh | — | ~1090 |
+| 20:16 | Created setup.sh: one-command local dev launcher (prereq checks, uv sync, pnpm install, starts both servers, Ctrl+C cleanup) | setup.sh, .wolf/anatomy.md | created, chmod +x, duplicate docker-publish.yml entry cleaned | ~80 |
+| 20:16 | Session end: 6 writes across 5 files (main.py, Dockerfile, docker-publish.yml, .dockerignore, setup.sh) | 5 reads | ~4350 tok |
+| 20:21 | Created README.md | — | ~842 |
+| 20:21 | Created backend/README.md | — | ~1243 |
+| 20:21 | Created frontend/README.md | — | ~1340 |
+| 20:22 | Wrote root/backend/frontend README.md: root→整体架构+快速开始, backend→API版本表+Docker+LLM, frontend→技术栈+架构约定+分层边界 | README.md, backend/README.md, frontend/README.md, .wolf/anatomy.md | all three rewritten from placeholder, anatomy updated | ~200 |
+| 20:22 | Session end: 9 writes across 6 files (main.py, Dockerfile, docker-publish.yml, .dockerignore, setup.sh) | 10 reads | ~16177 tok |
+| 20:25 | Created ../.claude/plans/crystalline-singing-seal.md | — | ~657 |
+| 20:27 | Created backend/Dockerfile | — | ~647 |
+| 20:27 | Created backend/nginx.conf | — | ~300 |
+| 20:27 | Created backend/supervisord.conf | — | ~154 |
+| 20:27 | Edited .github/workflows/docker-publish.yml | 2→2 lines | ~16 |
+| 20:28 | Rewrote Dockerfile for unified frontend+backend (3-stage: pnpm→uv→nginx+supervisor), created nginx.conf (SPA+API proxy), supervisord.conf, updated docker-publish.yml context to root | backend/Dockerfile, backend/nginx.conf, backend/supervisord.conf, .github/workflows/docker-publish.yml | all created/updated, anatomy.md synced | ~250 |
+| 20:28 | Edited backend/Dockerfile | 3→3 lines | ~44 |
+| 20:33 | Session end: 15 writes across 9 files (main.py, Dockerfile, docker-publish.yml, .dockerignore, setup.sh) | 14 reads | ~19654 tok |
+| 20:45 | Edited backend/app/services/agent_planner.py | modified enumerate() | ~268 |
+| 20:56 | Fixed test_agent_runs_decoupled_arxiv_interest_tool_chain: LLM generates $stepN.field references but executor only resolved $tool_name.field. Added $stepN→$tool_name normalization in AgentPlanner._normalize_plan | backend/app/services/agent_planner.py | 136 passed, test fixed, 0 regressions | ~60 |
+| 20:56 | Session end: 16 writes across 10 files (main.py, Dockerfile, docker-publish.yml, .dockerignore, setup.sh) | 19 reads | ~36962 tok |
+| 20:57 | Edited backend/app/core/config.py | modified Settings() | ~311 |
+| 20:58 | Edited backend/app/core/database.py | modified startswith() | ~207 |
+| 20:58 | Created docker-compose.yml | — | ~357 |
+| 20:59 | Configured MySQL for backend (DATABASE_URL env var, pool settings) and Docker (docker-compose.yml with mysql:8.4 + app services, healthcheck, named volume) | backend/app/core/config.py, backend/app/core/database.py, docker-compose.yml, .wolf/anatomy.md | config/db updated, docker-compose created, 49 tests pass | ~150 |
+| 20:59 | Session end: 19 writes across 13 files (main.py, Dockerfile, docker-publish.yml, .dockerignore, setup.sh) | 21 reads | ~37850 tok |
