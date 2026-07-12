@@ -2,14 +2,14 @@
   "version": 1,
   "created_at": "2026-07-06T07:17:33.095Z",
   "lifetime": {
-    "total_tokens_estimated": 15183694,
-    "total_reads": 5565,
-    "total_writes": 8200,
-    "total_sessions": 22,
-    "anatomy_hits": 4105,
-    "anatomy_misses": 1460,
-    "repeated_reads_blocked": 7538,
-    "estimated_savings_vs_bare_cli": 46877869
+    "total_tokens_estimated": 15401890,
+    "total_reads": 5599,
+    "total_writes": 8207,
+    "total_sessions": 26,
+    "anatomy_hits": 4131,
+    "anatomy_misses": 1468,
+    "repeated_reads_blocked": 7557,
+    "estimated_savings_vs_bare_cli": 47477066
   },
   "sessions": [
     {
@@ -77079,6 +77079,311 @@
         "writes_count": 6,
         "repeated_reads_blocked": 1,
         "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "session-2026-07-11-1421",
+      "started": "2026-07-11T06:21:13.429Z",
+      "ended": "2026-07-11T06:30:56.161Z",
+      "reads": [
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/embedding.py",
+          "tokens_estimated": 576,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/llm.py",
+          "tokens_estimated": 1824,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/domain/knowledge.py",
+          "tokens_estimated": 1058,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/api/v2/knowledge.py",
+          "tokens_estimated": 2298,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 41624,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/rag_pipeline.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/parser.py",
+          "tokens_estimated": 200,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/models/knowledge.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [],
+      "totals": {
+        "input_tokens_estimated": 47580,
+        "output_tokens_estimated": 0,
+        "reads_count": 8,
+        "writes_count": 0,
+        "repeated_reads_blocked": 3,
+        "anatomy_lookups": 6
+      }
+    },
+    {
+      "id": "session-2026-07-11-1421",
+      "started": "2026-07-11T06:21:13.429Z",
+      "ended": "2026-07-11T06:47:24.881Z",
+      "reads": [
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/embedding.py",
+          "tokens_estimated": 576,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/llm.py",
+          "tokens_estimated": 1824,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/domain/knowledge.py",
+          "tokens_estimated": 1058,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/api/v2/knowledge.py",
+          "tokens_estimated": 2298,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 41624,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/rag_pipeline.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/parser.py",
+          "tokens_estimated": 200,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/models/knowledge.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [],
+      "totals": {
+        "input_tokens_estimated": 47580,
+        "output_tokens_estimated": 0,
+        "reads_count": 8,
+        "writes_count": 0,
+        "repeated_reads_blocked": 3,
+        "anatomy_lookups": 6
+      }
+    },
+    {
+      "id": "session-2026-07-11-1421",
+      "started": "2026-07-11T06:21:13.429Z",
+      "ended": "2026-07-11T06:48:56.966Z",
+      "reads": [
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/embedding.py",
+          "tokens_estimated": 576,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/llm.py",
+          "tokens_estimated": 1824,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/domain/knowledge.py",
+          "tokens_estimated": 1058,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/api/v2/knowledge.py",
+          "tokens_estimated": 2298,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 41624,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/rag_pipeline.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/parser.py",
+          "tokens_estimated": 200,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/models/knowledge.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 13531,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 17,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 12,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 45,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 61111,
+        "output_tokens_estimated": 74,
+        "reads_count": 9,
+        "writes_count": 3,
+        "repeated_reads_blocked": 6,
+        "anatomy_lookups": 7
+      }
+    },
+    {
+      "id": "session-2026-07-11-1421",
+      "started": "2026-07-11T06:21:13.429Z",
+      "ended": "2026-07-11T06:52:31.880Z",
+      "reads": [
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/embedding.py",
+          "tokens_estimated": 576,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/llm.py",
+          "tokens_estimated": 1824,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/domain/knowledge.py",
+          "tokens_estimated": 1058,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/api/v2/knowledge.py",
+          "tokens_estimated": 2298,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/workspace_db.py",
+          "tokens_estimated": 41624,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/rag_pipeline.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/services/parser.py",
+          "tokens_estimated": 200,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/backend/app/models/knowledge.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 13479,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 17,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 12,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 45,
+          "action": "edit"
+        },
+        {
+          "file": "/home/gugumur/whucs-training-project/ppt/index.html",
+          "tokens_estimated": 718,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 61059,
+        "output_tokens_estimated": 792,
+        "reads_count": 9,
+        "writes_count": 4,
+        "repeated_reads_blocked": 7,
+        "anatomy_lookups": 7
       }
     }
   ],

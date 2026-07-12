@@ -1,5 +1,6 @@
 import { mount, shallowMount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
+import { describe, expect, it, vi } from 'vitest'
 import naive from 'naive-ui'
 
 import type {
@@ -157,5 +158,64 @@ describe('KnowledgeConversationPanel', () => {
         title: '课程大纲.md',
       },
     ])
+  })
+
+  it('does not force-scroll to the bottom while streaming tokens arrive', async () => {
+    const scrollTo = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+      configurable: true,
+      value: scrollTo,
+    })
+    const wrapper = mount(KnowledgeConversationPanel, {
+      global: {
+        plugins: [naive],
+      },
+      props: {
+        activeConversationId: conversation.id,
+        activeKbId: 'kb-course',
+        isStreaming: true,
+        messages,
+        streamingAnswer: '课程考核',
+      },
+    })
+
+    await wrapper.setProps({ streamingAnswer: '课程考核包含平时作业和期末考试。' })
+    await nextTick()
+
+    expect(scrollTo).not.toHaveBeenCalled()
+  })
+
+  it('reveals the latest submitted question instead of pinning the answer to the bottom', async () => {
+    const scrollIntoView = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    })
+    const wrapper = mount(KnowledgeConversationPanel, {
+      global: {
+        plugins: [naive],
+      },
+      props: {
+        activeConversationId: conversation.id,
+        activeKbId: 'kb-course',
+        conversations: [conversation],
+        messages,
+      },
+    })
+    const followUp: WorkspaceKnowledgeMessage = {
+      citations: [],
+      content: '补考怎么安排？',
+      conversation_id: conversation.id,
+      created_at: '2026-07-11T08:11:00+08:00',
+      id: 'msg-user-follow-up',
+      role: 'user',
+    }
+
+    await wrapper.find('textarea').setValue(followUp.content)
+    await wrapper.find('[data-testid="submit-rag-question"]').trigger('click')
+    await wrapper.setProps({ messages: [...messages, followUp] })
+    await nextTick()
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' })
   })
 })

@@ -255,7 +255,7 @@
       <p class="lead" style="margin-top:1.5vh; margin-bottom:2vh" data-anim>
         前后端分离、领域模块化、异步任务驱动。权限前置，AI 能力可降级。
       </p>
-      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">表现层</div><div class="v" style="font-size:max(13px,1.05vw)">Vue 3 + Pinia + Naive UI + Vue Flow + UnoCSS</div><div class="m">FE</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">表现层</div><div class="v" style="font-size:max(13px,1.05vw)">Vue 3 + Pinia + Naive UI + UnoCSS</div><div class="m">FE</div></div>
       <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">API 层</div><div class="v" style="font-size:max(13px,1.05vw)">FastAPI v2 + JWT + RBAC + OpenAPI→hey-api</div><div class="m">Gateway</div></div>
       <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">服务层</div><div class="v" style="font-size:max(13px,1.05vw)">RAG Pipeline · Agent Executor · Tool Registry · LLM</div><div class="m">Domain</div></div>
       <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">AI 层</div><div class="v" style="font-size:max(13px,1.05vw)">LangChain · FAISS · sentence-transformers</div><div class="m">AI</div></div>
@@ -362,22 +362,23 @@
 <!-- ====== 08: AGENT SYSTEM ====== -->
 <section class="slide dark">
   <div class="chrome"><div>智能体系统 · Agent System</div><div>08 / 11</div></div>
-  <div class="frame grid-2-6-6" style="padding-top:2vh; gap:2vw">
-    <div style="display:flex; flex-direction:column; gap:1.8vh">
+  <div class="frame grid-2-7-5" style="padding-top:1.5vh; gap:2vw">
+    <div style="display:flex; flex-direction:column; gap:1.2vh">
       <div>
-        <div class="kicker" data-anim>ReAct · Thought → Action → Observation → Answer</div>
-        <h2 class="h-xl" style="font-size:4.4vw" data-anim>智能体编排</h2>
+        <div class="kicker" data-anim>ReAct execution loop</div>
+        <h2 class="h-xl" style="font-size:4vw" data-anim>智能体编排</h2>
       </div>
-      <div class="pipeline" data-cols="4" style="margin-top:0.5vh">
-        <div class="step" data-anim><div class="step-nb">01</div><div class="step-title">理解</div><div class="step-desc">NLU 解析意图</div></div>
-        <div class="step" data-anim><div class="step-nb">02</div><div class="step-title">规划</div><div class="step-desc">LLM 生成计划</div></div>
-        <div class="step" data-anim><div class="step-nb">03</div><div class="step-title">执行</div><div class="step-desc">工具调用·重试</div></div>
-        <div class="step" data-anim><div class="step-nb">04</div><div class="step-title">回答</div><div class="step-desc">合成·结果视图</div></div>
+      <div class="pipeline" data-cols="4" style="margin-top:0; flex:none">
+        <div class="step" data-anim><div class="step-nb">01</div><div class="step-title">理解</div><div class="step-desc">NLU 解析</div></div>
+        <div class="step" data-anim><div class="step-nb">02</div><div class="step-title">规划</div><div class="step-desc">LLM 生成</div></div>
+        <div class="step" data-anim><div class="step-nb">03</div><div class="step-title">执行</div><div class="step-desc">调用·重试</div></div>
+        <div class="step" data-anim><div class="step-nb">04</div><div class="step-title">回答</div><div class="step-desc">合成结果</div></div>
       </div>
-      <div class="rowline" data-anim><div class="k" style="font-size:1.4vw">规划器</div><div class="v" style="font-size:max(12px,.95vw)">AgentPlanner · 确定性 NLU + LLM JSON Schema · CI 降级</div><div class="m">Plan</div></div>
-      <div class="rowline" data-anim><div class="k" style="font-size:1.4vw">执行器</div><div class="v" style="font-size:max(12px,.95vw)">AgentExecutor · ≤6 次调用 · 澄清/重试/超时 · 结果合成</div><div class="m">Loop</div></div>
-      <div class="rowline" data-anim><div class="k" style="font-size:1.4vw">工具中心</div><div class="v" style="font-size:max(12px,.95vw)">ToolRegistry · 四工具注册 · Schema 校验 · 权限检查</div><div class="m">Tools</div></div>
-      <div class="rowline" data-anim><div class="k" style="font-size:1.4vw">LLM 网关</div><div class="v" style="font-size:max(12px,.95vw)">ToolCallingLLM · OpenAI 兼容 · 超时/重试/降级</div><div class="m">LLM</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.3vw">规划器</div><div class="v" style="font-size:max(11px,.88vw); line-height:1.35">AgentPlanner · 确定性 NLU + LLM Schema · CI 降级</div><div class="m">Plan</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.3vw">执行器</div><div class="v" style="font-size:max(11px,.88vw); line-height:1.35">AgentExecutor · 有界循环 · 澄清/重试/超时</div><div class="m">Loop</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.3vw">工具中心</div><div class="v" style="font-size:max(11px,.88vw); line-height:1.35">ToolRegistry · 注册发现 · Schema 校验 · 权限</div><div class="m">Tools</div></div>
+      <div class="rowline" data-anim><div class="k" style="font-size:1.3vw">LLM 网关</div><div class="v" style="font-size:max(11px,.88vw); line-height:1.35">ToolCallingLLM · OpenAI 兼容 · 超时/降级</div><div class="m">LLM</div></div>
+      <div data-anim style="font-family:var(--mono); font-size:10px; letter-spacing:.14em; opacity:.45; margin-top:.8vh">参考架构: Cheng et al., Agent-R1, arXiv:2511.14460, 2025</div>
     </div>
     <figure class="frame-img r-4x3 fit-contain" data-anim><img src="images/05-agent-react.png" alt="Agent ReAct"><figcaption class="img-cap">PlantUML · Agent ReAct 工具调用时序图</figcaption></figure>
   </div>
@@ -419,10 +420,6 @@
       <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">RBAC</div><div class="v" style="font-size:max(13px,1.05vw)">系统角色 + 团队角色(管理员/成员/访客)</div><div class="m">Role</div></div>
       <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">ACL</div><div class="v" style="font-size:max(13px,1.05vw)">资源级(不可见/只读/读写/管理) · 继承+覆盖 · 拒绝优先</div><div class="m">Perm</div></div>
       <div class="rowline" data-anim><div class="k" style="font-size:1.5vw">审计</div><div class="v" style="font-size:max(13px,1.05vw)">关键操作全记录 · 按用户/资源/时间过滤</div><div class="m">Audit</div></div>
-      <div class="callout" data-anim>
-        "权限前置：所有文件、知识库、团队、工具和流程资源访问都必须先经过 JWT 和 RBAC 校验。"
-        <div class="callout-src">— 架构原则 #1 · 权限前置</div>
-      </div>
     </div>
     <figure class="frame-img r-3x4 fit-contain" data-anim><img src="images/04-upload-sequence.png" alt="文件上传与知识库入库时序图"><figcaption class="img-cap">PlantUML · 文件上传与权限校验时序</figcaption></figure>
   </div>

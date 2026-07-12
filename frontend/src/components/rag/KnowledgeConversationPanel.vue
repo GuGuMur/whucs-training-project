@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, shallowRef, watch } from 'vue'
+import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
 import { MessageSquarePlus, MessageSquareText, Send, Trash2 } from '@lucide/vue'
 
 import { renderMarkdown } from '@/composables/useMarkdown'
@@ -44,7 +44,8 @@ const emit = defineEmits<{
 }>()
 
 const question = shallowRef('')
-const messagesContainer = shallowRef<HTMLElement | null>(null)
+const messagesContainer = useTemplateRef<HTMLElement>('messagesContainer')
+const shouldRevealLatestQuestion = shallowRef(false)
 
 const activeConversation = computed(
   () => props.conversations.find((conversation) => conversation.id === props.activeConversationId) ?? null,
@@ -58,12 +59,19 @@ const emptyMessage = computed(() => {
   return props.activeConversationId ? '该对话暂无消息' : '输入问题会创建一个新对话'
 })
 
-// Auto-scroll when streaming tokens arrive
-watch(() => props.streamingAnswer, async () => {
-  if (props.isStreaming) {
+watch(() => [props.activeConversationId, props.messages.length] as const, async ([conversationId], [previousConversationId]) => {
+  if (conversationId !== previousConversationId) {
+    shouldRevealLatestQuestion.value = false
     await nextTick()
-    messagesContainer.value?.scrollTo({ top: messagesContainer.value.scrollHeight, behavior: 'smooth' })
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = 0
+    }
+    return
   }
+  if (!shouldRevealLatestQuestion.value) return
+  shouldRevealLatestQuestion.value = false
+  await nextTick()
+  revealLatestQuestion()
 })
 
 function submitQuestion() {
@@ -75,7 +83,15 @@ function submitQuestion() {
     question: text,
     topK: 8,
   })
+  shouldRevealLatestQuestion.value = true
   question.value = ''
+}
+
+function revealLatestQuestion() {
+  const container = messagesContainer.value
+  if (!container) return
+  const userMessages = container.querySelectorAll<HTMLElement>('[data-message-role="user"]')
+  userMessages.item(userMessages.length - 1)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
 }
 
 function roleLabel(role: WorkspaceKnowledgeMessage['role']) {
@@ -176,6 +192,8 @@ function deleteConversation(conversationId: string) {
               v-for="message in messages"
               :key="message.id"
               class="rounded-2 bg-surface px-3 py-2 shadow-[inset_0_0_0_1px_#E6EAF2]"
+              :data-message-role="message.role"
+              :data-testid="`rag-message-${message.id}`"
             >
               <div class="mb-1 flex items-center justify-between gap-2">
                 <NTag size="small" round :bordered="false" :type="message.role === 'assistant' ? 'success' : 'info'">

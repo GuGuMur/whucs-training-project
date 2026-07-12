@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-11T05:31:11.991Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-11T06:52:21.584Z
 > Files: 206 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../.claude/plans/
@@ -320,7 +320,7 @@
 
 ## ppt/
 
-- `index.html` — 智能文件工作空间平台 · 项目进度汇报 (~13531 tok)
+- `index.html` — 智能文件工作空间平台 · 项目进度汇报 (~13475 tok)
 
 ## references/
 
