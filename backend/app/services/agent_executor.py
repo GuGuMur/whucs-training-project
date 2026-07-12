@@ -507,7 +507,9 @@ class AgentExecutor:
     def _resolve_reference(self, value: str, observations: list[dict[str, Any]]) -> Any:
         if not value.startswith("$"):
             return value
-        path = value[1:].split(".")
+        # Normalize ${tool.field}, $(tool.field), <tool.field> → tool.field
+        ref = value[1:].strip("{}()<> ")
+        path = ref.split(".")
         if len(path) < 2:
             return value
         tool_name = path[0]
@@ -519,6 +521,13 @@ class AgentExecutor:
             ),
             None,
         )
+        # Fallback: if tool_name looks like "stepN", try by observation index
+        if selected is None and tool_name.startswith("step") and tool_name[4:].isdigit():
+            idx = int(tool_name[4:]) - 1  # 1-indexed → 0-indexed
+            if 0 <= idx < len(observations):
+                obs = observations[idx]
+                if obs.get("status") == "success":
+                    selected = obs.get("output", {})
         if selected is None:
             return value
         current: Any = selected

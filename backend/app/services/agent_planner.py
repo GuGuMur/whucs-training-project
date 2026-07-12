@@ -269,7 +269,8 @@ class AgentPlanner:
         return (
             "你是工具调用规划器。根据用户任务选择必要工具，并只输出一个 JSON 对象。\n"
             "禁止输出 Markdown、解释文字或隐藏推理。rationale 只能是一句面向用户的简短理由。\n"
-            "如果用户信息不足，把缺失字段写入 missing_fields，并保留相应工具步骤的空参数。\n\n"
+            "如果用户信息不足，把缺失字段写入 missing_fields，并保留相应工具步骤的空参数。\n"
+            "引用前一步输出时，格式为 $tool_name.field（例如 $arxiv_search.papers、$kb_interest_extract.interests）。\n\n"
             f"【输出结构】\n{json.dumps(schema, ensure_ascii=False)}\n\n"
             f"【可用工具】\n{json.dumps(tools, ensure_ascii=False)}\n\n"
             f"【用户任务】{task}\n"
