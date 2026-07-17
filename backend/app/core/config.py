@@ -34,5 +34,8 @@ class Settings(BaseSettings):
     DEEPSEEK_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
+    # Total wall-clock budget across agent planning, tool calls and retries.
+    AGENT_MAX_RUNTIME_SECONDS: float = 120.0
+
 
 settings = Settings()

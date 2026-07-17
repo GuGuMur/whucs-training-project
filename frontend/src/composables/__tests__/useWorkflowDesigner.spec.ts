@@ -55,4 +55,28 @@ describe('useWorkflowDesigner', () => {
     expect(designer.edges.value[0]?.sourceHandle).toBe('true')
     vi.unstubAllGlobals()
   })
+
+  it('ignores Vue Flow runtime metadata and execution status in dirty tracking', () => {
+    vi.stubGlobal('crypto', { randomUUID: vi.fn().mockReturnValue('input') })
+    const designer = useWorkflowDesigner()
+    designer.addInputNode()
+    designer.markSaved()
+
+    const node = designer.nodes.value[0]!
+    designer.nodes.value = [{
+      ...node,
+      selected: true,
+      dimensions: { width: 240, height: 96 },
+      data: { ...node.data, status: 'success' },
+    } as any]
+
+    expect(designer.isDirty.value).toBe(false)
+
+    designer.nodes.value = [{
+      ...designer.nodes.value[0]!,
+      data: { ...designer.nodes.value[0]!.data, label: '已修改输入' },
+    }]
+    expect(designer.isDirty.value).toBe(true)
+    vi.unstubAllGlobals()
+  })
 })

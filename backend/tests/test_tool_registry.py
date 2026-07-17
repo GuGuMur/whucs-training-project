@@ -68,6 +68,17 @@ class _FakeWorkspace:
             )
         ]
         self.created_markdown: dict[str, Any] | None = None
+        self.file_contents = {
+            "file-1": b"title\nshared line\nold value\n",
+            "file-2": b"title\nshared line\nnew value\nextra line\n",
+        }
+        self._files = SimpleNamespace(get_by_id=self._get_file_by_id)
+
+    async def _get_file_by_id(self, file_id: str) -> FileItem | None:
+        return next((file for file in self.files if file.id == file_id), None)
+
+    def read_file_content_for_tool(self, file: FileItem) -> bytes | None:
+        return self.file_contents.get(file.id)
 
     async def list_files(self, _user: UserPublic) -> list[FileItem]:
         return self.files
@@ -150,7 +161,7 @@ def _run_tool(name: str, params: dict[str, Any], workspace: _FakeWorkspace | Non
 def test_tool_catalog_contains_phase34_tools() -> None:
     names = {definition.name for definition in ToolRegistry().definitions()}
 
-    assert {"rag_query", "file_metadata_query", "database_query", "weather_lookup"}.issubset(names)
+    assert {"rag_query", "file_metadata_query", "file_compare", "database_query", "weather_lookup"}.issubset(names)
     assert {"kb_interest_extract", "arxiv_search", "arxiv_markdown_render", "knowledge_markdown_write"}.issubset(names)
 
 
@@ -165,6 +176,34 @@ def test_file_metadata_query_filters_user_visible_files() -> None:
     assert workspace.audit_events[0]["tool"] == "file_metadata_query"
     assert workspace.audit_events[0]["status"] == "success"
     assert isinstance(workspace.audit_events[0]["latency_ms"], int)
+
+
+def test_file_compare_generates_structured_line_diff_report() -> None:
+    workspace = _FakeWorkspace()
+
+    result = _run_tool("file_compare", {"file_a": "file-1", "file_b": "file-2"}, workspace)
+
+    assert result.status == "success"
+    assert result.output["summary"] == {
+        "unchanged_lines": 2,
+        "added_lines": 2,
+        "removed_lines": 1,
+        "similarity": 0.5714,
+        "identical": False,
+    }
+    assert "-old value" in result.output["diff"]
+    assert "+new value" in result.output["diff"]
+    assert "# 文件比对报告" in result.output["report"]
+
+
+def test_file_compare_rejects_same_or_inaccessible_files() -> None:
+    same_file = _run_tool("file_compare", {"file_a": "file-1", "file_b": "file-1"})
+    inaccessible = _run_tool("file_compare", {"file_a": "file-1", "file_b": "file-secret"})
+
+    assert same_file.status == "failed"
+    assert "两个不同的文件" in same_file.error_message
+    assert inaccessible.status == "failed"
+    assert "无权访问" in inaccessible.error_message
 
 
 def test_database_query_reads_whitelisted_tables_only() -> None:

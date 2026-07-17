@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 import secrets
 import time
@@ -23,12 +24,14 @@ class AgentExecutor:
         *,
         max_tool_calls: int = 6,
         max_retries_per_tool: int = 2,
-        max_runtime_seconds: float = 30.0,
+        max_runtime_seconds: float = 120.0,
     ) -> None:
         self._registry = registry or ToolRegistry()
         self._planner = planner or AgentPlanner(self._registry)
         self._max_tool_calls = max_tool_calls
         self._max_retries_per_tool = max_retries_per_tool
+        if max_runtime_seconds <= 0:
+            raise ValueError("max_runtime_seconds must be greater than zero")
         self._max_runtime_seconds = max_runtime_seconds
 
     async def run(
@@ -49,11 +52,8 @@ class AgentExecutor:
             "kb_id": kb_id,
             "inputs": continuation_inputs or {},
         }
-        plan = await self._planner.plan(task, context_file_ids, kb_id, request["inputs"])
-        pending_steps = list(plan.plan_steps)
         task_id = task_id or f"agent-{secrets.token_hex(4)}"
-        plan_label = self._plan_label(pending_steps)
-
+        started_at = time.monotonic()
         steps: list[AgentStep] = [
             AgentStep(
                 type="thought",
@@ -61,6 +61,19 @@ class AgentExecutor:
                 title="理解任务",
                 content=f"识别用户任务：{task}",
             ),
+        ]
+        try:
+            plan = await asyncio.wait_for(
+                self._planner.plan(task, context_file_ids, kb_id, request["inputs"]),
+                timeout=self._remaining_seconds(started_at),
+            )
+        except TimeoutError:
+            return self._runtime_timeout_response(
+                task_id, task, steps, user, request, phase="plan",
+            )
+        pending_steps = list(plan.plan_steps)
+        plan_label = self._plan_label(pending_steps)
+        steps.append(
             AgentStep(
                 type="thought",
                 phase="plan",
@@ -69,7 +82,7 @@ class AgentExecutor:
                 tool_name=pending_steps[0].tool_name if len(pending_steps) == 1 else None,
                 input_json=self._plan_input_json(plan),
             ),
-        ]
+        )
 
         if not pending_steps:
             final_answer = self._direct_answer(task, request["inputs"])
@@ -97,7 +110,6 @@ class AgentExecutor:
         raw_observations: list[dict[str, Any]] = []
         retry_counts: dict[str, int] = {}
         tool_call_count = 0
-        started_at = time.monotonic()
         while pending_steps:
             if tool_call_count >= self._max_tool_calls:
                 return self._failed_response(
@@ -109,23 +121,21 @@ class AgentExecutor:
                     "工具调用次数超限，请缩小任务范围后重试。",
                     metadata={"max_tool_calls": self._max_tool_calls},
                 )
-            if time.monotonic() - started_at > self._max_runtime_seconds:
-                return self._failed_response(
-                    task_id,
-                    task,
-                    steps,
-                    user,
-                    request,
-                    "工具执行超时，请稍后重试或缩小任务范围。",
-                    metadata={"max_runtime_seconds": self._max_runtime_seconds},
-                )
-
             step = pending_steps.pop(0)
             selected_tool = step.tool_name
             params = self._resolve_tool_params(step.arguments, raw_observations)
             spec = self._registry.get(selected_tool)
             tool_call_count += 1
-            execution = await self._registry.execute(selected_tool, params, workspace, user)
+            try:
+                execution = await asyncio.wait_for(
+                    self._registry.execute(selected_tool, params, workspace, user),
+                    timeout=self._remaining_seconds(started_at),
+                )
+            except TimeoutError:
+                return self._runtime_timeout_response(
+                    task_id, task, steps, user, request,
+                    phase="tool", tool_name=selected_tool,
+                )
             call_status = (
                 "needs_clarification"
                 if execution.status == "needs_clarification"
@@ -189,16 +199,25 @@ class AgentExecutor:
                 )
                 retry_counts[selected_tool] = retry_counts.get(selected_tool, 0) + 1
                 if retry_counts[selected_tool] <= self._max_retries_per_tool:
-                    revision = await self._revise_plan(
-                        task,
-                        context_file_ids,
-                        kb_id,
-                        request["inputs"],
-                        plan,
-                        raw_observations,
-                        f"{selected_tool} 调用失败：{final_answer}",
-                        steps,
-                    )
+                    try:
+                        revision = await asyncio.wait_for(
+                            self._revise_plan(
+                                task,
+                                context_file_ids,
+                                kb_id,
+                                request["inputs"],
+                                plan,
+                                raw_observations,
+                                f"{selected_tool} 调用失败：{final_answer}",
+                                steps,
+                            ),
+                            timeout=self._remaining_seconds(started_at),
+                        )
+                    except TimeoutError:
+                        return self._runtime_timeout_response(
+                            task_id, task, steps, user, request,
+                            phase="revision", tool_name=selected_tool,
+                        )
                     if revision.plan_steps:
                         pending_steps = [*revision.plan_steps, *pending_steps]
                         continue
@@ -229,16 +248,25 @@ class AgentExecutor:
                 )
             )
             if self._is_empty_tool_result(selected_tool, execution.output):
-                revision = await self._revise_plan(
-                    task,
-                    context_file_ids,
-                    kb_id,
-                    request["inputs"],
-                    plan,
-                    raw_observations,
-                    f"{selected_tool} 未查询到结果",
-                    steps,
-                )
+                try:
+                    revision = await asyncio.wait_for(
+                        self._revise_plan(
+                            task,
+                            context_file_ids,
+                            kb_id,
+                            request["inputs"],
+                            plan,
+                            raw_observations,
+                            f"{selected_tool} 未查询到结果",
+                            steps,
+                        ),
+                        timeout=self._remaining_seconds(started_at),
+                    )
+                except TimeoutError:
+                    return self._runtime_timeout_response(
+                        task_id, task, steps, user, request,
+                        phase="revision", tool_name=selected_tool,
+                    )
                 if revision.plan_steps:
                     pending_steps = [*revision.plan_steps, *pending_steps]
 
@@ -461,6 +489,43 @@ class AgentExecutor:
         )
         self._save(response, user, request)
         return response
+
+    def _remaining_seconds(self, started_at: float) -> float:
+        remaining = self._max_runtime_seconds - (time.monotonic() - started_at)
+        if remaining <= 0:
+            raise TimeoutError
+        return remaining
+
+    def _runtime_timeout_response(
+        self,
+        task_id: str,
+        task: str,
+        steps: list[AgentStep],
+        user: UserPublic,
+        request: dict[str, Any],
+        *,
+        phase: str,
+        tool_name: str | None = None,
+    ) -> AgentTaskResponse:
+        if phase == "plan":
+            message = "智能体任务规划超时，请稍后重试。"
+        elif phase == "revision":
+            message = f"工具 {tool_name} 执行后的计划修正超时，请稍后重试。"
+        else:
+            message = f"工具 {tool_name} 执行超时，请稍后重试或缩小任务范围。"
+        return self._failed_response(
+            task_id,
+            task,
+            steps,
+            user,
+            request,
+            message,
+            metadata={
+                "max_runtime_seconds": self._max_runtime_seconds,
+                "timeout_phase": phase,
+                "tool_name": tool_name,
+            },
+        )
 
     def _format_observation(self, tool_name: str, output: dict[str, Any]) -> str:
         if tool_name == "calculator":

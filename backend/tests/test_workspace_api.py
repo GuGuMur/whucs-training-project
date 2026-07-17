@@ -2923,6 +2923,66 @@ def test_v2_workflow_execution_uses_registered_tool_registry() -> None:
     assert tool_node["output"]["matches"][0]["file_id"] == file_id
 
 
+def test_v2_file_compare_workflow_generates_an_accurate_report() -> None:
+    headers = auth_headers_v2("workflow-file-compare-owner")
+    file_ids = []
+    for filename, content in [
+        ("baseline.txt", b"title\nshared\nold value\n"),
+        ("candidate.txt", b"title\nshared\nnew value\nextra\n"),
+    ]:
+        uploaded = client.post(
+            "/api/v2/files/upload",
+            headers=headers,
+            data={"folder_id": "personal-root", "tags": "compare"},
+            files={"file": (filename, content, "text/plain")},
+        )
+        assert uploaded.status_code == 201
+        file_ids.append(uploaded.json()["id"])
+
+    nodes = [
+        {"id": "input", "name": "选择文件", "type": "input", "parameters": {"file_a": "", "file_b": "", "context_lines": 3}},
+        {"id": "compare", "name": "比对文件", "type": "tool", "tool_name": "file_compare", "parameters": {
+            "file_a": {"mode": "input", "input_key": "file_a"},
+            "file_b": {"mode": "input", "input_key": "file_b"},
+            "context_lines": {"mode": "input", "input_key": "context_lines"},
+        }},
+        {"id": "output", "name": "输出报告", "type": "output", "parameters": {
+            "report": {"mode": "node", "node_id": "compare", "path": "output.report"},
+            "summary": {"mode": "node", "node_id": "compare", "path": "output.summary"},
+        }},
+    ]
+    created = client.post("/api/v2/workflows", headers=headers, json={
+        "name": "文件比对集成测试",
+        "trigger": "manual",
+        "nodes": nodes,
+        "edges": [
+            {"id": "e1", "source": "input", "target": "compare"},
+            {"id": "e2", "source": "compare", "target": "output"},
+        ],
+    })
+    assert created.status_code == 201
+    workflow_id = created.json()["id"]
+    assert client.post(f"/api/v2/workflows/{workflow_id}/validate", headers=headers).json()["valid"] is True
+    assert client.post(f"/api/v2/workflows/{workflow_id}/publish", headers=headers).status_code == 200
+
+    execution = client.post(
+        f"/api/v2/workflows/{workflow_id}/executions",
+        headers=headers,
+        json={"inputs": {"file_a": file_ids[0], "file_b": file_ids[1], "context_lines": 2}},
+    )
+
+    assert execution.status_code == 201
+    body = execution.json()
+    assert body["status"] == "completed"
+    result = body["output"]["result"]
+    assert result["summary"]["unchanged_lines"] == 2
+    assert result["summary"]["added_lines"] == 2
+    assert result["summary"]["removed_lines"] == 1
+    assert "# 文件比对报告" in result["report"]
+    assert "baseline.txt" in result["report"]
+    assert "candidate.txt" in result["report"]
+
+
 def test_v2_workflow_execution_runs_dag_and_resolves_parameter_bindings() -> None:
     headers = auth_headers_v2("workflow-dag-owner")
     create_response = client.post(

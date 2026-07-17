@@ -211,8 +211,28 @@ export function useWorkflowDesigner() {
       trigger: trigger.value,
       version: version.value,
       revision: revision.value,
-      nodes: nodes.value,
-      edges: edges.value,
+      nodes: nodes.value.map((node) => ({
+        id: node.id,
+        type: 'workflow',
+        position: { x: node.position.x, y: node.position.y },
+        data: {
+          label: node.data.label,
+          kind: node.data.kind,
+          description: node.data.description,
+          status: 'idle',
+          toolName: node.data.toolName,
+          parameters: node.data.parameters,
+        },
+      })),
+      edges: edges.value.map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: edge.sourceHandle,
+        targetHandle: edge.targetHandle,
+        type: edge.type,
+        label: edge.label,
+      })),
     })
   }
 

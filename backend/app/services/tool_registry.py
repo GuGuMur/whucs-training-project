@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import ast
 import csv
+import difflib
 import io
 import json
 import logging
@@ -110,6 +112,36 @@ class ToolRegistry:
                 ),
                 handler=self._file_content_search,
                 clarification="请补充要在文件中查询的关键词。",
+            ),
+            "file_compare": ToolSpec(
+                definition=ToolDefinition(
+                    id="tool-file-compare",
+                    name="file_compare",
+                    version="2.0.0",
+                    category="文件",
+                    description="逐行比对两个可访问文本文件并生成结构化 Markdown 差异报告。",
+                    input_schema={
+                        "type": "object",
+                        "required": ["file_a", "file_b"],
+                        "properties": {
+                            "file_a": {"type": "string"},
+                            "file_b": {"type": "string"},
+                            "context_lines": {"type": "integer", "minimum": 0, "maximum": 10},
+                        },
+                    },
+                    output_schema={
+                        "type": "object",
+                        "properties": {
+                            "report": {"type": "string"},
+                            "diff": {"type": "string"},
+                            "summary": {"type": "object"},
+                            "file_a": {"type": "object"},
+                            "file_b": {"type": "object"},
+                        },
+                    },
+                ),
+                handler=self._file_compare,
+                clarification="请选择两个需要比对的文本文件。",
             ),
             "python_data": ToolSpec(
                 definition=ToolDefinition(
@@ -415,10 +447,15 @@ class ToolRegistry:
             raise PermissionError(f"当前角色无权调用工具：{spec.definition.name}")
 
     async def _preflight_access(self, name: str, params: dict[str, Any], workspace: Any, user: UserPublic) -> None:
-        if name in {"file_content_search", "python_data"}:
+        if name in {"file_content_search", "python_data", "file_compare"}:
             visible_files = await workspace.list_files(user)
             visible_ids = {str(getattr(file, "id", "")) for file in visible_files}
-            requested_ids = [str(item) for item in params.get("file_ids", [])] if name == "file_content_search" else [str(params.get("file_id", ""))]
+            if name == "file_content_search":
+                requested_ids = [str(item) for item in params.get("file_ids", [])]
+            elif name == "file_compare":
+                requested_ids = [str(params.get("file_a", "")), str(params.get("file_b", ""))]
+            else:
+                requested_ids = [str(params.get("file_id", ""))]
             requested_ids = [item for item in requested_ids if item]
             denied = [file_id for file_id in requested_ids if file_id not in visible_ids]
             if denied:
@@ -517,6 +554,76 @@ class ToolRegistry:
                 }
         return {"row_count": len(rows), "columns": columns, "numeric_summary": numeric_summary}
 
+    async def _file_compare(self, params: dict[str, Any], workspace: Any, user: UserPublic) -> dict[str, Any]:
+        del user
+        file_a_id = str(params["file_a"])
+        file_b_id = str(params["file_b"])
+        if file_a_id == file_b_id:
+            raise ValueError("请选择两个不同的文件进行比对")
+        file_a = await workspace._files.get_by_id(file_a_id)
+        file_b = await workspace._files.get_by_id(file_b_id)
+        if not file_a or not file_b:
+            raise ValueError("文件不存在或无权访问")
+        content_a = workspace.read_file_content_for_tool(file_a)
+        content_b = workspace.read_file_content_for_tool(file_b)
+        if content_a is None or content_b is None:
+            raise ValueError("无法读取待比对文件内容")
+
+        text_a = content_a.decode("utf-8", errors="replace")
+        text_b = content_b.decode("utf-8", errors="replace")
+        lines_a = text_a.splitlines()
+        lines_b = text_b.splitlines()
+        matcher = difflib.SequenceMatcher(a=lines_a, b=lines_b, autojunk=False)
+        added_lines = 0
+        removed_lines = 0
+        unchanged_lines = 0
+        for tag, a_start, a_end, b_start, b_end in matcher.get_opcodes():
+            if tag == "equal":
+                unchanged_lines += a_end - a_start
+            elif tag == "insert":
+                added_lines += b_end - b_start
+            elif tag == "delete":
+                removed_lines += a_end - a_start
+            elif tag == "replace":
+                removed_lines += a_end - a_start
+                added_lines += b_end - b_start
+
+        context_lines = _bounded_int(params.get("context_lines"), default=3, minimum=0, maximum=10)
+        diff = "\n".join(difflib.unified_diff(
+            lines_a,
+            lines_b,
+            fromfile=str(file_a.name),
+            tofile=str(file_b.name),
+            lineterm="",
+            n=context_lines,
+        ))
+        similarity = round(matcher.ratio(), 4)
+        summary = {
+            "unchanged_lines": unchanged_lines,
+            "added_lines": added_lines,
+            "removed_lines": removed_lines,
+            "similarity": similarity,
+            "identical": text_a == text_b,
+        }
+        report = (
+            "# 文件比对报告\n\n"
+            f"- 基准文件：{file_a.name}（{len(lines_a)} 行）\n"
+            f"- 对比文件：{file_b.name}（{len(lines_b)} 行）\n"
+            f"- 相似度：{similarity * 100:.2f}%\n"
+            f"- 未变化：{unchanged_lines} 行\n"
+            f"- 新增：{added_lines} 行\n"
+            f"- 删除：{removed_lines} 行\n\n"
+            "## 统一差异\n\n"
+            f"```diff\n{diff or '两个文件内容一致'}\n```"
+        )
+        return {
+            "file_a": {"id": file_a_id, "name": file_a.name, "line_count": len(lines_a)},
+            "file_b": {"id": file_b_id, "name": file_b.name, "line_count": len(lines_b)},
+            "summary": summary,
+            "diff": diff,
+            "report": report,
+        }
+
     async def _rag_query(self, params: dict[str, Any], workspace: Any, user: UserPublic) -> dict[str, Any]:
         response = await workspace.answer_question(
             QARequest(
@@ -578,8 +685,7 @@ class ToolRegistry:
         # Step 1: City lookup → get location ID
         geo_url = f"{scheme}://{host}/v2/city/lookup?{urllib.parse.urlencode({'location': location, 'key': api_key})}"
         geo_req = urllib.request.Request(geo_url, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(geo_req, timeout=8) as resp:
-            geo_body = resp.read().decode("utf-8", errors="replace")
+        geo_body = await asyncio.to_thread(_read_url_text, geo_req, 8)
         try:
             geo_data = json.loads(geo_body)
         except json.JSONDecodeError:
@@ -597,8 +703,7 @@ class ToolRegistry:
         # Step 2: Weather query → get current weather
         weather_url = f"{scheme}://{host}/v7/weather/now?{urllib.parse.urlencode({'location': city_id, 'key': api_key})}"
         weather_req = urllib.request.Request(weather_url, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(weather_req, timeout=8) as resp:
-            weather_body = resp.read().decode("utf-8", errors="replace")
+        weather_body = await asyncio.to_thread(_read_url_text, weather_req, 8)
         try:
             weather_data = json.loads(weather_body)
         except json.JSONDecodeError:
@@ -637,7 +742,12 @@ class ToolRegistry:
         interests = _coerce_string_list(params.get("interests"))
         days = _bounded_int(params.get("days"), default=7, minimum=1, maximum=30)
         max_results = _bounded_int(params.get("max_results"), default=8, minimum=1, maximum=20)
-        papers = _fetch_arxiv_papers(interests, days=days, max_results=max_results)
+        papers = await asyncio.to_thread(
+            _fetch_arxiv_papers,
+            interests,
+            days=days,
+            max_results=max_results,
+        )
         return {
             "interests": interests,
             "papers": papers,
@@ -703,6 +813,11 @@ def _safe_eval_arithmetic(expression: str) -> int | float:
     node = ast.parse(expression, mode="eval")
     result = _eval_node(node.body)
     return int(result) if isinstance(result, float) and result.is_integer() else result
+
+
+def _read_url_text(request: urllib.request.Request, timeout_seconds: float) -> str:
+    with urllib.request.urlopen(request, timeout=timeout_seconds) as response:  # noqa: S310 - allowlisted tool URL.
+        return response.read().decode("utf-8", errors="replace")
 
 
 def _eval_node(node: ast.AST) -> int | float:

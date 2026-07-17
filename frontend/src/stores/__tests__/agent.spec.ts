@@ -160,6 +160,32 @@ describe('agent store', () => {
     expect(agent.isStreaming).toBe(false)
   })
 
+  it('rejects an error SSE event and exposes its message instead of silently returning no result', async () => {
+    saveSession()
+    vi.spyOn(workspaceClient, 'streamAgentTask').mockImplementation(async function* () {
+      yield { type: 'error' as const, message: '工具执行失败' }
+    })
+    const agent = useAgentStore()
+
+    await expect(agent.createTaskStream({ task: '执行失败任务' })).rejects.toThrow('工具执行失败')
+
+    expect(agent.errorMessage).toBe('工具执行失败')
+    expect(agent.activeTask).toBeNull()
+    expect(agent.isStreaming).toBe(false)
+  })
+
+  it('rejects a stream that closes before returning its terminal task', async () => {
+    saveSession()
+    vi.spyOn(workspaceClient, 'streamAgentTask').mockImplementation(async function* () {
+      yield { type: 'plan' as const, step: completedTask.steps[0] }
+    })
+    const agent = useAgentStore()
+
+    await expect(agent.createTaskStream({ task: '异常断流任务' })).rejects.toThrow('未收到最终结果')
+
+    expect(agent.errorMessage).toContain('未收到最终结果')
+  })
+
   it('previews a risky task plan before execution', async () => {
     saveSession()
     const previewSpy = vi.spyOn(workspaceClient, 'previewAgentPlan').mockResolvedValue({

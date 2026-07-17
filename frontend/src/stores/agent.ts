@@ -110,6 +110,7 @@ export const useAgentStore = defineStore('agent', () => {
     streamedAnswer.value = ''
     executionSteps.value = []
     errorMessage.value = ''
+    let receivedTerminalTask = false
     try {
       for await (const event of streamAgentTask(accessToken, nextPayload)) {
         if (event.step) {
@@ -120,14 +121,20 @@ export const useAgentStore = defineStore('agent', () => {
         }
         if (event.type === 'done' && event.task) {
           applyTask(event.task)
+          receivedTerminalTask = true
         }
         if (event.type === 'error') {
-          errorMessage.value = event.message || '智能体流式执行失败'
+          throw new Error(event.message || '智能体流式执行失败')
         }
+      }
+      if (!receivedTerminalTask) {
+        throw new Error('智能体执行连接提前结束，未收到最终结果')
       }
       return activeTask.value
     } catch (error) {
-      errorMessage.value = '智能体流式执行连接失败，请稍后重试'
+      errorMessage.value = error instanceof Error && error.message
+        ? error.message
+        : '智能体流式执行连接失败，请稍后重试'
       throw error
     } finally {
       isStreaming.value = false

@@ -48,6 +48,19 @@ class _FakeRegistry:
         return ToolExecution(status="success", output={"result": 1})
 
 
+class _SlowRegistry(_FakeRegistry):
+    async def execute(self, name: str, params: dict[str, Any], *_args: Any) -> ToolExecution:
+        self.calls.append((name, params))
+        await asyncio.sleep(0.05)
+        return ToolExecution(status="success", output={"result": 1})
+
+
+class _SlowPlanner(_FakePlanner):
+    async def plan(self, *_args: Any, **_kwargs: Any) -> AgentPlan:
+        await asyncio.sleep(0.05)
+        return self.initial
+
+
 def _tool(name: str, arguments: dict[str, Any] | None = None) -> PlannedToolCall:
     return PlannedToolCall(tool_name=name, arguments=arguments or {}, rationale=f"调用 {name}")
 
@@ -129,6 +142,46 @@ def test_agent_executor_stops_when_tool_call_limit_is_reached() -> None:
     assert "工具调用次数超限" in response.final_answer
     assert len(registry.calls) == 2
     assert response.steps[-1].metadata["max_tool_calls"] == 2
+
+
+def test_agent_executor_rejects_non_positive_runtime_budget() -> None:
+    try:
+        AgentExecutor(max_runtime_seconds=0)
+    except ValueError as error:
+        assert str(error) == "max_runtime_seconds must be greater than zero"
+    else:
+        raise AssertionError("AgentExecutor should reject a non-positive runtime budget")
+
+
+def test_agent_executor_enforces_budget_while_a_tool_is_running() -> None:
+    planner = _FakePlanner(AgentPlan(intent="慢工具", plan_steps=[_tool("calculator")]))
+    executor = AgentExecutor(
+        registry=_SlowRegistry({}),
+        planner=planner,
+        max_runtime_seconds=0.01,
+    )
+
+    response = _run(executor)
+
+    assert response.status == "failed"
+    assert response.final_answer == "工具 calculator 执行超时，请稍后重试或缩小任务范围。"
+    assert response.steps[-1].metadata["timeout_phase"] == "tool"
+    assert response.steps[-1].metadata["tool_name"] == "calculator"
+
+
+def test_agent_executor_reports_planning_timeout_separately() -> None:
+    plan = AgentPlan(intent="慢规划", plan_steps=[_tool("calculator")])
+    executor = AgentExecutor(
+        registry=_FakeRegistry({}),
+        planner=_SlowPlanner(plan),
+        max_runtime_seconds=0.01,
+    )
+
+    response = _run(executor)
+
+    assert response.status == "failed"
+    assert response.final_answer == "智能体任务规划超时，请稍后重试。"
+    assert response.steps[-1].metadata["timeout_phase"] == "plan"
 
 
 def test_agent_executor_previews_plan_risk_without_executing_tools() -> None:

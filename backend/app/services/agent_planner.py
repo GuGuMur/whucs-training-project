@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -40,7 +41,7 @@ class ToolCallingLLM:
         llm = self._client()
         if llm is None:
             return None
-        response = llm.invoke(prompt)
+        response = await asyncio.to_thread(llm.invoke, prompt)
         return response.content.strip() if hasattr(response, "content") else str(response).strip()
 
 

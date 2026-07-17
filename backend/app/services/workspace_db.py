@@ -12,6 +12,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.domain.schemas import (
     FileItem, FolderItem, FolderTreeResponse, UserCreate, UserPublic, UserUpdate,
     TeamDetail, TeamSummary, WorkspaceSnapshot, ToolDefinition, QAResponse, QARequest,
@@ -228,7 +229,10 @@ class WorkspaceServiceDB:
         self._faiss: dict[str, tuple[faiss.Index, list[str], dict]] = {}
         self._rag_pipeline = RagPipeline(self._docs, self._chunks, self._faiss)
         self._tool_registry = ToolRegistry()
-        self._agent_executor = AgentExecutor(self._tool_registry)
+        self._agent_executor = AgentExecutor(
+            self._tool_registry,
+            max_runtime_seconds=settings.AGENT_MAX_RUNTIME_SECONDS,
+        )
 
     # ── Auth ──
     def _hash(self, pw: str) -> str:
@@ -3000,10 +3004,67 @@ class WorkspaceServiceDB:
         """Seed built-in workflow templates if none exist."""
         import secrets as _s
         import json as _json
+        file_compare_template = {
+            "name": "文件比对报告",
+            "trigger": "manual",
+            "description": "选择两个可访问文本文件，逐行比对并生成结构化 Markdown 差异报告",
+            "nodes": [
+                {
+                    "id": "input-compare",
+                    "name": "选择待比对文件",
+                    "type": "input",
+                    "tool_name": None,
+                    "parameters": {"file_a": "", "file_b": "", "context_lines": 3},
+                    "position": {"x": 80, "y": 170},
+                },
+                {
+                    "id": "tool-compare",
+                    "name": "逐行比对文件",
+                    "type": "tool",
+                    "tool_name": "file_compare",
+                    "parameters": {
+                        "file_a": {"mode": "input", "input_key": "file_a"},
+                        "file_b": {"mode": "input", "input_key": "file_b"},
+                        "context_lines": {"mode": "input", "input_key": "context_lines"},
+                    },
+                    "position": {"x": 420, "y": 170},
+                },
+                {
+                    "id": "output-compare",
+                    "name": "输出比对报告",
+                    "type": "output",
+                    "tool_name": None,
+                    "parameters": {
+                        "format": "markdown",
+                        "report": {"mode": "node", "node_id": "tool-compare", "path": "output.report"},
+                        "summary": {"mode": "node", "node_id": "tool-compare", "path": "output.summary"},
+                        "diff": {"mode": "node", "node_id": "tool-compare", "path": "output.diff"},
+                        "file_a": {"mode": "node", "node_id": "tool-compare", "path": "output.file_a"},
+                        "file_b": {"mode": "node", "node_id": "tool-compare", "path": "output.file_b"},
+                    },
+                    "position": {"x": 760, "y": 170},
+                },
+            ],
+            "edges": [
+                {"id": "compare-e1", "source": "input-compare", "target": "tool-compare", "type": "smoothstep"},
+                {"id": "compare-e2", "source": "tool-compare", "target": "output-compare", "type": "smoothstep"},
+            ],
+        }
         existing = await self._workflows.list_all()
         if any(w.status == "template" for w in existing):
             for workflow in existing:
                 if workflow.status == "template":
+                    if workflow.name == file_compare_template["name"]:
+                        canonical_nodes = _json.dumps(file_compare_template["nodes"], ensure_ascii=False)
+                        canonical_edges = _json.dumps(file_compare_template["edges"], ensure_ascii=False)
+                        if workflow.nodes != canonical_nodes or workflow.edges != canonical_edges:
+                            workflow.description = file_compare_template["description"]
+                            workflow.trigger = file_compare_template["trigger"]
+                            workflow.nodes = canonical_nodes
+                            workflow.edges = canonical_edges
+                            workflow.version = "1.1.0"
+                            await self._workflows.update(workflow)
+                        continue
                     nodes = _json.loads(workflow.nodes) if workflow.nodes else []
                     migrated = False
                     for node in nodes:
@@ -3055,16 +3116,7 @@ class WorkspaceServiceDB:
                 {"id": "e2", "source": "tool-search", "target": "aggregate", "type": "smoothstep"},
                 {"id": "e3", "source": "aggregate", "target": "output-batch", "type": "smoothstep"},
             ]},
-            {"name": "文件比对报告", "trigger": "manual", "description": "选择两个文件进行内容比对并生成差异报告", "nodes": [
-                {"id": "trigger-c", "name": "手动选择文件", "type": "trigger", "tool_name": None, "parameters": {}, "position": {"x": 80, "y": 170}},
-                {"id": "tool-search", "name": "查询文件内容", "type": "tool", "tool_name": "file_content_search", "parameters": {"query": ""}, "position": {"x": 360, "y": 110}},
-                {"id": "tool-calc", "name": "计算统计项", "type": "tool", "tool_name": "calculator", "parameters": {"expression": "1 + 1"}, "position": {"x": 650, "y": 170}},
-                {"id": "output-compare", "name": "导出报告", "type": "output", "tool_name": None, "parameters": {"format": "docx"}, "position": {"x": 940, "y": 170}},
-            ], "edges": [
-                {"id": "e1", "source": "trigger-c", "target": "tool-search", "type": "smoothstep"},
-                {"id": "e2", "source": "tool-search", "target": "tool-calc", "type": "smoothstep"},
-                {"id": "e3", "source": "tool-calc", "target": "output-compare", "type": "smoothstep"},
-            ]},
+            file_compare_template,
             {"name": "知识入库处理", "trigger": "file_upload", "description": "上传文件后自动解析、OCR识别、分块索引到知识库", "nodes": [
                 {"id": "trigger-k", "name": "文件上传触发", "type": "trigger", "tool_name": None, "parameters": {"event": "file.created"}, "position": {"x": 80, "y": 170}},
                 {"id": "tool-search", "name": "搜索重复文件", "type": "tool", "tool_name": "file_content_search", "parameters": {"query": ""}, "position": {"x": 360, "y": 240}},

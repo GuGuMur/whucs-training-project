@@ -1096,27 +1096,37 @@ export async function* streamAgentTask(
   const decoder = new TextDecoder()
   let buffer = ''
 
+  function parseLine(line: string): WorkspaceAgentStreamEvent | null {
+    const normalizedLine = line.endsWith('\r') ? line.slice(0, -1) : line
+    if (!normalizedLine.startsWith('data:')) return null
+    const payloadText = normalizedLine.slice(5).trimStart()
+    if (!payloadText) return null
+    try {
+      return JSON.parse(payloadText) as WorkspaceAgentStreamEvent
+    } catch {
+      return null
+    }
+  }
+
   try {
     while (true) {
       const { done, value } = await reader.read()
-      if (done) break
+      if (done) {
+        buffer += decoder.decode()
+        const event = parseLine(buffer)
+        if (event) yield event
+        break
+      }
 
       buffer += decoder.decode(value, { stream: true })
       const lines = buffer.split('\n')
       buffer = lines.pop() || ''
 
       for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const event: WorkspaceAgentStreamEvent = JSON.parse(line.slice(6))
-            yield event
-            if (event.type === 'done' || event.type === 'error') {
-              return
-            }
-          } catch {
-            // Skip unparseable lines
-          }
-        }
+        const event = parseLine(line)
+        if (!event) continue
+        yield event
+        if (event.type === 'done' || event.type === 'error') return
       }
     }
   } finally {

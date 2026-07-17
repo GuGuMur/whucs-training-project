@@ -48,6 +48,7 @@ const {
   activeTask,
   executionSteps,
   finalAnswer,
+  errorMessage: agentErrorMessage,
   loading: agentLoading,
   isStreaming: agentStreaming,
   planPreview,
@@ -303,6 +304,10 @@ function openAgentTaskModal() {
 async function submitAgentTask(payload: { task: string; kbId?: string | null; contextFileIds?: string[] }) {
   await agent.createTask(payload).catch(() => message.error('智能体任务执行失败'))
 }
+
+async function streamAgentTask(payload: { task: string; kbId?: string | null; contextFileIds?: string[] }) {
+  await agent.createTaskStream(payload).catch(() => message.error(agent.errorMessage || '智能体任务执行失败'))
+}
 </script>
 
 <template>
@@ -386,6 +391,7 @@ async function submitAgentTask(payload: { task: string; kbId?: string | null; co
           <WorkflowRunPanel
             v-model:values="runInputValues"
             :execution="activeWorkflowExecution"
+            :files="files"
             :inputs="workflowInputOptions"
             :loading="workflowOperationLoading"
             @run="executeFlow"
@@ -408,6 +414,9 @@ async function submitAgentTask(payload: { task: string; kbId?: string | null; co
             <div><h1>智能体任务</h1><p>创建、查看和管理自然语言工具流任务</p></div>
             <NButton type="primary" @click="openAgentTaskModal">创建任务</NButton>
           </div>
+          <NAlert v-if="agentErrorMessage" type="error" :bordered="false">
+            {{ agentErrorMessage }}
+          </NAlert>
           <div class="agent-page__grid">
             <AgentTaskList
               :active-task-id="activeTask?.id"
@@ -437,7 +446,7 @@ async function submitAgentTask(payload: { task: string; kbId?: string | null; co
       :loading="agentLoading || agentStreaming"
       :plan-preview="planPreview"
       @preview="agent.previewTaskPlan"
-      @stream="agent.createTaskStream"
+      @stream="streamAgentTask"
       @submit="submitAgentTask"
     />
   </component>
