@@ -182,7 +182,7 @@ function handleLogout() { auth.logout(); router.push('/login') }
       </header>
 
       <!-- Page slot -->
-      <div class="px-6 py-4">
+      <div class="min-h-0 px-6 py-4">
         <slot />
       </div>
     </section>

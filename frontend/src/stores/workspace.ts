@@ -2028,8 +2028,9 @@ function workflowExecutionToAgentSteps(execution: WorkspaceWorkflowExecution): A
     metadata: {
       input: node.input ?? {},
       node_id: node.node_id,
+      workflow_status: node.status,
     },
-    status: node.status,
+    status: node.status === "skipped" ? "success" : node.status,
     title: node.name,
     tool_name: node.tool_name === "trigger" ? null : node.tool_name,
     type: node.tool_name === "trigger" ? "thought" : "action",

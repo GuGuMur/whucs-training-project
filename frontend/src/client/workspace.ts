@@ -19,12 +19,16 @@ import {
   deleteKnowledgeBaseApiV2KnowledgeBasesKbIdDelete,
   deletePermissionRuleApiV2PermissionsRulesRuleIdDelete,
   downloadFileApiV2FilesFileIdDownloadGet,
+  debugStartApiV2WorkflowsWorkflowIdDebugStartPost,
+  debugStepApiV2WorkflowsWorkflowIdDebugStepPost,
+  debugCancelApiV2WorkflowsWorkflowIdDebugSessionIdDelete,
   executeWorkflowApiV2WorkflowsWorkflowIdExecutionsPost,
   fileAnnotationsApiV2FilesFileIdAnnotationsGet,
   fileContentApiV2FilesFileIdContentGet,
   listFilesApiV2FilesGet,
   fileVersionsApiV2FilesFileIdVersionsGet,
   folderTreeApiV2FoldersTreeGet,
+  getWorkflowApiV2WorkflowsWorkflowIdGet,
   joinTeamApiV2TeamsTeamIdMembersPost,
   listKnowledgeBasesApiV2KnowledgeBasesGet,
   knowledgeDocumentsApiV2KnowledgeBasesKbIdDocumentsGet,
@@ -52,7 +56,10 @@ import {
   recycleBinApiV2FilesRecycleBinGet,
   validateWorkflowApiV2WorkflowsWorkflowIdValidatePost,
   restoreDeletedFileApiV2FilesFileIdRestorePost,
+  restoreWorkflowVersionApiV2WorkflowsWorkflowIdVersionsVersionIdRestorePost,
   listWorkflowsApiV2WorkflowsGet,
+  listWorkflowExecutionsApiV2WorkflowsWorkflowIdExecutionsGet,
+  listWorkflowVersionsApiV2WorkflowsWorkflowIdVersionsGet,
   workspaceSnapshotApiV2WorkspaceSnapshotGet,
 } from '@/client/generated'
 import {
@@ -136,10 +143,12 @@ import type {
   WorkflowDefinition,
   WorkflowEdgeDefinition,
   WorkflowExecutionResponse,
+  WorkflowExecutionRecord,
   WorkflowListResponse,
   WorkflowNodeDefinition,
   WorkflowUpdate,
   WorkflowValidationResponse,
+  WorkflowVersionPublic,
   WorkspaceSnapshot,
 } from '@/client/generated'
 
@@ -191,6 +200,25 @@ export type WorkspaceWorkflowNode = WorkflowNodeDefinition
 export type WorkspaceWorkflowEdge = WorkflowEdgeDefinition
 export type WorkspaceWorkflowValidation = WorkflowValidationResponse
 export type WorkspaceWorkflowExecution = WorkflowExecutionResponse
+export type WorkspaceWorkflowExecutionRecord = WorkflowExecutionRecord
+export type WorkspaceWorkflowVersion = WorkflowVersionPublic
+
+export interface WorkspaceWorkflowDebugSession {
+  session_id: string
+  status: string
+  node_count: number
+}
+
+export interface WorkspaceWorkflowDebugStep {
+  done: boolean
+  step: number
+  node_id: string
+  node_name: string
+  status: 'success' | 'failed' | 'skipped'
+  input: Record<string, unknown>
+  output: Record<string, unknown>
+  remaining: number
+}
 
 export interface WorkspaceFileFilters {
   fileType: string
@@ -327,6 +355,7 @@ export interface WorkspaceWorkflowCreateInput {
   trigger?: string
 }
 export interface WorkspaceWorkflowUpdateInput {
+  expectedRevision?: number | null
   description?: string | null
   edges?: WorkspaceWorkflowEdge[] | null
   name?: string | null
@@ -396,6 +425,19 @@ export async function listWorkspaceWorkflows(token: string): Promise<WorkflowLis
   return response.data
 }
 
+export async function getWorkspaceWorkflow(token: string, workflowId: string): Promise<WorkspaceWorkflow> {
+  const response = await getWorkflowApiV2WorkflowsWorkflowIdGet({
+    headers: createAuthorizationHeader(token),
+    path: { workflow_id: workflowId },
+  })
+
+  if (response.error) {
+    throw response.error
+  }
+
+  return response.data
+}
+
 export async function createWorkspaceWorkflow(
   token: string,
   payload: WorkspaceWorkflowCreateInput,
@@ -439,6 +481,9 @@ export async function updateWorkspaceWorkflow(
   }
   if ('trigger' in payload) {
     body.trigger = payload.trigger ?? null
+  }
+  if ('expectedRevision' in payload) {
+    body.expected_revision = payload.expectedRevision ?? null
   }
 
   const response = await updateWorkflowApiV2WorkflowsWorkflowIdPatch({
@@ -502,6 +547,79 @@ export async function executeWorkspaceWorkflow(
     throw response.error
   }
 
+  return response.data
+}
+
+export async function startWorkspaceWorkflowDebug(
+  token: string,
+  workflowId: string,
+  payload: WorkspaceWorkflowExecuteInput = { inputs: {} },
+): Promise<WorkspaceWorkflowDebugSession> {
+  const response = await debugStartApiV2WorkflowsWorkflowIdDebugStartPost({
+    headers: createAuthorizationHeader(token),
+    path: { workflow_id: workflowId },
+    body: payload,
+  })
+  if (response.error) throw response.error
+  return response.data as unknown as WorkspaceWorkflowDebugSession
+}
+
+export async function stepWorkspaceWorkflowDebug(
+  token: string,
+  workflowId: string,
+  sessionId: string,
+): Promise<WorkspaceWorkflowDebugStep> {
+  const response = await debugStepApiV2WorkflowsWorkflowIdDebugStepPost({
+    body: { session_id: sessionId },
+    headers: createAuthorizationHeader(token),
+    path: { workflow_id: workflowId },
+  })
+  if (response.error) throw response.error
+  return response.data as unknown as WorkspaceWorkflowDebugStep
+}
+
+export async function cancelWorkspaceWorkflowDebug(token: string, workflowId: string, sessionId: string): Promise<void> {
+  const response = await debugCancelApiV2WorkflowsWorkflowIdDebugSessionIdDelete({
+    headers: createAuthorizationHeader(token),
+    path: { workflow_id: workflowId, session_id: sessionId },
+  })
+  if (response.error) throw response.error
+}
+
+export async function listWorkspaceWorkflowVersions(
+  token: string,
+  workflowId: string,
+): Promise<WorkspaceWorkflowVersion[]> {
+  const response = await listWorkflowVersionsApiV2WorkflowsWorkflowIdVersionsGet({
+    headers: createAuthorizationHeader(token),
+    path: { workflow_id: workflowId },
+  })
+  if (response.error) throw response.error
+  return response.data.items
+}
+
+export async function listWorkspaceWorkflowExecutions(
+  token: string,
+  workflowId: string,
+): Promise<WorkspaceWorkflowExecutionRecord[]> {
+  const response = await listWorkflowExecutionsApiV2WorkflowsWorkflowIdExecutionsGet({
+    headers: createAuthorizationHeader(token),
+    path: { workflow_id: workflowId },
+  })
+  if (response.error) throw response.error
+  return response.data.items
+}
+
+export async function restoreWorkspaceWorkflowVersion(
+  token: string,
+  workflowId: string,
+  versionId: string,
+): Promise<WorkspaceWorkflow> {
+  const response = await restoreWorkflowVersionApiV2WorkflowsWorkflowIdVersionsVersionIdRestorePost({
+    headers: createAuthorizationHeader(token),
+    path: { workflow_id: workflowId, version_id: versionId },
+  })
+  if (response.error) throw response.error
   return response.data
 }
 

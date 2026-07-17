@@ -6,6 +6,7 @@ import { defineComponent, h, nextTick } from 'vue'
 
 import { useAgentStore } from '@/stores/agent'
 import { useWorkspaceStore } from '@/stores/workspace'
+import { useWorkflowStore } from '@/stores/workflow'
 import type { WorkspaceAgentTask } from '@/client/workspace'
 import WorkflowBuilderView from '../WorkflowBuilderView.vue'
 
@@ -92,6 +93,9 @@ function mountView() {
   }
   workspace.knowledgeBases = [{ id: 'kb-1', name: '课程知识库' } as any]
 
+  const workflow = useWorkflowStore()
+  vi.mocked(workflow.listWorkflows).mockResolvedValue({ items: [] } as any)
+
   const agent = useAgentStore()
   vi.mocked(agent.loadTools).mockResolvedValue({ items: [] } as any)
   vi.mocked(agent.loadTaskHistory).mockResolvedValue({ items: [task] } as any)
@@ -130,7 +134,7 @@ function mountView() {
     },
   })
 
-  return { agent, workspace, wrapper }
+  return { agent, workflow, workspace, wrapper }
 }
 
 describe('WorkflowBuilderView', () => {
@@ -138,7 +142,7 @@ describe('WorkflowBuilderView', () => {
     document.body.innerHTML = ''
   })
 
-  it('defaults to the natural-language task console and opens creation in a modal', async () => {
+  it('defaults to the visual designer and keeps agent task creation in a separate tab', async () => {
     const { agent, workspace, wrapper } = mountView()
 
     await flushPromises()
@@ -148,9 +152,14 @@ describe('WorkflowBuilderView', () => {
     expect(agent.loadTools).toHaveBeenCalled()
     expect(agent.loadTaskHistory).toHaveBeenCalled()
     expect(wrapper.text()).toContain('智能体任务')
+    expect(wrapper.text()).toContain('节点库')
+    expect(document.querySelector('.workflow-canvas-stub')).not.toBeNull()
+
+    await findTab(wrapper, '智能体任务').trigger('click')
+    await nextTick()
+
     expect(wrapper.text()).toContain('任务列表')
     expect(wrapper.text()).toContain('整理知识库文档')
-    expect(wrapper.text()).not.toContain('例如：查询高等数学课程安排并整理成表格')
 
     await findButton('创建任务').click()
     await nextTick()
@@ -168,6 +177,9 @@ describe('WorkflowBuilderView', () => {
     await flushPromises()
     await nextTick()
 
+    await findTab(wrapper, '智能体任务').trigger('click')
+    await nextTick()
+
     await wrapper.find('.agent-task-list__item').trigger('click')
     expect(agent.loadTask).toHaveBeenCalledWith('task-1')
 
@@ -181,17 +193,16 @@ describe('WorkflowBuilderView', () => {
     wrapper.unmount()
   })
 
-  it('hides the visual workflow designer from the tool flow page', async () => {
+  it('renders the visual workflow designer as the primary tool-flow surface', async () => {
     const { wrapper } = mountView()
 
     await flushPromises()
     await nextTick()
 
-    expect(wrapper.text()).toContain('智能体任务')
-    expect(wrapper.text()).not.toContain('可视化流程')
-    expect(wrapper.text()).not.toContain('输入流程名称')
-    expect(wrapper.text()).not.toContain('节点库')
-    expect(document.querySelector('.workflow-canvas-stub')).toBeNull()
+    expect(wrapper.text()).toContain('可视化编排')
+    expect(wrapper.text()).toContain('节点库')
+    expect(wrapper.text()).toContain('添加输出节点')
+    expect(document.querySelector('.workflow-canvas-stub')).not.toBeNull()
 
     wrapper.unmount()
   })
@@ -202,4 +213,10 @@ function findButton(label: string) {
     .find((item) => item.textContent?.includes(label))
   expect(button).toBeTruthy()
   return button!
+}
+
+function findTab(wrapper: ReturnType<typeof mount>, label: string) {
+  const tab = wrapper.findAll('.n-tabs-tab').find((item) => item.text().includes(label))
+  expect(tab).toBeTruthy()
+  return tab!
 }

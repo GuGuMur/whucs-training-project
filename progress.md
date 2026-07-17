@@ -1,5 +1,77 @@
 # Progress Log
 
+### 2026-07-16: Workflow execution kernel consolidation
+- **Status:** in progress
+- Extracted one `_execute_workflow_node()` path for tool, input/trigger, output, and passthrough nodes; formal execution and debug stepping now call the same implementation.
+- Corrected list-workflows summaries to calculate actual node counts while still omitting full graph payloads.
+- Added explicit formal/debug output parity coverage.
+- Verification: workflow/OpenAPI slice 9 passed; frontend 27 files/109 tests and type-check passed; isolated full backend suite exited successfully; production build and Chromium E2E passed.
+- **Status:** Phase 45 complete.
+
+### 2026-07-16: Vue Flow production hardening
+- **Status:** in progress
+- Opened Phase 44 for optimistic concurrency, lossless edge metadata, and bounded debug-session lifecycle.
+- Reloaded required Vue references and confirmed the changes stay within existing API/store/canvas boundaries.
+- Added workflow revision tokens through domain/model/API/codec/store; stale updates return a structured 409 conflict.
+- Added explicit edge label/type schema and normalized round-trip coverage.
+- Added 30-minute debug expiry, cancellation API/client/store/UI, and post-cancel rejection coverage.
+- Regenerated the OpenAPI client and updated SQLite compatibility/migration handling for workflow revisions.
+- Final verification: frontend 27 files/109 tests passed, type-check and build passed; isolated full backend suite exited successfully; Chromium E2E passed; `git diff --check` passed.
+- **Status:** Phase 44 complete.
+
+### 2026-07-16: Vue Flow completion-definition closure
+- **Status:** in progress
+- Audited the original seven-stage plan after Phase 42 and found remaining gaps in undo/redo, unsaved-change protection, binding validation, version restore, and explicit execution inputs.
+- Loaded the required planning and Vue core references and opened Phase 43 to close these gaps.
+- Added bounded undo/redo graph history, drag checkpoints, toolbar controls, and unit/E2E coverage.
+- Added unsaved-change confirmation for route exit, workflow switching, new workflow, template loading, and version restore.
+- Added server-side binding/required-parameter validation and regression coverage for missing inputs and non-upstream references.
+- Added version restore API/client/store/UI and an explicit workflow run-input panel.
+- Final verification: backend workflow/OpenAPI slice 8 passed; isolated full backend suite exited successfully; frontend 27 files/109 tests passed; type-check and production build passed; Chromium authoring/undo/redo E2E passed; `git diff --check` passed.
+- **Status:** Phase 43 complete; the Vue Flow completion definition is satisfied for supported node types (`input`, `trigger`, `tool`, `output`).
+
+### 2026-07-16: Vue Flow core implementation
+- **Status:** in progress
+- Restored the implementation plan and reloaded all required Vue architecture references.
+- Scope for this pass: workflow detail/publish contracts, single remote store, lossless graph codec, designer composable, and visible core canvas interaction.
+- Added a failing backend regression test; initial result was HTTP 405 for missing workflow detail, confirming the audited contract gap.
+- Added owner-scoped `GET /api/v2/workflows/{id}` and server-side publish validation; focused backend regression now passes.
+- Regenerated the OpenAPI client and added the workflow-detail adapter/store action.
+- Added a lossless workflow codec, typed `useWorkflowDesigner`, custom node handles, controlled canvas, toolbar and inspector.
+- Rebuilt `/workflow` as “可视化编排 / 智能体任务” tabs with the visual designer as the primary surface and the dedicated workflow store as remote owner.
+- Focused codec/designer/view tests: 3 files, 5 tests passed; frontend type-check passed after tightening Vue Flow node data typing.
+- Backend v2 workflow/OpenAPI regression: 6 passed.
+- Frontend full unit suite: 26 files, 104 tests passed.
+- Frontend type-check and production build passed; `git diff --check` passed.
+- **Status:** Phase 41 complete. Phase 42 remains for schema-aware parameters, immutable versions, published-only execution, real debug, and browser E2E.
+
+### 2026-07-16: Vue Flow Phase 42 continuation
+- **Status:** in progress
+- Added a failing regression proving DB-backed v2 still executed drafts and debug returned simulated nodes.
+- Implemented published-only execution/debug gates and real topological debug steps using workflow parameter resolution and ToolRegistry execution.
+- Added frontend generated-client adapters/store lifecycle and a debug panel that advances real nodes and maps their status/output back to the canvas.
+- Replaced raw tool parameter JSON with input-schema-driven binding editors; upstream output options are limited to graph ancestors and numeric literals preserve number types.
+- Added workflow debug store and typed-binding tests.
+- Verification: backend workflow/OpenAPI slice 7 passed; frontend full suite 27 files/106 tests passed; type-check and production build passed; isolated full backend suite exited successfully.
+- Added `workflow_versions` and `workflow_executions` models, repositories, Alembic migration, domain schemas, and owner-scoped list APIs.
+- Publishing now increments a semantic minor version and persists an immutable graph snapshot; editing a published workflow returns the live definition to draft without mutating its snapshot.
+- Formal executions persist node-level history and version identity; the frontend store loads and refreshes both histories and renders them in `WorkflowHistoryPanel`.
+- Replaced the obsolete starter E2E with a mocked-contract Chromium workflow authoring test and aligned Playwright with Vite port 8080/system Chrome.
+- Final verification: frontend 27 files/107 tests passed, type-check passed, production build passed; Chromium E2E 1 passed; isolated full backend suite exited successfully; `git diff --check` passed.
+- **Status:** Phase 42 complete.
+
+### 2026-07-16: Vue Flow orchestration planning audit
+- **Status:** in progress
+- Loaded the required planning and Vue architecture skills and their mandatory references.
+- Restored the long-running project plan and confirmed existing unrelated worktree changes.
+- Located the current workflow view, workflow components, stores, generated API surface, and legacy workflow panel.
+- No business code has been modified.
+- Confirmed `/workflow` points to the full-page builder and that it bypasses the dedicated workflow Pinia store.
+- Read the route-level graph model, client-side validation/serialization, drag/drop creation, save/execute behavior, workflow store, designer types, and router wiring.
+- Audited the v2 backend workflow schema, persistence, validation, execution, debug implementation, permission tests, and frontend workflow tests.
+- Completed the component map, seven implementation phases, acceptance criteria, and completion definition in `docs/superpowers/plans/2026-07-16-complete-vue-flow-orchestration.md`.
+- **Status:** complete; business code remains unchanged.
+
 ## Session: 2026-07-08
 
 ### 2026-07-11: RAG backend document-level context audit
@@ -821,3 +893,10 @@
 | 11:06 | Fixed RAG answer quality and citation rendering: targeted retrieval now combines FAISS score with query-term reranking, LLM context includes source title/page/paragraph metadata, fallback/live answers preserve `[来源 N]` markers, and frontend citation markers render as styled anchors to citation cards. | `backend/app/services/rag_pipeline.py`, `backend/app/services/llm.py`, `backend/tests/test_rag_pipeline.py`, `backend/tests/test_llm.py`, `frontend/src/composables/useMarkdown.ts`, `frontend/src/composables/__tests__/useMarkdown.spec.ts`, `frontend/src/components/rag/KnowledgeConversationPanel.vue`, `frontend/src/components/rag/__tests__/KnowledgeConversationPanel.spec.ts` | RAG/LLM backend tests -> 7 passed; backend knowledge API slice -> 8 passed, 56 deselected, 3 warnings; frontend RAG markdown/component tests -> 5 passed; `git diff --check` passed. `pnpm type-check` still fails on pre-existing TeamChat/workspace message typing errors. |
 | 11:14 | Tightened RAG file-overview prompting after real output showed “无法讲解这些文件”: single-file overview now uses document-overview mode, prompts forbid “未列出具体文件/资料不足” when document context exists, bare `来源 1` markers are normalized or rendered as citation links, and tests cover these regressions. | `backend/app/services/llm.py`, `backend/app/services/rag_pipeline.py`, `backend/tests/test_llm.py`, `backend/tests/test_rag_pipeline.py`, `frontend/src/composables/useMarkdown.ts`, `frontend/src/composables/__tests__/useMarkdown.spec.ts` | Backend RAG/LLM tests -> 10 passed; frontend RAG markdown/component tests -> 6 passed; `git diff --check` and buglog JSON validation passed. `pnpm type-check` still fails on pre-existing TeamChat/workspace message typing errors. |
 | 11:46 | Fixed missing RAG citation cards after streaming: SSE citation events now include full citation fields, the knowledge store carries streaming citations into the final assistant message and migrates pending messages to the real conversation id, and the conversation panel renders streaming citation cards with real page/paragraph metadata. | `backend/app/services/workspace_db.py`, `frontend/src/client/workspace.ts`, `frontend/src/stores/knowledge.ts`, `frontend/src/stores/__tests__/knowledge.spec.ts`, `frontend/src/components/rag/KnowledgeConversationPanel.vue`, `frontend/src/components/rag/__tests__/KnowledgeConversationPanel.spec.ts` | Frontend RAG store/component/markdown tests -> 17 passed; backend RAG/LLM/API slice -> 12 passed, 62 deselected, 3 warnings; `git diff --check` and buglog JSON validation passed. `pnpm type-check` still fails only on pre-existing TeamChat/workspace message typing errors. |
+| 2026-07-16 | Started advanced Vue Flow node implementation as Phases 46-48; audited the v2 DB executor, validator, debugger, codec, designer, palette, canvas, and inspector, and fixed the semantic boundary before coding. | `task_plan.md`, `findings.md`, `progress.md` | Planning/audit only. |
+| 2026-07-16 | Completed advanced v2 DB workflow nodes end to end: real condition routing, safe transform, bounded loop projection, aggregation, authoritative validation, shared formal/debug behavior, Vue Flow palette/handles/inspector, lossless codec, debug inputs, generated client, and regressions. | `backend/app/api/v2/workflow.py`, `backend/app/services/workspace_db.py`, `backend/tests/test_workspace_api.py`, `frontend/src/components/workflow/*`, `frontend/src/composables/useWorkflowDesigner.ts`, `frontend/src/views/WorkflowBuilderView.vue`, `frontend/src/client/*`, planning files | Focused backend 9 passed; focused frontend 13 passed; backend full 147 passed; frontend full 27 files/112 tests passed; type-check, production build, OpenAPI generation, and `git diff --check` passed. |
+| 2026-07-16 | Completed durable v2 workflow debugging: replaced process memory with DB-backed graph snapshots/session context, added repository/model/migration, preserved start/step/cancel API behavior, and repaired clean Alembic SQLite deployment. | `backend/app/models/workflow.py`, `backend/app/repositories/workflow.py`, `backend/app/services/workspace_db.py`, `backend/alembic/env.py`, `backend/alembic/versions/423efa013cf2_add_owner_id_to_files_folders.py`, `backend/alembic/versions/20260716_workflow_debug_sessions.py` | Clean Alembic upgrade reached `20260716wfdebug (head)`; migrated-DB workflow slice 6 passed; backend full suite 147 passed; diff check passed. |
+| 2026-07-16 | Hardened durable debug concurrency with atomic expiring leases, overlap/cancel conflict responses, exception release, and abandoned-lease recovery. | `backend/app/models/workflow.py`, `backend/app/repositories/workflow.py`, `backend/app/services/workspace_db.py`, `backend/alembic/versions/20260716_workflow_debug_sessions.py`, `backend/tests/test_workspace_api.py` | Clean Alembic upgrade reached head; focused lease/debug tests 4 passed; backend full suite 148 passed; diff check passed. |
+| 2026-07-16 | Completed branch skip observability: v2 executions, history, and debugging now return complete ordered traces with explicit skipped records; Vue Flow and panels render the state without reimplementing branch logic. | `backend/app/domain/workflow.py`, `backend/app/services/workspace_db.py`, `backend/tests/test_workspace_api.py`, `frontend/src/client/*`, `frontend/src/components/workflow/*`, `frontend/src/views/WorkflowBuilderView.vue`, `frontend/src/stores/workspace.ts` | Backend workflow slice 6 passed and full suite 148 passed; frontend 28 files/114 tests passed; type-check, build, client generation, and diff check passed. |
+| 2026-07-16 | Audited and planned frontend fixes for protected-route enforcement, Vue Flow keyboard deletion, and viewport-bounded canvas layout. | `frontend/src/router/index.ts`, `frontend/src/stores/auth.ts`, `frontend/src/components/workflow/WorkflowCanvas.vue`, `frontend/src/composables/useWorkflowDesigner.ts`, `frontend/src/layouts/DesktopWorkspaceLayout.vue`, planning files | Planning only; implementation deferred until requested. |
+| 2026-07-16 | Completed Phase 52: protected routes now require server-verified sessions with refresh recovery, Vue Flow supports focus-scoped Delete/Backspace through designer actions, and the canvas is viewport-bounded on desktop with a separate mobile height. | `frontend/src/stores/auth.ts`, `frontend/src/router/index.ts`, `frontend/src/components/workflow/WorkflowCanvas.vue`, `frontend/src/views/WorkflowBuilderView.vue`, `frontend/src/layouts/DesktopWorkspaceLayout.vue`, frontend tests | Focused 17 tests passed; full frontend 29 files/119 tests passed; type-check and production build passed; Chromium E2E 2/2 passed; diff check passed. |

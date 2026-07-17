@@ -16,10 +16,15 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+from app.core.config import settings
 from app.core.database import Base
 from app.models import *  # noqa: F401,F403 — register all models for autogenerate
 
 target_metadata = Base.metadata
+database_url = settings.DATABASE_URL
+if database_url.startswith("sqlite:///"):
+    database_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

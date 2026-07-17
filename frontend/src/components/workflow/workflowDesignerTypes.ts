@@ -1,6 +1,37 @@
 import type { ToolDefinition } from '@/client/workspace'
+import type { Edge, Node } from '@vue-flow/core'
 
 export type WorkflowDesignerNodeKind = 'input' | 'tool'
+
+export type AdvancedWorkflowNodeKind = 'condition' | 'loop' | 'transform' | 'aggregate'
+export type SupportedWorkflowNodeKind = 'input' | 'trigger' | 'tool' | AdvancedWorkflowNodeKind | 'output'
+
+export type WorkflowNodeStatus = 'idle' | 'running' | 'success' | 'error' | 'skipped'
+
+export interface WorkflowDesignerNodeData extends Record<string, unknown> {
+  label: string
+  kind: SupportedWorkflowNodeKind
+  description: string
+  status: WorkflowNodeStatus
+  toolName: string | null
+  parameters: Record<string, unknown>
+}
+
+export type WorkflowDesignerNode = Omit<Node<WorkflowDesignerNodeData>, 'data'> & {
+  data: WorkflowDesignerNodeData
+}
+export type WorkflowDesignerEdge = Edge
+
+export interface WorkflowDesignerDocument {
+  id: string | null
+  name: string
+  description: string
+  trigger: string
+  version: string
+  revision: number
+  nodes: WorkflowDesignerNode[]
+  edges: WorkflowDesignerEdge[]
+}
 
 export type WorkflowInputKind = 'text' | 'number' | 'json' | 'file' | 'knowledge_base'
 
@@ -43,4 +74,7 @@ export type WorkflowPaletteNodePayload =
       tool: ToolDefinition
       toolName: string
     }
-
+  | {
+      kind: AdvancedWorkflowNodeKind
+      label: string
+    }

@@ -12,11 +12,13 @@ const props = withDefaults(defineProps<{
   availableNodeOutputs?: WorkflowNodeOutputOption[]
   disabled?: boolean
   label?: string
+  schemaType?: string
 }>(), {
   availableInputs: () => [],
   availableNodeOutputs: () => [],
   disabled: false,
   label: '参数绑定',
+  schemaType: 'string',
 })
 
 const model = defineModel<WorkflowValueBinding>({
@@ -70,7 +72,17 @@ const literalText = computed({
     return JSON.stringify(model.value.value ?? '')
   },
   set(value: string) {
-    model.value = { mode: 'literal', value }
+    if (props.schemaType === 'number' || props.schemaType === 'integer') {
+      const parsed = Number(value)
+      model.value = { mode: 'literal', value: Number.isFinite(parsed) ? parsed : 0 }
+    } else if (props.schemaType === 'boolean') {
+      model.value = { mode: 'literal', value: value === 'true' }
+    } else if (props.schemaType === 'array' || props.schemaType === 'object') {
+      try { model.value = { mode: 'literal', value: JSON.parse(value || (props.schemaType === 'array' ? '[]' : '{}')) } }
+      catch { model.value = { mode: 'literal', value } }
+    } else {
+      model.value = { mode: 'literal', value }
+    }
   },
 })
 
@@ -164,4 +176,3 @@ const currentMode = computed({
   font-weight: 700;
 }
 </style>
-

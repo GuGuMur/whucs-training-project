@@ -40,6 +40,10 @@ def _ensure_sqlite_schema(conn) -> None:
     if not str(engine.url).startswith("sqlite"):
         return
 
+    workflow_columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(workflows)").fetchall()}
+    if "revision" not in workflow_columns:
+        conn.exec_driver_sql("ALTER TABLE workflows ADD COLUMN revision INTEGER DEFAULT 0 NOT NULL")
+
     kb_columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(knowledge_bases)").fetchall()}
     kb_additions = {
         "scope_type": "ALTER TABLE knowledge_bases ADD COLUMN scope_type VARCHAR(16) DEFAULT 'personal' NOT NULL",

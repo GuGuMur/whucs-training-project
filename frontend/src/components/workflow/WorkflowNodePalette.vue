@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Braces, FileText, Hash, Library, Plus, Type, Wrench } from '@lucide/vue'
+import { Braces, FileText, GitBranch, Hash, IterationCcw, Library, Merge, Plus, Shuffle, Type, Wrench } from '@lucide/vue'
 
 import type { ToolDefinition } from '@/client/workspace'
 import type {
+  AdvancedWorkflowNodeKind,
   WorkflowInputBlockConfig,
   WorkflowInputKind,
   WorkflowPaletteNodePayload,
 } from './workflowDesignerTypes'
+
+const advancedNodes: Array<{ kind: AdvancedWorkflowNodeKind; label: string; description: string; icon: typeof GitBranch }> = [
+  { kind: 'condition', label: '条件分支', description: '按 true / false 选择后续路径', icon: GitBranch },
+  { kind: 'transform', label: '数据转换', description: '提取、过滤或整理结构化数据', icon: Shuffle },
+  { kind: 'loop', label: '数组循环', description: '有上限地逐项处理数组', icon: IterationCcw },
+  { kind: 'aggregate', label: '数据聚合', description: '统计、求和或合并数组', icon: Merge },
+]
 
 const props = withDefaults(defineProps<{
   inputKinds?: WorkflowInputKind[]
@@ -103,6 +111,10 @@ function buildToolPayload(tool: ToolDefinition): WorkflowPaletteNodePayload {
   }
 }
 
+function buildAdvancedPayload(item: typeof advancedNodes[number]): WorkflowPaletteNodePayload {
+  return { kind: item.kind, label: item.label }
+}
+
 function handleDragStart(event: DragEvent, payload: WorkflowPaletteNodePayload) {
   event.dataTransfer?.setData('application/x-whucs-workflow-node', JSON.stringify(payload))
   event.dataTransfer?.setData('text/plain', payload.label)
@@ -170,6 +182,25 @@ function toolKey(tool: ToolDefinition) {
             <strong>{{ input.label }}</strong>
             <small>{{ input.description }}</small>
           </span>
+        </button>
+      </div>
+    </section>
+
+    <section class="workflow-node-palette__group" aria-label="高级节点">
+      <h4>高级节点</h4>
+      <div class="workflow-node-palette__items">
+        <button
+          v-for="item in advancedNodes"
+          :key="item.kind"
+          class="workflow-node-palette__item"
+          draggable="true"
+          type="button"
+          :data-testid="`palette-advanced-${item.kind}`"
+          @click="emit('addNode', buildAdvancedPayload(item))"
+          @dragstart="handleDragStart($event, buildAdvancedPayload(item))"
+        >
+          <NIcon aria-hidden="true" class="workflow-node-palette__icon"><component :is="item.icon" /></NIcon>
+          <span class="workflow-node-palette__item-copy"><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
         </button>
       </div>
     </section>

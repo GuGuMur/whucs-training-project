@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -129,6 +130,8 @@ class WorkflowEdgeDefinition(BaseModel):
     target: str = Field(min_length=1, max_length=64)
     source_handle: str | None = None
     target_handle: str | None = None
+    label: str | None = Field(default=None, max_length=128)
+    type: str | None = Field(default=None, max_length=32)
 
 
 class WorkflowCreate(BaseModel):
@@ -140,6 +143,7 @@ class WorkflowCreate(BaseModel):
 
 
 class WorkflowUpdate(BaseModel):
+    expected_revision: int | None = Field(default=None, ge=0)
     name: str | None = Field(default=None, min_length=1, max_length=128)
     description: str | None = Field(default=None, max_length=500)
     trigger: str | None = Field(default=None, min_length=1, max_length=80)
@@ -169,6 +173,7 @@ class WorkflowDefinition(BaseModel):
     version: str
     node_count: int
     status: Literal["draft", "published", "template"]
+    revision: int = 0
     nodes: list[WorkflowNodeDefinition] = Field(default_factory=list)
     edges: list[WorkflowEdgeDefinition] = Field(default_factory=list)
 
@@ -187,7 +192,7 @@ class WorkflowNodeExecution(BaseModel):
     node_id: str
     name: str
     tool_name: str
-    status: Literal["pending", "running", "success", "failed"]
+    status: Literal["pending", "running", "success", "failed", "skipped"]
     input: dict[str, Any] = Field(default_factory=dict)
     output: dict[str, Any] = Field(default_factory=dict)
 
@@ -198,3 +203,33 @@ class WorkflowExecutionResponse(BaseModel):
     status: Literal["queued", "running", "completed", "failed"]
     node_executions: list[WorkflowNodeExecution]
     output: dict[str, Any]
+
+
+class WorkflowVersionPublic(BaseModel):
+    id: str
+    workflow_id: str
+    version: str
+    name: str
+    description: str
+    trigger: str
+    nodes: list[WorkflowNodeDefinition] = Field(default_factory=list)
+    edges: list[WorkflowEdgeDefinition] = Field(default_factory=list)
+    published_at: datetime
+
+
+class WorkflowVersionListResponse(BaseModel):
+    items: list[WorkflowVersionPublic]
+
+
+class WorkflowExecutionRecord(BaseModel):
+    id: str
+    workflow_id: str
+    workflow_version: str
+    status: Literal["queued", "running", "completed", "failed"]
+    node_executions: list[WorkflowNodeExecution] = Field(default_factory=list)
+    output: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+
+
+class WorkflowExecutionListResponse(BaseModel):
+    items: list[WorkflowExecutionRecord]

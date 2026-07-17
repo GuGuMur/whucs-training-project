@@ -11,14 +11,25 @@ import type {
   WorkspaceWorkflowExecution,
   WorkspaceWorkflowUpdateInput,
   WorkspaceWorkflowValidation,
+  WorkspaceWorkflowDebugSession,
+  WorkspaceWorkflowDebugStep,
+  WorkspaceWorkflowExecutionRecord,
+  WorkspaceWorkflowVersion,
 } from '@/client/workspace'
 import {
   createWorkspaceWorkflow,
   executeWorkspaceWorkflow,
+  getWorkspaceWorkflow,
   listWorkspaceWorkflows,
   publishWorkspaceWorkflow,
   updateWorkspaceWorkflow,
   validateWorkspaceWorkflow,
+  startWorkspaceWorkflowDebug,
+  stepWorkspaceWorkflowDebug,
+  cancelWorkspaceWorkflowDebug,
+  listWorkspaceWorkflowExecutions,
+  listWorkspaceWorkflowVersions,
+  restoreWorkspaceWorkflowVersion,
 } from '@/client/workspace'
 
 export const useWorkflowStore = defineStore('workflow', () => {
@@ -29,6 +40,10 @@ export const useWorkflowStore = defineStore('workflow', () => {
   const activeWorkflowExecution = shallowRef<WorkspaceWorkflowExecution | null>(null)
   const workflowOperationLoading = shallowRef(false)
   const workflows = shallowRef<WorkspaceWorkflow[]>([])
+  const debugSession = shallowRef<WorkspaceWorkflowDebugSession | null>(null)
+  const debugSteps = shallowRef<WorkspaceWorkflowDebugStep[]>([])
+  const workflowVersions = shallowRef<WorkspaceWorkflowVersion[]>([])
+  const workflowExecutions = shallowRef<WorkspaceWorkflowExecutionRecord[]>([])
 
   const activeWorkflow = computed<WorkspaceWorkflow | null>(
     () => workflows.value.find((workflow) => workflow.id === activeWorkflowId.value) ?? null,
@@ -91,6 +106,27 @@ export const useWorkflowStore = defineStore('workflow', () => {
     }
   }
 
+  async function loadWorkflow(workflowId: string) {
+    const token = requireAccessToken()
+    workflowOperationLoading.value = true
+    try {
+      const workflow = await getWorkspaceWorkflow(token, workflowId)
+      upsertWorkflow(workflow)
+      activeWorkflowId.value = workflow.id
+      activeWorkflowValidation.value = null
+      activeWorkflowExecution.value = null
+      const [versions, executions] = await Promise.all([
+        listWorkspaceWorkflowVersions(token, workflowId),
+        listWorkspaceWorkflowExecutions(token, workflowId),
+      ])
+      workflowVersions.value = versions
+      workflowExecutions.value = executions
+      return workflow
+    } finally {
+      workflowOperationLoading.value = false
+    }
+  }
+
   function normalizeWorkflowUpdatePayload(
     payload: WorkspaceWorkflowUpdateInput,
   ): WorkspaceWorkflowUpdateInput {
@@ -109,6 +145,9 @@ export const useWorkflowStore = defineStore('workflow', () => {
     }
     if ('trigger' in payload) {
       nextPayload.trigger = payload.trigger?.trim() || null
+    }
+    if ('expectedRevision' in payload) {
+      nextPayload.expectedRevision = payload.expectedRevision
     }
     return nextPayload
   }
@@ -151,6 +190,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
       const published = await publishWorkspaceWorkflow(token, workflowId)
       upsertWorkflow(published)
       activeWorkflowId.value = published.id
+      workflowVersions.value = await listWorkspaceWorkflowVersions(token, workflowId)
       return published
     } finally {
       workflowOperationLoading.value = false
@@ -165,7 +205,60 @@ export const useWorkflowStore = defineStore('workflow', () => {
       const execution = await executeWorkspaceWorkflow(token, workflowId, payload)
       activeWorkflowId.value = workflowId
       activeWorkflowExecution.value = execution
+      workflowExecutions.value = await listWorkspaceWorkflowExecutions(token, workflowId)
       return execution
+    } finally {
+      workflowOperationLoading.value = false
+    }
+  }
+
+  async function startDebug(workflowId: string, payload: WorkspaceWorkflowExecuteInput = { inputs: {} }) {
+    const token = requireAccessToken()
+    workflowOperationLoading.value = true
+    try {
+      debugSession.value = await startWorkspaceWorkflowDebug(token, workflowId, payload)
+      debugSteps.value = []
+      return debugSession.value
+    } finally {
+      workflowOperationLoading.value = false
+    }
+  }
+
+  async function stepDebug(workflowId: string) {
+    const token = requireAccessToken()
+    if (!debugSession.value) throw new Error('请先启动调试')
+    workflowOperationLoading.value = true
+    try {
+      const step = await stepWorkspaceWorkflowDebug(token, workflowId, debugSession.value.session_id)
+      debugSteps.value = [...debugSteps.value, step]
+      if (step.done) debugSession.value = null
+      return step
+    } finally {
+      workflowOperationLoading.value = false
+    }
+  }
+
+  async function restoreVersion(workflowId: string, versionId: string) {
+    const token = requireAccessToken()
+    workflowOperationLoading.value = true
+    try {
+      const workflow = await restoreWorkspaceWorkflowVersion(token, workflowId, versionId)
+      upsertWorkflow(workflow)
+      activeWorkflowId.value = workflow.id
+      activeWorkflowValidation.value = null
+      return workflow
+    } finally {
+      workflowOperationLoading.value = false
+    }
+  }
+
+  async function cancelDebug(workflowId: string) {
+    const token = requireAccessToken()
+    if (!debugSession.value) return
+    workflowOperationLoading.value = true
+    try {
+      await cancelWorkspaceWorkflowDebug(token, workflowId, debugSession.value.session_id)
+      debugSession.value = null
     } finally {
       workflowOperationLoading.value = false
     }
@@ -183,13 +276,22 @@ export const useWorkflowStore = defineStore('workflow', () => {
     activeWorkflowId,
     activeWorkflowValidation,
     createWorkflow,
+    cancelDebug,
+    debugSession,
+    debugSteps,
     ensureActiveWorkflowSelection,
     executeWorkflow,
     listWorkflows,
+    loadWorkflow,
     publishWorkflow,
+    startDebug,
+    stepDebug,
+    restoreVersion,
     updateWorkflow,
     validateWorkflow,
     workflowOperationLoading,
+    workflowExecutions,
+    workflowVersions,
     workflows,
   }
 })

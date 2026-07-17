@@ -1,5 +1,28 @@
 # Findings & Decisions
 
+## 2026-07-16 Vue Flow Orchestration Audit
+- Audit scope: current `/workflow` route, `WorkflowBuilderView.vue`, workflow feature components/types, `stores/workflow.ts`, generated-client adapters, and backend `/api/v2/workflows` contracts.
+- Initial discovery: the repository contains two workflow UI paths: a full-page `WorkflowBuilderView.vue` and an older preview/editor in `AgentWorkflowPanel.vue`; workflow state also exists both in the dedicated workflow store and the large workspace store. The audit will determine which path is live and define one source of truth.
+- Existing planning files and unrelated dirty worktree changes predate this audit and will be preserved.
+- The live `/workflow` route renders `WorkflowBuilderView.vue`, but that view imports `useWorkspaceStore()` rather than the existing dedicated `useWorkflowStore()`. This leaves duplicated workflow state/actions and makes the dedicated store effectively bypassed by the main designer.
+- `WorkflowBuilderView.vue` currently owns graph domain state, canvas interaction, local validation, serialization, server persistence, execution visualization, agent-task UI, debug UI, navigation, and layout in one route component. This exceeds a composition-surface responsibility and makes graph lifecycle correctness difficult to test independently.
+- Vue Flow is used with plain `ref` arrays and direct nested mutation; graph mutations are partly performed through local arrays and partly through `useVueFlow()`. A complete implementation should select one graph authority and expose typed actions for every mutation.
+- The current visual designer has no connect handler, no node/edge delete flow, and no rendered custom node handles, so the graph cannot be authored end to end even if the hidden template were restored.
+- The live DB-backed workflow list intentionally returns empty `nodes` and `edges` and a zero node count, while there is no detail GET route. A designer therefore cannot reliably reopen a saved graph from the dedicated list API.
+- Client validation and server validation are disconnected: the visible client validation path is local-only, publish does not internally validate on the server, and execute accepts draft definitions. These are correctness and authorization-boundary issues, not only UI gaps.
+- The DB debug service is a fixed three-step simulation (`Node-1` to `Node-3`); the frontend single-step action creates an agent task instead of calling workflow debug endpoints. Formal run and debug currently have different semantics.
+- The backend node union advertises condition/loop/transform/aggregate, but execution treats all non-input/tool/output nodes as parameter passthrough. Those node types must be hidden until their runtime semantics are implemented.
+- Full implementation plan written to `docs/superpowers/plans/2026-07-16-complete-vue-flow-orchestration.md`.
+- Phase 42 implementation result: workflow publication now creates immutable DB snapshots, edits to published definitions return the working copy to draft, completed/failed executions persist node-level inputs and outputs against the exact workflow version, and owner-scoped history APIs feed the dedicated frontend workflow store.
+- Browser acceptance now runs against real Vue Flow rendering with deterministic API routes and system Chrome; it verifies input/tool/output node authoring in `/workflow`.
+- Completion-definition closure added a bounded 50-state undo stack, redo invalidation on new edits, node-drag checkpoints, and toolbar/browser coverage. Unsaved graph changes are now guarded during route exit, workflow switching, new workflow creation, template loading, and version restoration.
+- Server validation now rejects missing workflow inputs, missing node references, downstream/non-upstream node bindings, and missing required tool parameters before publication.
+- Published snapshots can be restored into the mutable working definition as a draft; users can explicitly supply workflow input values through the run panel instead of relying only on embedded defaults.
+- Production hardening adds an integer workflow revision token. Every successful update/publish/restore advances it, and stale saves receive `WORKFLOW_REVISION_CONFLICT` instead of silently overwriting newer graph state.
+- Edge `label` and `type` are now explicit API fields and survive DB/API/Vue Flow round trips. Debug sessions expire after 30 minutes and can be explicitly cancelled; cancelled/expired sessions cannot be stepped.
+- Formal workflow runs and step debugging now delegate every node kind to the same `_execute_workflow_node()` kernel. Regression coverage compares the complete node output sequence for the same published DAG, preventing semantic drift between modes.
+- Workflow list responses retain compact empty `nodes/edges` fields but now report the actual persisted node count instead of zero.
+
 ## Requirements
 - Read the relevant documents under `report/` and develop a frontend-backend separated intelligent file management and agent collaboration platform.
 - Required architecture from `report/design/system_design_specification.md`: Vue 3 + Vite + TypeScript frontend; FastAPI backend; REST and WebSocket-ready API layer; domain services for auth, files, RAG, agents, workflows, teams, permissions, and audit.
@@ -162,3 +185,41 @@
 
 ## Visual/Browser Findings
 - No browser screenshots inspected yet.
+# 2026-07-16 — Advanced workflow nodes
+
+- The v2 schema already accepts `condition`, `loop`, `transform`, and `aggregate`, but `_execute_workflow_node` currently returns their resolved parameters unchanged.
+- The current formal runner and debugger share `_execute_workflow_node`, but both iterate a fixed topological list; condition routing therefore needs a shared active-edge decision before each node.
+- The frontend codec only recognizes input/trigger/tool/output and silently converts every advanced kind to tool, so lossless loading must be fixed before exposing authoring.
+- Advanced semantics will remain DAG-safe: condition selects `true`/`false` source handles; loop performs bounded per-item projection inside one node rather than introducing graph cycles; transform and aggregate use allowlisted structured operations and never evaluate arbitrary code.
+- Implemented operations: condition `truthy/falsy/eq/ne/contains/not_contains/gt/gte/lt/lte`; transform `identity/pick/omit/to_array/json_stringify/flatten`; loop array projection by optional path with `1..1000` iteration cap; aggregate `collect/count/sum/avg/min/max/join`.
+- A node with multiple incoming edges runs when at least one incoming edge is active. A condition edge is active only when its `source_handle` matches the condition's selected `true` or `false` branch.
+- Debug start now accepts the same `WorkflowExecutionRequest` as formal execution while remaining backward-compatible with an omitted body.
+
+# 2026-07-16 — Durable workflow debugging
+
+- Active debug state is still stored in `_WORKFLOW_DEBUG_SESSIONS`, so it is lost on process restart and cannot be shared by independent workers.
+- The durable record must snapshot ordered nodes and edges at debug start, not reload the mutable workflow on each step; this preserves version-consistent debugging.
+- Existing API semantics remove completed/cancelled/expired sessions, so persistence only needs to cover active sessions and can remain API-compatible.
+- `workflow_debug_sessions` now stores the immutable ordered-node/edge snapshot plus mutable cursor, inputs, outputs, and results; every successful step commits before returning.
+- Alembic previously ignored the application `DATABASE_URL`; `env.py` now uses the same settings as runtime. The legacy owner migration also needed batch mode for SQLite before a clean database could reach head.
+- Concurrent debug steps now use an atomic two-minute database lease. Overlapping step/cancel calls receive `DEBUG_STEP_IN_PROGRESS`; an abandoned lease becomes claimable after expiry.
+- Lease acquisition disables SQLAlchemy session synchronization because SQLite returns naive datetimes; the database evaluates the atomic expiry predicate and the service explicitly reloads the session.
+
+# 2026-07-16 — Branch skip observability
+
+- Formal execution currently omits condition-pruned nodes entirely, while step debugging silently advances over them. The UI therefore cannot distinguish a skipped node from an unexecuted one.
+- The server remains the sole branch authority. It will emit ordered `skipped` records with empty input/output; frontend state only renders the returned status.
+- Formal execution and debugging now produce the same full ordered trace, including non-selected condition branches. Execution history persists these skipped records.
+- Vue Flow renders skipped nodes with dashed, desaturated styling; run/debug panels expose skipped counts and timeline steps.
+
+# 2026-07-16 — Auth redirect, keyboard delete, and canvas height audit
+
+- `useAuthStore()` initializes `session` from localStorage, but the router sets `wasRestored = !auth.isAuthenticated`; a stored token makes this false, so the guard skips `restoreSession()` and trusts local storage without server validation.
+- The guard needs an explicit session verification lifecycle (`unknown/verifying/verified`) rather than inferring verification from token presence. Protected navigation should await verification, attempt refresh once on an authentication failure, then logout and redirect to `/login?redirect=...` if verification still fails.
+- Network failure policy must be explicit. For strong access enforcement, an unverified session must not enter protected pages; it can remain stored for retry, while navigation goes to login (or a dedicated unavailable state if later introduced).
+- `WorkflowCanvas` disables Vue Flow's built-in delete key with `delete-key-code=null` and exposes no keyboard delete event. Add a mounted key listener owned by the canvas, emit `deleteSelection`, prevent default only when a selection exists, and ignore input/textarea/select/contenteditable targets.
+- Keep deletion inside `useWorkflowDesigner.removeSelection()` so incident edges, undo history, selected IDs, and dirty state remain consistent. Do not mutate Vue Flow arrays directly in the keyboard handler.
+- Fixed `min-height: 620px` on both canvas shell and canvas causes overflow inside `DesktopWorkspaceLayout`'s `h-screen` shell. Use a bounded height such as `clamp(400px, calc(100dvh - 280px), 620px)`, `min-height: 0` on grid children, and internal palette/canvas scrolling; use a separate stacked mobile height.
+- Implemented auth verification as explicit `unknown/verifying/verified` state. Protected and guest-only navigation awaits `verifySession()`; expired access tokens refresh once, while invalid or unavailable unverified sessions cannot enter protected pages.
+- Canvas deletion is focus-scoped through the shell's keydown handler, so no global listener cleanup is needed. Pointer interaction focuses the shell; editable descendants are excluded.
+- Browser measurement at 1280×720 required `clamp(380px, calc(100dvh - 300px), 620px)` to keep the canvas bottom within the viewport after tabs, toolbar, picker, gaps, and layout padding.

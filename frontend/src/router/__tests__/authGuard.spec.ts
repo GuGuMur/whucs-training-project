@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory } from 'vue-router'
 
@@ -30,13 +30,29 @@ describe('auth router guard', () => {
       userId: '1',
     })
     const auth = useAuthStore()
-    auth.restoreLocalSession()
+    const verify = vi.spyOn(auth, 'verifySession').mockResolvedValue(true)
     const router = createAppRouter(createMemoryHistory())
 
     await router.push('/')
     await router.isReady()
 
     expect(router.currentRoute.value.name).toBe('files')
+    expect(verify).toHaveBeenCalledOnce()
+  })
+
+  it('rejects an unverified stored token and preserves the protected target', async () => {
+    saveWorkspaceSession({
+      accessToken: 'invalid-token', displayName: '无效用户', refreshToken: 'invalid-refresh', userId: '7',
+    })
+    const auth = useAuthStore()
+    vi.spyOn(auth, 'verifySession').mockResolvedValue(false)
+    const router = createAppRouter(createMemoryHistory())
+
+    await router.push('/workflow')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.query.redirect).toBe('/workflow')
   })
 
   it('protects the profile route with the same auth guard', async () => {

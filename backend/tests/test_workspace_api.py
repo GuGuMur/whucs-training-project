@@ -4,12 +4,15 @@ import hashlib
 import io
 import secrets
 import zipfile
+import asyncio
 from datetime import UTC, datetime, timedelta
 from itertools import count
 
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.core.database import async_session
+from app.models import WorkflowDebugSession
 from app.services import agent_executor
 from app.services import workspace_db
 
@@ -2904,6 +2907,7 @@ def test_v2_workflow_execution_uses_registered_tool_registry() -> None:
     validate_response = client.post(f"/api/v2/workflows/{workflow_id}/validate", headers=headers)
     assert validate_response.status_code == 200
     assert validate_response.json()["valid"] is True
+    assert client.post(f"/api/v2/workflows/{workflow_id}/publish", headers=headers).status_code == 200
 
     execution_response = client.post(
         f"/api/v2/workflows/{workflow_id}/executions",
@@ -2964,6 +2968,7 @@ def test_v2_workflow_execution_runs_dag_and_resolves_parameter_bindings() -> Non
     validate_response = client.post(f"/api/v2/workflows/{workflow_id}/validate", headers=headers)
     assert validate_response.status_code == 200
     assert validate_response.json()["valid"] is True
+    assert client.post(f"/api/v2/workflows/{workflow_id}/publish", headers=headers).status_code == 200
 
     execution_response = client.post(
         f"/api/v2/workflows/{workflow_id}/executions",
@@ -3013,6 +3018,332 @@ def test_v2_workflow_validation_rejects_dag_cycles() -> None:
     assert "WORKFLOW_CYCLE" in {issue["code"] for issue in validation["issues"]}
 
 
+def test_v2_workflow_detail_round_trips_graph_and_publish_rejects_invalid_definition() -> None:
+    headers = auth_headers_v2("workflow-detail-owner")
+    graph = {
+        "name": "可恢复流程",
+        "description": "验证画布定义无损读取",
+        "trigger": "manual",
+        "nodes": [
+            {
+                "id": "input-query",
+                "name": "问题输入",
+                "type": "input",
+                "tool_name": None,
+                "parameters": {"query": {"mode": "input", "input_key": "query"}},
+                "position": {"x": 80.5, "y": 120.25},
+            },
+            {
+                "id": "tool-calc",
+                "name": "计算器",
+                "type": "tool",
+                "tool_name": "calculator",
+                "parameters": {"expression": {"mode": "node", "node_id": "input-query", "path": "output.query"}},
+                "position": {"x": 360, "y": 120},
+            },
+        ],
+        "edges": [
+            {
+                "id": "edge-query-calc",
+                "source": "input-query",
+                "target": "tool-calc",
+                "source_handle": "output",
+                "target_handle": "input",
+                "label": None,
+                "type": None,
+            }
+        ],
+    }
+    created = client.post("/api/v2/workflows", headers=headers, json=graph)
+    assert created.status_code == 201
+    workflow_id = created.json()["id"]
+
+    detail = client.get(f"/api/v2/workflows/{workflow_id}", headers=headers)
+
+    assert detail.status_code == 200
+    assert detail.json()["nodes"] == graph["nodes"]
+    assert detail.json()["edges"] == graph["edges"]
+
+    invalid = client.post(
+        "/api/v2/workflows",
+        headers=headers,
+        json={
+            "name": "无效流程",
+            "trigger": "manual",
+            "nodes": [{"id": "tool", "name": "未配置工具", "type": "tool"}],
+            "edges": [],
+        },
+    )
+    assert invalid.status_code == 201
+
+    publish = client.post(f"/api/v2/workflows/{invalid.json()['id']}/publish", headers=headers)
+
+    assert publish.status_code == 409
+    assert publish.json()["code"] == "WORKFLOW_INVALID"
+
+
+def test_v2_workflow_execution_requires_publish_and_debug_runs_real_dag_nodes() -> None:
+    headers = auth_headers_v2("workflow-debug-owner")
+    created = client.post(
+        "/api/v2/workflows",
+        headers=headers,
+        json={
+            "name": "真实逐步调试",
+            "trigger": "manual",
+            "nodes": [
+                {
+                    "id": "calc",
+                    "name": "计算 6 x 7",
+                    "type": "tool",
+                    "tool_name": "calculator",
+                    "parameters": {"expression": "6 * 7"},
+                },
+                {
+                    "id": "output",
+                    "name": "输出结果",
+                    "type": "output",
+                    "parameters": {"answer": {"mode": "node", "node_id": "calc", "path": "output.result"}},
+                },
+            ],
+            "edges": [{"id": "e1", "source": "calc", "target": "output"}],
+        },
+    )
+    assert created.status_code == 201
+    workflow_id = created.json()["id"]
+
+    draft_execution = client.post(
+        f"/api/v2/workflows/{workflow_id}/executions",
+        headers=headers,
+        json={"inputs": {}},
+    )
+    assert draft_execution.status_code == 409
+    assert draft_execution.json()["code"] == "WORKFLOW_NOT_PUBLISHED"
+
+    published = client.post(f"/api/v2/workflows/{workflow_id}/publish", headers=headers)
+    assert published.status_code == 200
+    started = client.post(f"/api/v2/workflows/{workflow_id}/debug/start", headers=headers)
+    assert started.status_code == 200
+    session_id = started.json()["session_id"]
+
+    first = client.post(
+        f"/api/v2/workflows/{workflow_id}/debug/step",
+        headers=headers,
+        json={"session_id": session_id},
+    )
+    assert first.status_code == 200
+    assert first.json()["node_id"] == "calc"
+    assert first.json()["node_name"] == "计算 6 x 7"
+    assert first.json()["output"]["result"] == 42
+    assert first.json()["done"] is False
+
+    second = client.post(
+        f"/api/v2/workflows/{workflow_id}/debug/step",
+        headers=headers,
+        json={"session_id": session_id},
+    )
+    assert second.status_code == 200
+    assert second.json()["node_id"] == "output"
+    assert second.json()["output"] == {"answer": 42}
+    assert second.json()["done"] is True
+
+    versions = client.get(f"/api/v2/workflows/{workflow_id}/versions", headers=headers)
+    assert versions.status_code == 200
+    assert len(versions.json()["items"]) == 1
+    assert versions.json()["items"][0]["version"] == published.json()["version"]
+    assert versions.json()["items"][0]["nodes"][0]["id"] == "calc"
+
+    execution = client.post(
+        f"/api/v2/workflows/{workflow_id}/executions",
+        headers=headers,
+        json={"inputs": {}},
+    )
+    assert execution.status_code == 201
+    assert [item["output"] for item in execution.json()["node_executions"]] == [
+        first.json()["output"],
+        second.json()["output"],
+    ]
+    history = client.get(f"/api/v2/workflows/{workflow_id}/executions", headers=headers)
+    assert history.status_code == 200
+    assert history.json()["items"][0]["id"] == execution.json()["id"]
+    assert history.json()["items"][0]["workflow_version"] == published.json()["version"]
+    assert history.json()["items"][0]["node_executions"][0]["output"]["result"] == 42
+
+    updated = client.patch(
+        f"/api/v2/workflows/{workflow_id}",
+        headers=headers,
+        json={"name": "编辑后的新草稿"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["status"] == "draft"
+    versions_after_edit = client.get(f"/api/v2/workflows/{workflow_id}/versions", headers=headers)
+    assert versions_after_edit.json()["items"][0]["name"] == "真实逐步调试"
+    restored = client.post(
+        f"/api/v2/workflows/{workflow_id}/versions/{versions.json()['items'][0]['id']}/restore",
+        headers=headers,
+    )
+    assert restored.status_code == 200
+    assert restored.json()["name"] == "真实逐步调试"
+    assert restored.json()["status"] == "draft"
+
+
+def test_v2_advanced_workflow_nodes_execute_and_debug_selected_condition_branch() -> None:
+    headers = auth_headers_v2("workflow-advanced-owner")
+    nodes = [
+        {"id": "input", "name": "数组输入", "type": "input", "parameters": {"numbers": {"mode": "input", "input_key": "numbers"}}},
+        {"id": "transform", "name": "展平", "type": "transform", "parameters": {"value": {"mode": "node", "node_id": "input", "path": "output.numbers"}, "operation": "flatten"}},
+        {"id": "loop", "name": "逐项", "type": "loop", "parameters": {"items": {"mode": "node", "node_id": "transform", "path": "output.result"}, "path": "", "max_iterations": 10}},
+        {"id": "aggregate", "name": "求和", "type": "aggregate", "parameters": {"values": {"mode": "node", "node_id": "loop", "path": "output.items"}, "operation": "sum"}},
+        {"id": "condition", "name": "是否大于五", "type": "condition", "parameters": {"left": {"mode": "node", "node_id": "aggregate", "path": "output.result"}, "operator": "gt", "right": 5}},
+        {"id": "yes", "name": "命中输出", "type": "output", "parameters": {"answer": {"mode": "node", "node_id": "aggregate", "path": "output.result"}}},
+        {"id": "no", "name": "未命中输出", "type": "output", "parameters": {"answer": 0}},
+    ]
+    edges = [
+        {"id": "e1", "source": "input", "target": "transform"},
+        {"id": "e2", "source": "transform", "target": "loop"},
+        {"id": "e3", "source": "loop", "target": "aggregate"},
+        {"id": "e4", "source": "aggregate", "target": "condition"},
+        {"id": "e5", "source": "condition", "target": "yes", "source_handle": "true"},
+        {"id": "e6", "source": "condition", "target": "no", "source_handle": "false"},
+    ]
+    created = client.post("/api/v2/workflows", headers=headers, json={"name": "高级节点", "trigger": "manual", "nodes": nodes, "edges": edges})
+    assert created.status_code == 201
+    workflow_id = created.json()["id"]
+    validation = client.post(f"/api/v2/workflows/{workflow_id}/validate", headers=headers)
+    assert validation.status_code == 200
+    assert validation.json()["valid"] is True
+    assert client.post(f"/api/v2/workflows/{workflow_id}/publish", headers=headers).status_code == 200
+
+    execution = client.post(f"/api/v2/workflows/{workflow_id}/executions", headers=headers, json={"inputs": {"numbers": [[1, 2], [3, 4]]}})
+    assert execution.status_code == 201
+    body = execution.json()
+    assert [item["node_id"] for item in body["node_executions"]] == ["input", "transform", "loop", "aggregate", "condition", "yes", "no"]
+    assert [item["status"] for item in body["node_executions"]] == ["success"] * 6 + ["skipped"]
+    assert body["output"]["result"] == {"answer": 10.0}
+    assert body["node_executions"][4]["output"]["branch"] == "true"
+
+    started = client.post(f"/api/v2/workflows/{workflow_id}/debug/start", headers=headers, json={"inputs": {"numbers": [[1, 2], [3, 4]]}})
+    session_id = started.json()["session_id"]
+    debug_outputs = []
+    while True:
+        step = client.post(f"/api/v2/workflows/{workflow_id}/debug/step", headers=headers, json={"session_id": session_id})
+        assert step.status_code == 200
+        debug_outputs.append((step.json()["node_id"], step.json()["status"], step.json()["output"]))
+        if step.json()["done"]:
+            break
+    assert debug_outputs == [(item["node_id"], item["status"], item["output"]) for item in body["node_executions"]]
+
+
+def test_v2_advanced_workflow_validation_rejects_unsafe_or_unbounded_config() -> None:
+    headers = auth_headers_v2("workflow-advanced-invalid")
+    created = client.post("/api/v2/workflows", headers=headers, json={
+        "name": "非法高级节点", "trigger": "manual",
+        "nodes": [
+            {"id": "condition", "name": "条件", "type": "condition", "parameters": {"operator": "eval"}},
+            {"id": "loop", "name": "循环", "type": "loop", "parameters": {"max_iterations": 1001}},
+        ],
+        "edges": [{"id": "e1", "source": "condition", "target": "loop", "source_handle": "output"}],
+    })
+    validation = client.post(f"/api/v2/workflows/{created.json()['id']}/validate", headers=headers).json()
+    codes = {issue["code"] for issue in validation["issues"]}
+    assert {"WORKFLOW_CONDITION_OPERATOR_INVALID", "WORKFLOW_CONDITION_BRANCH_INVALID", "WORKFLOW_LOOP_LIMIT_INVALID"}.issubset(codes)
+
+
+def test_v2_workflow_validation_rejects_missing_and_non_upstream_bindings() -> None:
+    headers = auth_headers_v2("workflow-binding-owner")
+    created = client.post(
+        "/api/v2/workflows",
+        headers=headers,
+        json={
+            "name": "非法参数引用",
+            "nodes": [
+                {"id": "calc-a", "name": "A", "type": "tool", "tool_name": "calculator", "parameters": {"expression": {"mode": "node", "node_id": "calc-b", "path": "output.result"}}},
+                {"id": "calc-b", "name": "B", "type": "tool", "tool_name": "calculator", "parameters": {"expression": {"mode": "input", "input_key": "missing"}}},
+            ],
+            "edges": [{"id": "e1", "source": "calc-a", "target": "calc-b"}],
+        },
+    )
+    assert created.status_code == 201
+    workflow_id = created.json()["id"]
+
+    validation = client.post(f"/api/v2/workflows/{workflow_id}/validate", headers=headers)
+
+    assert validation.status_code == 200
+    codes = {item["code"] for item in validation.json()["issues"]}
+    assert "WORKFLOW_NODE_REF_NOT_UPSTREAM" in codes
+    assert "WORKFLOW_INPUT_REF_INVALID" in codes
+    assert client.post(f"/api/v2/workflows/{workflow_id}/publish", headers=headers).status_code == 409
+
+
+def test_v2_workflow_revision_edge_metadata_and_debug_cancel() -> None:
+    headers = auth_headers_v2("workflow-hardening-owner")
+    created = client.post("/api/v2/workflows", headers=headers, json={
+        "name": "并发流程",
+        "nodes": [
+            {"id": "input", "name": "输入", "type": "input", "parameters": {"value": {"mode": "input", "input_key": "value"}}},
+            {"id": "output", "name": "输出", "type": "output"},
+        ],
+        "edges": [{"id": "e1", "source": "input", "target": "output", "label": "数据流", "type": "smoothstep"}],
+    })
+    assert created.status_code == 201
+    workflow = created.json()
+    updated = client.patch(f"/api/v2/workflows/{workflow['id']}", headers=headers, json={
+        "expected_revision": workflow["revision"], "name": "新名称",
+    })
+    assert updated.status_code == 200
+    detail = client.get(f"/api/v2/workflows/{workflow['id']}", headers=headers).json()
+    assert detail["edges"][0]["label"] == "数据流"
+    assert detail["edges"][0]["type"] == "smoothstep"
+    listed = client.get("/api/v2/workflows", headers=headers).json()["items"]
+    assert next(item for item in listed if item["id"] == workflow["id"])["node_count"] == 2
+    conflict = client.patch(f"/api/v2/workflows/{workflow['id']}", headers=headers, json={
+        "expected_revision": workflow["revision"], "name": "旧会话覆盖",
+    })
+    assert conflict.status_code == 409
+    assert conflict.json()["code"] == "WORKFLOW_REVISION_CONFLICT"
+
+    assert client.post(f"/api/v2/workflows/{workflow['id']}/publish", headers=headers).status_code == 200
+    started = client.post(f"/api/v2/workflows/{workflow['id']}/debug/start", headers=headers)
+    assert started.status_code == 200
+    cancelled = client.delete(f"/api/v2/workflows/{workflow['id']}/debug/{started.json()['session_id']}", headers=headers)
+    assert cancelled.status_code == 204
+    missing = client.post(f"/api/v2/workflows/{workflow['id']}/debug/step", headers=headers, json={"session_id": started.json()["session_id"]})
+    assert missing.status_code == 404
+
+
+def test_v2_debug_step_lease_rejects_overlap_and_recovers_after_expiry() -> None:
+    headers = auth_headers_v2("workflow-debug-lease")
+    created = client.post("/api/v2/workflows", headers=headers, json={
+        "name": "调试租约",
+        "nodes": [{"id": "input", "name": "输入", "type": "input", "parameters": {"value": 1}}],
+        "edges": [],
+    })
+    workflow_id = created.json()["id"]
+    assert client.post(f"/api/v2/workflows/{workflow_id}/publish", headers=headers).status_code == 200
+    started = client.post(f"/api/v2/workflows/{workflow_id}/debug/start", headers=headers)
+    session_id = started.json()["session_id"]
+
+    async def set_lease(expires_at: datetime) -> None:
+        async with async_session() as session:
+            debug = await session.get(WorkflowDebugSession, session_id)
+            assert debug is not None
+            debug.lease_token = "lease-test"
+            debug.lease_expires_at = expires_at
+            await session.commit()
+
+    asyncio.run(set_lease(datetime.now(UTC) + timedelta(minutes=1)))
+    overlapping = client.post(f"/api/v2/workflows/{workflow_id}/debug/step", headers=headers, json={"session_id": session_id})
+    assert overlapping.status_code == 409
+    assert overlapping.json()["code"] == "DEBUG_STEP_IN_PROGRESS"
+    cancelling = client.delete(f"/api/v2/workflows/{workflow_id}/debug/{session_id}", headers=headers)
+    assert cancelling.status_code == 409
+
+    asyncio.run(set_lease(datetime.now(UTC) - timedelta(seconds=1)))
+    recovered = client.post(f"/api/v2/workflows/{workflow_id}/debug/step", headers=headers, json={"session_id": session_id})
+    assert recovered.status_code == 200
+    assert recovered.json()["node_id"] == "input"
+    assert recovered.json()["done"] is True
+
+
 def test_v2_workflow_permissions_are_owner_scoped() -> None:
     owner_headers = auth_headers_v2("workflow-owner-scope")
     outsider_headers = auth_headers_v2("workflow-outsider-scope")
@@ -3051,6 +3382,7 @@ def test_v2_workflow_permissions_are_owner_scoped() -> None:
         response = getattr(client, method)(path, headers=outsider_headers, **kwargs)
         assert response.status_code == 404, f"{method.upper()} {path}: {response.status_code} {response.text}"
 
+    assert client.post(f"/api/v2/workflows/{workflow_id}/publish", headers=owner_headers).status_code == 200
     debug_start = client.post(f"/api/v2/workflows/{workflow_id}/debug/start", headers=owner_headers)
     assert debug_start.status_code == 200
     debug_step = client.post(

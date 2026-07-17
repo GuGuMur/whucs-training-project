@@ -52,6 +52,22 @@ describe('WorkflowValueBindingEditor', () => {
     ])
   })
 
+  it('preserves number schema literals as numbers', async () => {
+    const wrapper = mount(WorkflowValueBindingEditor, {
+      global: { stubs },
+      props: {
+        modelValue: { mode: 'literal', value: 0 },
+        schemaType: 'number',
+      },
+    })
+
+    await wrapper.find('[data-testid="binding-literal"]').setValue('42.5')
+
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([
+      { mode: 'literal', value: 42.5 },
+    ])
+  })
+
   it('switches to an upstream node output binding', async () => {
     const wrapper = mount(WorkflowValueBindingEditor, {
       global: { stubs },

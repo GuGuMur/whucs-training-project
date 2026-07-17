@@ -17,5 +17,8 @@ from app.repositories.workflow import (
     AgentTaskStepRepository,
     AgentToolCallRepository,
     WorkflowRepository,
+    WorkflowDebugSessionRepository,
+    WorkflowExecutionRepository,
+    WorkflowVersionRepository,
 )
 from app.repositories.general import PermissionRepository, NotificationRepository, AuditLogRepository, ConversationRepository, MultipartUploadRepository

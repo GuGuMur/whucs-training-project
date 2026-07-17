@@ -19,7 +19,8 @@ from app.domain.schemas import (
     ShareLinkPublic, RecycleBinItem, KnowledgeBasePublic, KnowledgeDocumentPublic,
     KnowledgeConversationDetailResponse, KnowledgeConversationListResponse,
     KnowledgeConversationPublic, KnowledgeMessagePublic,
-    PermissionRulePublic, WorkflowDefinition, WorkflowExecutionResponse, AgentTaskRequest,
+    PermissionRulePublic, WorkflowDefinition, WorkflowExecutionResponse, WorkflowExecutionRecord,
+    WorkflowVersionPublic, AgentTaskRequest,
     AgentMessage as AgentMessageSchema, AgentPlanRevision as AgentPlanRevisionSchema,
     AgentPlanPreviewResponse, AgentTaskListResponse, AgentTaskResponse, AgentStep,
     AgentToolCall as AgentToolCallSchema,
@@ -29,7 +30,7 @@ from app.models import (
     Team, TeamMember, TeamInvite, TeamMessage,
     KnowledgeBase, KnowledgeCitationSnapshot, KnowledgeConversation,
     KnowledgeDocument, KnowledgeChunk, KnowledgeMessage,
-    Workflow, AgentMessage, AgentPlanRevision, AgentTask, AgentTaskStep, AgentToolCall,
+    Workflow, WorkflowDebugSession, WorkflowExecution, WorkflowVersion, AgentMessage, AgentPlanRevision, AgentTask, AgentTaskStep, AgentToolCall,
     PermissionRule, Notification, AuditLog, Conversation, MultipartUpload,
 )
 from app.repositories import (
@@ -38,7 +39,8 @@ from app.repositories import (
     TeamRepository, TeamMemberRepository, TeamInviteRepository, TeamMessageRepository,
     KnowledgeBaseRepository, KnowledgeCitationSnapshotRepository, KnowledgeChunkRepository,
     KnowledgeConversationRepository, KnowledgeDocumentRepository, KnowledgeMessageRepository,
-    WorkflowRepository, AgentMessageRepository, AgentPlanRevisionRepository, AgentTaskRepository,
+    WorkflowRepository, WorkflowDebugSessionRepository, WorkflowExecutionRepository, WorkflowVersionRepository,
+    AgentMessageRepository, AgentPlanRevisionRepository, AgentTaskRepository,
     AgentTaskStepRepository, AgentToolCallRepository, PermissionRepository, NotificationRepository,
     AuditLogRepository, ConversationRepository, MultipartUploadRepository,
 )
@@ -192,7 +194,6 @@ async def _safe_list_members(svc, team_id: str):
 class WorkspaceServiceDB:
     def __init__(self, session: AsyncSession):
         self._s = session
-        self._debug_sessions: dict[str, dict] = {}
         self._users = UserRepository(session)
         self._files = FileRepository(session)
         self._versions = FileVersionRepository(session)
@@ -211,6 +212,9 @@ class WorkspaceServiceDB:
         self._knowledge_messages = KnowledgeMessageRepository(session)
         self._knowledge_citations = KnowledgeCitationSnapshotRepository(session)
         self._workflows = WorkflowRepository(session)
+        self._workflow_versions = WorkflowVersionRepository(session)
+        self._workflow_executions = WorkflowExecutionRepository(session)
+        self._workflow_debug_sessions = WorkflowDebugSessionRepository(session)
         self._agent_tasks = AgentTaskRepository(session)
         self._agent_steps = AgentTaskStepRepository(session)
         self._agent_messages = AgentMessageRepository(session)
@@ -1886,7 +1890,7 @@ class WorkspaceServiceDB:
 
     def _workflow_tool_params(self, tool_name: str, node: dict[str, Any], payload: Any) -> dict[str, Any]:
         params = dict(node.get("parameters") or {})
-        file_id = getattr(payload, "file_id", None)
+        file_id = payload.get("file_id") if isinstance(payload, dict) else getattr(payload, "file_id", None)
         if tool_name == "file_content_search":
             params.setdefault("query", "")
             if file_id and not params.get("file_ids"):
@@ -1899,13 +1903,193 @@ class WorkspaceServiceDB:
             params.setdefault("query", "算法")
         return params
 
+    async def _execute_workflow_node(
+        self,
+        node: dict[str, Any],
+        edges: list[dict[str, Any]],
+        node_outputs: dict[str, dict[str, Any]],
+        workflow_inputs: dict[str, Any],
+        user: UserPublic,
+    ) -> dict[str, Any]:
+        """Execute one node for both formal runs and step debugging."""
+        node_id = str(node.get("id", ""))
+        node_type = str(node.get("type", "tool"))
+        tool_name = str(node.get("tool_name") or "")
+        resolved_parameters = self._workflow_resolve_parameters(node, node_outputs, workflow_inputs)
+        status = "success"
+        if tool_name:
+            resolved_node = dict(node)
+            resolved_node["parameters"] = resolved_parameters
+            input_value = self._workflow_tool_params(tool_name, resolved_node, workflow_inputs)
+            execution = await self._tool_registry.execute(tool_name, input_value, self, user)
+            status = "success" if execution.status == "success" else "failed"
+            output = execution.output if status == "success" else {
+                "error": execution.error_message or execution.clarification or "工具执行失败",
+            }
+        elif node_type in {"input", "trigger"}:
+            input_value = workflow_inputs
+            output = {**workflow_inputs, **resolved_parameters}
+        elif node_type == "condition":
+            input_value = resolved_parameters
+            left = resolved_parameters.get("left")
+            right = resolved_parameters.get("right")
+            operator = str(resolved_parameters.get("operator") or "truthy")
+            matched = self._workflow_compare(left, operator, right)
+            output = {"matched": matched, "branch": "true" if matched else "false", "value": left}
+        elif node_type == "transform":
+            input_value = resolved_parameters
+            output = self._workflow_transform(resolved_parameters)
+        elif node_type == "loop":
+            input_value = resolved_parameters
+            output = self._workflow_loop(resolved_parameters)
+        elif node_type == "aggregate":
+            input_value = resolved_parameters
+            output = self._workflow_aggregate(resolved_parameters)
+        elif node_type == "output":
+            input_value = resolved_parameters
+            output = resolved_parameters
+            if not output:
+                incoming = [edge.get("source") for edge in edges if edge.get("target") == node_id]
+                if incoming:
+                    output = dict(node_outputs.get(str(incoming[-1]), {}).get("output") or {})
+        else:
+            input_value = resolved_parameters
+            output = resolved_parameters
+        record = {"input": input_value, "output": output, "status": status}
+        node_outputs[node_id] = record
+        return {
+            "node_id": node_id,
+            "name": node.get("name", ""),
+            "tool_name": tool_name,
+            **record,
+        }
+
+    def _workflow_skipped_node(self, node: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "node_id": str(node.get("id") or ""),
+            "name": str(node.get("name") or ""),
+            "tool_name": str(node.get("tool_name") or ""),
+            "status": "skipped",
+            "input": {},
+            "output": {},
+        }
+
+    def _workflow_compare(self, left: Any, operator: str, right: Any) -> bool:
+        if operator == "truthy":
+            return bool(left)
+        if operator == "falsy":
+            return not bool(left)
+        if operator == "eq":
+            return left == right
+        if operator == "ne":
+            return left != right
+        if operator == "contains":
+            try:
+                return right in left
+            except (TypeError, AttributeError):
+                return False
+        if operator == "not_contains":
+            try:
+                return right not in left
+            except (TypeError, AttributeError):
+                return True
+        if operator in {"gt", "gte", "lt", "lte"}:
+            try:
+                if operator == "gt":
+                    return left > right
+                if operator == "gte":
+                    return left >= right
+                if operator == "lt":
+                    return left < right
+                return left <= right
+            except TypeError:
+                return False
+        return False
+
+    def _workflow_transform(self, parameters: dict[str, Any]) -> dict[str, Any]:
+        value = parameters.get("value")
+        operation = str(parameters.get("operation") or "identity")
+        if operation == "pick":
+            paths = parameters.get("paths") or []
+            if not isinstance(paths, list):
+                paths = []
+            result = {str(path): self._workflow_read_path(value, str(path)) for path in paths}
+        elif operation == "omit" and isinstance(value, dict):
+            keys = {str(key) for key in (parameters.get("keys") or [])}
+            result = {key: item for key, item in value.items() if key not in keys}
+        elif operation == "to_array":
+            result = value if isinstance(value, list) else [value]
+        elif operation == "json_stringify":
+            result = json.dumps(value, ensure_ascii=False, sort_keys=True)
+        elif operation == "flatten":
+            result = [item for group in (value if isinstance(value, list) else []) for item in (group if isinstance(group, list) else [group])]
+        else:
+            result = value
+        return {"result": result}
+
+    def _workflow_loop(self, parameters: dict[str, Any]) -> dict[str, Any]:
+        items = parameters.get("items")
+        if not isinstance(items, list):
+            items = []
+        limit = min(max(int(parameters.get("max_iterations") or 100), 1), 1000)
+        path = str(parameters.get("path") or "")
+        selected = items[:limit]
+        results = [self._workflow_read_path(item, path) if path else item for item in selected]
+        return {"items": results, "count": len(results), "truncated": len(items) > limit}
+
+    def _workflow_aggregate(self, parameters: dict[str, Any]) -> dict[str, Any]:
+        values = parameters.get("values")
+        if not isinstance(values, list):
+            values = [] if values is None else [values]
+        operation = str(parameters.get("operation") or parameters.get("strategy") or "collect")
+        if operation in {"merge", "collect"}:
+            result: Any = values
+        elif operation == "count":
+            result = len(values)
+        elif operation == "join":
+            result = str(parameters.get("separator") or ", ").join(str(value) for value in values)
+        else:
+            numbers = [float(value) for value in values if isinstance(value, (int, float)) and not isinstance(value, bool)]
+            if operation == "sum":
+                result = sum(numbers)
+            elif operation == "avg":
+                result = sum(numbers) / len(numbers) if numbers else None
+            elif operation == "min":
+                result = min(numbers) if numbers else None
+            elif operation == "max":
+                result = max(numbers) if numbers else None
+            else:
+                result = values
+        return {"result": result, "count": len(values)}
+
+    def _workflow_node_is_active(
+        self,
+        node_id: str,
+        edges: list[dict[str, Any]],
+        node_outputs: dict[str, dict[str, Any]],
+    ) -> bool:
+        incoming = [edge for edge in edges if str(edge.get("target")) == node_id]
+        if not incoming:
+            return True
+        for edge in incoming:
+            source = str(edge.get("source") or "")
+            source_record = node_outputs.get(source)
+            if not source_record or source_record.get("status") != "success":
+                continue
+            branch = (source_record.get("output") or {}).get("branch")
+            handle = edge.get("source_handle")
+            if branch in {"true", "false"} and handle in {"true", "false"} and handle != branch:
+                continue
+            return True
+        return False
+
     def _workflow_payload_inputs(self, payload: Any) -> dict[str, Any]:
-        inputs = getattr(payload, "inputs", None)
+        inputs = payload.get("inputs") if isinstance(payload, dict) else getattr(payload, "inputs", None)
         if not isinstance(inputs, dict):
             inputs = {}
         result = dict(inputs)
-        file_id = getattr(payload, "file_id", None)
-        target_kb_id = getattr(payload, "target_kb_id", None)
+        file_id = payload.get("file_id") if isinstance(payload, dict) else getattr(payload, "file_id", None)
+        target_kb_id = payload.get("target_kb_id") if isinstance(payload, dict) else getattr(payload, "target_kb_id", None)
         if file_id is not None:
             result.setdefault("file_id", file_id)
         if target_kb_id is not None:
@@ -2480,12 +2664,39 @@ class WorkspaceServiceDB:
         return workflow
 
     async def list_workflows(self, user: UserPublic) -> list[WorkflowDefinition]:
+        import json as _json
         wfs = await self._workflows.list_all()
         wfs = [wf for wf in wfs if self._can_read_workflow(wf, user)]
-        return [WorkflowDefinition(id=wf.id, name=wf.name, description=wf.description or "",
-                                   trigger=wf.trigger, version=wf.version, status=wf.status,
-                                   node_count=0,
-                                   nodes=[], edges=[]) for wf in wfs]
+        result = []
+        for wf in wfs:
+            try:
+                node_count = len(_json.loads(wf.nodes or "[]"))
+            except (TypeError, ValueError):
+                node_count = 0
+            result.append(WorkflowDefinition(
+                id=wf.id, name=wf.name, description=wf.description or "",
+                trigger=wf.trigger, version=wf.version, status=wf.status,
+                revision=wf.revision, node_count=node_count, nodes=[], edges=[],
+            ))
+        return result
+
+    async def get_workflow(self, workflow_id: str, user: UserPublic) -> WorkflowDefinition:
+        import json as _json
+        wf = await self._ensure_workflow_access(workflow_id, user)
+        nodes = _json.loads(wf.nodes) if wf.nodes else []
+        edges = _json.loads(wf.edges) if wf.edges else []
+        return WorkflowDefinition(
+            id=wf.id,
+            name=wf.name,
+            description=wf.description or "",
+            trigger=wf.trigger,
+            version=wf.version,
+            status=wf.status,
+            revision=wf.revision,
+            node_count=len(nodes),
+            nodes=nodes,
+            edges=edges,
+        )
 
     async def create_workflow(self, payload: Any, user: UserPublic) -> WorkflowDefinition:
         import secrets as _s
@@ -2504,11 +2715,17 @@ class WorkspaceServiceDB:
         await self._s.commit()
         return WorkflowDefinition(id=wid, name=wf.name, description=wf.description or "",
                                    trigger=wf.trigger, version=wf.version, status=wf.status,
+                                   revision=wf.revision,
                                    node_count=len(nodes_raw), nodes=nodes_raw, edges=edges_raw)
 
     async def update_workflow(self, workflow_id: str, payload: Any, user: UserPublic) -> WorkflowDefinition:
         import json as _json
         wf = await self._ensure_workflow_access(workflow_id, user, manage=True)
+        expected_revision = getattr(payload, "expected_revision", None)
+        if expected_revision is not None and expected_revision != wf.revision:
+            raise WorkspaceError(409, "WORKFLOW_REVISION_CONFLICT", "流程已被其他会话修改，请重新加载", {
+                "workflow_id": workflow_id, "expected_revision": expected_revision, "actual_revision": wf.revision,
+            })
         if getattr(payload, "name", None):
             wf.name = getattr(payload, "name")
         if getattr(payload, "description", None) is not None:
@@ -2523,12 +2740,16 @@ class WorkspaceServiceDB:
         if edges_raw is not None:
             edges_raw = _jsonable_list(edges_raw)
             wf.edges = _json.dumps(edges_raw, ensure_ascii=False)
+        if wf.status == "published":
+            wf.status = "draft"
+        wf.revision += 1
         await self._workflows.update(wf)
         await self._s.commit()
         nodes_out = _json.loads(wf.nodes) if wf.nodes else []
         edges_out = _json.loads(wf.edges) if wf.edges else []
         return WorkflowDefinition(id=workflow_id, name=wf.name, description=wf.description or "",
                                    trigger=wf.trigger, version=wf.version, status=wf.status,
+                                   revision=wf.revision,
                                    node_count=len(nodes_out), nodes=nodes_out, edges=edges_out)
 
     async def validate_workflow(self, workflow_id: str, user: UserPublic) -> Any:
@@ -2537,8 +2758,11 @@ class WorkspaceServiceDB:
         nodes = _json.loads(wf.nodes) if wf.nodes else []
         edges = _json.loads(wf.edges) if wf.edges else []
         issues = []
-        tool_names = {t.name for t in await self.list_tools()}
+        tools = {t.name: t for t in await self.list_tools()}
+        tool_names = set(tools)
         node_ids = set()
+        if not nodes:
+            issues.append({"code": "WORKFLOW_EMPTY", "message": "流程至少需要 1 个节点"})
         for n in nodes:
             node_id = n.get("id")
             if not node_id:
@@ -2556,17 +2780,117 @@ class WorkspaceServiceDB:
         for e in edges:
             if e.get("source") not in node_ids or e.get("target") not in node_ids:
                 issues.append({"code": "WORKFLOW_EDGE_INVALID", "message": f"连线 {e.get('id')} 引用了不存在的节点", "edge_id": e.get("id")})
+        incoming: dict[str, list[str]] = {str(node_id): [] for node_id in node_ids}
+        for edge in edges:
+            source, target = edge.get("source"), edge.get("target")
+            if source in node_ids and target in node_ids:
+                incoming[str(target)].append(str(source))
+        input_keys = {
+            str(key)
+            for node in nodes if node.get("type") == "input"
+            for key in (node.get("parameters") or {}).keys()
+        }
+
+        def upstream_ids(node_id: str) -> set[str]:
+            result: set[str] = set()
+            stack = list(incoming.get(node_id, []))
+            while stack:
+                source = stack.pop()
+                if source in result:
+                    continue
+                result.add(source)
+                stack.extend(incoming.get(source, []))
+            return result
+
+        def validate_binding(value: Any, node_id: str, parameter: str) -> None:
+            if isinstance(value, list):
+                for item in value:
+                    validate_binding(item, node_id, parameter)
+                return
+            if not isinstance(value, dict):
+                return
+            mode = value.get("mode")
+            if mode == "input":
+                key = str(value.get("input_key") or value.get("key") or "")
+                if key not in input_keys:
+                    issues.append({"code": "WORKFLOW_INPUT_REF_INVALID", "message": f"参数 {parameter} 引用了不存在的流程输入: {key}", "node_id": node_id})
+                return
+            if mode == "node":
+                source_id = str(value.get("node_id") or "")
+                if source_id not in node_ids:
+                    issues.append({"code": "WORKFLOW_NODE_REF_INVALID", "message": f"参数 {parameter} 引用了不存在的节点: {source_id}", "node_id": node_id})
+                elif source_id not in upstream_ids(node_id):
+                    issues.append({"code": "WORKFLOW_NODE_REF_NOT_UPSTREAM", "message": f"参数 {parameter} 只能引用上游节点: {source_id}", "node_id": node_id})
+                return
+            for nested in value.values():
+                validate_binding(nested, node_id, parameter)
+
+        for node in nodes:
+            node_id = str(node.get("id") or "")
+            parameters = node.get("parameters") or {}
+            for key, value in parameters.items():
+                validate_binding(value, node_id, str(key))
+            node_type = node.get("type")
+            if node_type == "condition":
+                operator = parameters.get("operator")
+                if operator not in {"truthy", "falsy", "eq", "ne", "contains", "not_contains", "gt", "gte", "lt", "lte"}:
+                    issues.append({"code": "WORKFLOW_CONDITION_OPERATOR_INVALID", "message": "条件节点缺少有效 operator", "node_id": node_id})
+                branch_handles = {edge.get("source_handle") for edge in edges if edge.get("source") == node_id}
+                if not branch_handles or not branch_handles.issubset({"true", "false"}):
+                    issues.append({"code": "WORKFLOW_CONDITION_BRANCH_INVALID", "message": "条件节点出边必须使用 true 或 false 分支", "node_id": node_id})
+            elif node_type == "transform" and parameters.get("operation") not in {"identity", "pick", "omit", "to_array", "json_stringify", "flatten"}:
+                issues.append({"code": "WORKFLOW_TRANSFORM_OPERATION_INVALID", "message": "转换节点缺少有效 operation", "node_id": node_id})
+            elif node_type == "loop":
+                limit = parameters.get("max_iterations", 100)
+                if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 1000:
+                    issues.append({"code": "WORKFLOW_LOOP_LIMIT_INVALID", "message": "循环节点 max_iterations 必须在 1 到 1000 之间", "node_id": node_id})
+            elif node_type == "aggregate" and (parameters.get("operation") or parameters.get("strategy", "collect")) not in {"collect", "merge", "count", "sum", "avg", "min", "max", "join"}:
+                issues.append({"code": "WORKFLOW_AGGREGATE_OPERATION_INVALID", "message": "聚合节点缺少有效 operation", "node_id": node_id})
+            tool = tools.get(node.get("tool_name"))
+            if not tool:
+                continue
+            required = tool.input_schema.get("required", []) if isinstance(tool.input_schema, dict) else []
+            for key in required:
+                value = parameters.get(key)
+                missing = value is None or value == "" or (
+                    isinstance(value, dict) and value.get("mode") == "literal" and value.get("value") in (None, "")
+                )
+                if missing:
+                    issues.append({"code": "WORKFLOW_TOOL_PARAMETER_REQUIRED", "message": f"工具 {tool.name} 缺少必填参数: {key}", "node_id": node_id})
         if self._workflow_topological_order(nodes, edges) is None:
             issues.append({"code": "WORKFLOW_CYCLE", "message": "流程连线存在环，不能形成 DAG"})
         return {"valid": len(issues) == 0, "issues": issues, "node_count": len(nodes), "edge_count": len(edges)}
 
     async def publish_workflow(self, workflow_id: str, user: UserPublic) -> WorkflowDefinition:
         wf = await self._ensure_workflow_access(workflow_id, user, manage=True)
+        validation = await self.validate_workflow(workflow_id, user)
+        if not validation["valid"]:
+            raise WorkspaceError(
+                409,
+                "WORKFLOW_INVALID",
+                "流程校验未通过，不能发布",
+                {"workflow_id": workflow_id, "issues": validation["issues"]},
+            )
         wf.status = "published"
-        # Bump minor version
+        wf.revision += 1
         parts = wf.version.split(".")
-        if len(parts) == 2:
-            wf.version = f"{parts[0]}.{int(parts[1]) + 1}"
+        try:
+            major = int(parts[0]) if parts else 0
+            minor = int(parts[1]) if len(parts) > 1 else 0
+            wf.version = f"{major}.{minor + 1}.0"
+        except ValueError:
+            wf.version = "1.0.0"
+        await self._workflow_versions.create(WorkflowVersion(
+            id=f"wfver-{secrets.token_hex(6)}",
+            workflow_id=workflow_id,
+            version=wf.version,
+            name=wf.name,
+            description=wf.description or "",
+            trigger=wf.trigger,
+            nodes_json=wf.nodes or "[]",
+            edges_json=wf.edges or "[]",
+            published_by=user.id,
+        ))
         await self._workflows.update(wf)
         await self._s.commit()
         import json as _json
@@ -2574,12 +2898,66 @@ class WorkspaceServiceDB:
         edges = _json.loads(wf.edges) if wf.edges else []
         return WorkflowDefinition(id=workflow_id, name=wf.name, description=wf.description or "",
                                    trigger=wf.trigger, version=wf.version, status=wf.status,
+                                   revision=wf.revision,
                                    node_count=len(nodes), nodes=nodes, edges=edges)
+
+    async def list_workflow_versions(self, workflow_id: str, user: UserPublic) -> list[WorkflowVersionPublic]:
+        import json as _json
+        await self._ensure_workflow_access(workflow_id, user)
+        versions = await self._workflow_versions.list_by_workflow(workflow_id)
+        return [WorkflowVersionPublic(
+            id=item.id,
+            workflow_id=item.workflow_id,
+            version=item.version,
+            name=item.name,
+            description=item.description or "",
+            trigger=item.trigger,
+            nodes=_json.loads(item.nodes_json or "[]"),
+            edges=_json.loads(item.edges_json or "[]"),
+            published_at=item.published_at,
+        ) for item in versions]
+
+    async def restore_workflow_version(self, workflow_id: str, version_id: str, user: UserPublic) -> WorkflowDefinition:
+        wf = await self._ensure_workflow_access(workflow_id, user, manage=True)
+        version = await self._workflow_versions.get_by_id(version_id)
+        if not version or version.workflow_id != workflow_id:
+            raise WorkspaceError(404, "WORKFLOW_VERSION_NOT_FOUND", "流程版本不存在", {"version_id": version_id})
+        wf.name = version.name
+        wf.description = version.description or ""
+        wf.trigger = version.trigger
+        wf.nodes = version.nodes_json
+        wf.edges = version.edges_json
+        wf.status = "draft"
+        wf.revision += 1
+        await self._workflows.update(wf)
+        await self._s.commit()
+        return await self.get_workflow(workflow_id, user)
+
+    async def list_workflow_executions(self, workflow_id: str, user: UserPublic) -> list[WorkflowExecutionRecord]:
+        import json as _json
+        await self._ensure_workflow_access(workflow_id, user)
+        executions = await self._workflow_executions.list_by_workflow(workflow_id)
+        return [WorkflowExecutionRecord(
+            id=item.id,
+            workflow_id=item.workflow_id,
+            workflow_version=item.workflow_version,
+            status=item.status,
+            node_executions=_json.loads(item.node_executions_json or "[]"),
+            output=_json.loads(item.output_json or "{}"),
+            created_at=item.created_at,
+        ) for item in executions]
 
     async def execute_workflow(self, workflow_id: str, payload: Any, user: UserPublic) -> WorkflowExecutionResponse:
         import secrets as _s
         import json as _json
         wf = await self._ensure_workflow_access(workflow_id, user)
+        if wf.status != "published":
+            raise WorkspaceError(
+                409,
+                "WORKFLOW_NOT_PUBLISHED",
+                "流程尚未发布，不能执行",
+                {"workflow_id": workflow_id},
+            )
         nodes = _json.loads(wf.nodes) if wf.nodes else []
         edges = _json.loads(wf.edges) if wf.edges else []
         if not nodes:
@@ -2594,76 +2972,29 @@ class WorkspaceServiceDB:
         workflow_failed = False
         final_output: dict[str, Any] = {}
         for node in ordered_nodes:
-            node_id = str(node.get("id", ""))
-            node_type = str(node.get("type", "tool"))
-            resolved_parameters = self._workflow_resolve_parameters(node, node_outputs, workflow_inputs)
-            tool_name = node.get("tool_name")
-            if tool_name:
-                resolved_node = dict(node)
-                resolved_node["parameters"] = resolved_parameters
-                tool_input = self._workflow_tool_params(tool_name, resolved_node, payload)
-                execution = await self._tool_registry.execute(tool_name, tool_input, self, user)
-                status = "success" if execution.status == "success" else "failed"
-                output = execution.output if execution.status == "success" else {
-                    "error": execution.error_message or execution.clarification or "工具执行失败",
-                }
-                node_executions.append({
-                    "node_id": node_id,
-                    "name": node.get("name", ""),
-                    "tool_name": tool_name,
-                    "status": status,
-                    "input": tool_input,
-                    "output": output,
-                })
-                node_outputs[node_id] = {"input": tool_input, "output": output, "status": status}
-                if status == "failed":
-                    workflow_failed = True
-                    final_output = output
-                    break
-            elif node_type in {"input", "trigger"}:
-                output = {**workflow_inputs, **resolved_parameters}
-                node_executions.append({
-                    "node_id": node_id,
-                    "name": node.get("name", ""),
-                    "tool_name": "",
-                    "status": "success",
-                    "input": workflow_inputs,
-                    "output": output,
-                })
-                node_outputs[node_id] = {"input": workflow_inputs, "output": output, "status": "success"}
-                final_output = output
-            elif node_type == "output":
-                output = resolved_parameters
-                if not output:
-                    incoming_sources = [edge.get("source") for edge in edges if edge.get("target") == node_id]
-                    if incoming_sources:
-                        source_id = str(incoming_sources[-1])
-                        output = dict(node_outputs.get(source_id, {}).get("output") or {})
-                node_executions.append({
-                    "node_id": node_id,
-                    "name": node.get("name", ""),
-                    "tool_name": "",
-                    "status": "success",
-                    "input": resolved_parameters,
-                    "output": output,
-                })
-                node_outputs[node_id] = {"input": resolved_parameters, "output": output, "status": "success"}
-                final_output = output
-            else:
-                output = resolved_parameters
-                node_executions.append({
-                    "node_id": node_id,
-                    "name": node.get("name", ""),
-                    "tool_name": "",
-                    "status": "success",
-                    "input": resolved_parameters,
-                    "output": output,
-                })
-                node_outputs[node_id] = {"input": resolved_parameters, "output": output, "status": "success"}
-                final_output = output
+            if not self._workflow_node_is_active(str(node.get("id") or ""), edges, node_outputs):
+                node_executions.append(self._workflow_skipped_node(node))
+                continue
+            record = await self._execute_workflow_node(node, edges, node_outputs, workflow_inputs, user)
+            node_executions.append(record)
+            final_output = record["output"]
+            if record["status"] == "failed":
+                workflow_failed = True
+                break
         summary = f"流程「{wf.name}」执行{'失败' if workflow_failed else '完成'}，共执行 {len(node_executions)} 个节点"
         output = {"summary": summary, "result": final_output, "nodes": node_outputs}
-        return WorkflowExecutionResponse(id=f"exec-{_s.token_hex(4)}", workflow_id=workflow_id, status="failed" if workflow_failed else "completed", node_executions=node_executions, output=output)
+        response = WorkflowExecutionResponse(id=f"exec-{_s.token_hex(4)}", workflow_id=workflow_id, status="failed" if workflow_failed else "completed", node_executions=node_executions, output=output)
+        await self._workflow_executions.create(WorkflowExecution(
+            id=response.id,
+            workflow_id=workflow_id,
+            workflow_version=wf.version,
+            status=response.status,
+            node_executions_json=_json.dumps([item.model_dump() for item in response.node_executions], ensure_ascii=False),
+            output_json=_json.dumps(response.output, ensure_ascii=False),
+            created_by=user.id,
+        ))
+        await self._s.commit()
+        return response
 
     async def _seed_workflow_templates(self) -> None:
         """Seed built-in workflow templates if none exist."""
@@ -3101,25 +3432,117 @@ class WorkspaceServiceDB:
 
     # ── Debug (FR-W07) ──
     async def start_debug(self, workflow_id: str, payload: dict, user: UserPublic) -> dict:
-        """Start a debug session, returns first node."""
-        await self._ensure_workflow_access(workflow_id, user)
+        """Start a debug session over the workflow's real topological order."""
+        import json as _json
+        wf = await self._ensure_workflow_access(workflow_id, user)
+        if wf.status != "published":
+            raise WorkspaceError(409, "WORKFLOW_NOT_PUBLISHED", "流程尚未发布，不能调试", {"workflow_id": workflow_id})
+        nodes = _json.loads(wf.nodes) if wf.nodes else []
+        edges = _json.loads(wf.edges) if wf.edges else []
+        ordered_nodes = self._workflow_topological_order(nodes, edges)
+        if ordered_nodes is None:
+            raise WorkspaceError(409, "WORKFLOW_INVALID", "流程包含环路，不能调试", {"workflow_id": workflow_id})
+        if not ordered_nodes:
+            raise WorkspaceError(409, "WORKFLOW_EMPTY", "流程没有可调试节点", {"workflow_id": workflow_id})
         import secrets as _s
         sid = f"debug-{_s.token_hex(4)}"
-        self._debug_sessions[sid] = {
-            "workflow_id": workflow_id, "owner_id": user.id, "cursor": 0, "results": []}
-        return {"session_id": sid, "status": "ready"}
+        await self._workflow_debug_sessions.create(WorkflowDebugSession(
+            id=sid,
+            workflow_id=workflow_id,
+            owner_id=user.id,
+            cursor=0,
+            nodes_json=_json.dumps(ordered_nodes, ensure_ascii=False),
+            edges_json=_json.dumps(edges, ensure_ascii=False),
+            inputs_json=_json.dumps(self._workflow_payload_inputs(payload), ensure_ascii=False),
+            node_outputs_json="{}",
+            results_json="[]",
+            expires_at=datetime.now(UTC) + timedelta(minutes=30),
+        ))
+        await self._s.commit()
+        return {"session_id": sid, "status": "ready", "node_count": len(ordered_nodes)}
 
-    def step_debug(self, session_id: str, workflow_id: str, user: UserPublic) -> dict:
-        """Execute next node in debug session."""
-        session = self._debug_sessions.get(session_id)
-        if not session or session.get("workflow_id") != workflow_id or session.get("owner_id") != user.id:
-            from fastapi import HTTPException
-            raise HTTPException(404, detail="Debug session not found")
-        session["cursor"] += 1
-        done = session["cursor"] >= 3  # simulate 3 nodes for MVP
+    async def step_debug(self, session_id: str, workflow_id: str, user: UserPublic) -> dict:
+        """Execute the next real node using the same parameter/tool semantics as a normal run."""
+        session = await self._workflow_debug_sessions.get_by_id(session_id)
+        if not session or session.workflow_id != workflow_id or session.owner_id != user.id:
+            raise WorkspaceError(404, "DEBUG_SESSION_NOT_FOUND", "调试会话不存在或已结束", {"session_id": session_id})
+        expires_at = session.expires_at if session.expires_at.tzinfo else session.expires_at.replace(tzinfo=UTC)
+        if datetime.now(UTC) >= expires_at:
+            await self._workflow_debug_sessions.delete(session)
+            await self._s.commit()
+            raise WorkspaceError(410, "DEBUG_SESSION_EXPIRED", "调试会话已过期", {"session_id": session_id})
+        lease_token = f"lease-{secrets.token_hex(12)}"
+        now = datetime.now(UTC)
+        claimed = await self._workflow_debug_sessions.claim(
+            session_id, user.id, lease_token, now, now + timedelta(minutes=2)
+        )
+        if not claimed:
+            raise WorkspaceError(409, "DEBUG_STEP_IN_PROGRESS", "已有调试步骤正在执行，请稍后重试", {"session_id": session_id})
+        self._s.expire_all()
+        session = await self._workflow_debug_sessions.get_by_id(session_id)
+        if not session or session.workflow_id != workflow_id:
+            raise WorkspaceError(404, "DEBUG_SESSION_NOT_FOUND", "调试会话不存在或已结束", {"session_id": session_id})
+        cursor = session.cursor
+        nodes = _json_loads_list(session.nodes_json)
+        edges = _json_loads_list(session.edges_json)
+        node_outputs = _json_loads_object(session.node_outputs_json)
+        results = _json_loads_list(session.results_json)
+        if cursor >= len(nodes):
+            await self._workflow_debug_sessions.delete(session)
+            await self._s.commit()
+            return {
+                "done": True, "step": len(results), "node_id": "", "node_name": "",
+                "status": "success", "input": {}, "output": {}, "remaining": 0,
+            }
+        node = nodes[cursor]
+        workflow_inputs = _json_loads_object(session.inputs_json)
+        if self._workflow_node_is_active(str(node.get("id") or ""), edges, node_outputs):
+            try:
+                execution = await self._execute_workflow_node(node, edges, node_outputs, workflow_inputs, user)
+            except Exception:
+                await self._s.rollback()
+                await self._workflow_debug_sessions.release(session_id, lease_token)
+                raise
+        else:
+            execution = self._workflow_skipped_node(node)
+        node_id = execution["node_id"]
+        status = execution["status"]
+        results.append(execution)
+        session.cursor = cursor + 1
+        session.node_outputs_json = json.dumps(node_outputs, ensure_ascii=False)
+        session.results_json = json.dumps(results, ensure_ascii=False)
+        next_cursor = session.cursor
+        done = status == "failed" or next_cursor >= len(nodes)
         if done:
-            del self._debug_sessions[session_id]
-        return {"done": done, "step": session["cursor"], "node_name": f"Node-{session["cursor"]}", "status": "success", "remaining": 3 - session["cursor"] if not done else 0}
+            await self._workflow_debug_sessions.delete(session)
+        else:
+            session.lease_token = None
+            session.lease_expires_at = None
+            await self._workflow_debug_sessions.update(session)
+        await self._s.commit()
+        return {
+            "done": done,
+            "step": session.cursor,
+            "node_id": node_id,
+            "node_name": execution["name"],
+            "status": status,
+            "input": execution["input"],
+            "output": execution["output"],
+            "remaining": 0 if done else len(nodes) - next_cursor,
+        }
+
+    async def cancel_debug(self, session_id: str, workflow_id: str, user: UserPublic) -> None:
+        await self._ensure_workflow_access(workflow_id, user)
+        session = await self._workflow_debug_sessions.get_by_id(session_id)
+        if not session or session.workflow_id != workflow_id or session.owner_id != user.id:
+            raise WorkspaceError(404, "DEBUG_SESSION_NOT_FOUND", "调试会话不存在或已结束", {"session_id": session_id})
+        lease_expires_at = session.lease_expires_at
+        if lease_expires_at and lease_expires_at.tzinfo is None:
+            lease_expires_at = lease_expires_at.replace(tzinfo=UTC)
+        if session.lease_token and lease_expires_at and lease_expires_at > datetime.now(UTC):
+            raise WorkspaceError(409, "DEBUG_STEP_IN_PROGRESS", "调试步骤正在执行，暂不能取消", {"session_id": session_id})
+        await self._workflow_debug_sessions.delete(session)
+        await self._s.commit()
 
 
 def _file_type(name: str) -> str:

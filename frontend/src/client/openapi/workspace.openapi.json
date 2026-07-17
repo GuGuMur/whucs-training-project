@@ -3399,6 +3399,11 @@
             "title": "Nodes",
             "type": "array"
           },
+          "revision": {
+            "default": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
           "status": {
             "enum": [
               "draft",
@@ -3437,6 +3442,18 @@
             "title": "Id",
             "type": "string"
           },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
           "source": {
             "maxLength": 64,
             "minLength": 1,
@@ -3470,6 +3487,18 @@
               }
             ],
             "title": "Target Handle"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
           }
         },
         "required": [
@@ -3480,11 +3509,91 @@
         "title": "WorkflowEdgeDefinition",
         "type": "object"
       },
+      "WorkflowExecutionListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowExecutionRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "WorkflowExecutionListResponse",
+        "type": "object"
+      },
+      "WorkflowExecutionRecord": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "node_executions": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowNodeExecution"
+            },
+            "title": "Node Executions",
+            "type": "array"
+          },
+          "output": {
+            "additionalProperties": true,
+            "title": "Output",
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "workflow_id": {
+            "title": "Workflow Id",
+            "type": "string"
+          },
+          "workflow_version": {
+            "title": "Workflow Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workflow_id",
+          "workflow_version",
+          "status",
+          "created_at"
+        ],
+        "title": "WorkflowExecutionRecord",
+        "type": "object"
+      },
       "WorkflowExecutionRequest": {
         "properties": {
           "file_id": {
-            "title": "File Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id"
+          },
+          "inputs": {
+            "additionalProperties": true,
+            "title": "Inputs",
+            "type": "object"
           },
           "target_kb_id": {
             "anyOf": [
@@ -3498,9 +3607,6 @@
             "title": "Target Kb Id"
           }
         },
-        "required": [
-          "file_id"
-        ],
         "title": "WorkflowExecutionRequest",
         "type": "object"
       },
@@ -3603,10 +3709,12 @@
           },
           "type": {
             "enum": [
+              "input",
               "trigger",
               "tool",
               "condition",
               "loop",
+              "transform",
               "aggregate",
               "output"
             ],
@@ -3647,7 +3755,8 @@
               "pending",
               "running",
               "success",
-              "failed"
+              "failed",
+              "skipped"
             ],
             "title": "Status",
             "type": "string"
@@ -3693,6 +3802,18 @@
               }
             ],
             "title": "Edges"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Revision"
           },
           "name": {
             "anyOf": [
@@ -3807,6 +3928,80 @@
           "edge_count"
         ],
         "title": "WorkflowValidationResponse",
+        "type": "object"
+      },
+      "WorkflowVersionListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowVersionPublic"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "WorkflowVersionListResponse",
+        "type": "object"
+      },
+      "WorkflowVersionPublic": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowEdgeDefinition"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowNodeDefinition"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "published_at": {
+            "format": "date-time",
+            "title": "Published At",
+            "type": "string"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "workflow_id": {
+            "title": "Workflow Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workflow_id",
+          "version",
+          "name",
+          "description",
+          "trigger",
+          "published_at"
+        ],
+        "title": "WorkflowVersionPublic",
         "type": "object"
       },
       "WorkspaceSnapshot": {
@@ -8236,6 +8431,59 @@
       }
     },
     "/api/v2/workflows/{workflow_id}": {
+      "get": {
+        "operationId": "get_workflow_api_v2_workflows__workflow_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowDefinition"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Workflow"
+      },
       "patch": {
         "operationId": "update_workflow_api_v2_workflows__workflow_id__patch",
         "parameters": [
@@ -8330,6 +8578,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowExecutionRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -8426,7 +8683,117 @@
         "summary": "Debug Step"
       }
     },
+    "/api/v2/workflows/{workflow_id}/debug/{session_id}": {
+      "delete": {
+        "operationId": "debug_cancel_api_v2_workflows__workflow_id__debug__session_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Debug Cancel"
+      }
+    },
     "/api/v2/workflows/{workflow_id}/executions": {
+      "get": {
+        "operationId": "list_workflow_executions_api_v2_workflows__workflow_id__executions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowExecutionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Workflow Executions"
+      },
       "post": {
         "operationId": "execute_workflow_api_v2_workflows__workflow_id__executions_post",
         "parameters": [
@@ -8599,6 +8966,125 @@
           }
         },
         "summary": "Validate Workflow"
+      }
+    },
+    "/api/v2/workflows/{workflow_id}/versions": {
+      "get": {
+        "operationId": "list_workflow_versions_api_v2_workflows__workflow_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowVersionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Workflow Versions"
+      }
+    },
+    "/api/v2/workflows/{workflow_id}/versions/{version_id}/restore": {
+      "post": {
+        "operationId": "restore_workflow_version_api_v2_workflows__workflow_id__versions__version_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowDefinition"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Workflow Version"
       }
     },
     "/api/v2/workspace/snapshot": {

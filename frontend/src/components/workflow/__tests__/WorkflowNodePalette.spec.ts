@@ -36,6 +36,14 @@ describe('WorkflowNodePalette', () => {
     expect(wrapper.text()).toContain('知识库输入')
     expect(wrapper.text()).toContain('arxiv_search')
     expect(wrapper.text()).toContain('query')
+    expect(wrapper.text()).toContain('条件分支')
+    expect(wrapper.text()).toContain('数组循环')
+  })
+
+  it('emits an advanced-node payload', async () => {
+    const wrapper = mount(WorkflowNodePalette, { global: { plugins: [naive] }, props: { tools: [] } })
+    await wrapper.find('[data-testid="palette-advanced-aggregate"]').trigger('click')
+    expect(wrapper.emitted('addNode')?.[0]?.[0]).toEqual({ kind: 'aggregate', label: '数据聚合' })
   })
 
   it('emits an input payload when a palette item is clicked', async () => {

@@ -3,6 +3,128 @@
 ## Goal
 Build a frontend-backend separated, well-structured intelligent file management and agent collaboration platform based on the documents under `report/`.
 
+## Active Audit: Complete Vue Flow Orchestration Plan (2026-07-16)
+
+### Phase 40: Vue Flow Orchestration Architecture Audit
+- [x] Audit the current Vue Flow view, supporting components, Pinia store, API adapter, and backend workflow contract.
+- [x] Trace graph lifecycle: load/create/edit/connect/delete/save/validate/publish/execute/debug/history.
+- [x] Identify correctness gaps in state ownership, graph serialization, node configuration, validation, and tests.
+- [x] Produce a component map and phased implementation plan with acceptance criteria.
+- **Status:** complete
+
+### Phase 41: Vue Flow Core Implementation
+- [x] Add tested v2 workflow detail and authoritative publish validation contracts.
+- [x] Add generated-client detail adapter and make `stores/workflow.ts` the remote workflow owner.
+- [x] Add a typed lossless workflow codec and `useWorkflowDesigner` graph state/actions.
+- [x] Split and render the workflow list, toolbar, canvas, custom node, and inspector components.
+- [x] Cover connect/delete/save/reload behavior with focused frontend tests.
+- [x] Run backend workflow tests and frontend unit/type/build verification.
+- **Status:** complete
+
+#### Errors Encountered
+- First browser acceptance used `pnpm test:e2e -- --project=chromium`, which passed an extra `--` and ran uninstalled Firefox/WebKit projects. Chromium itself exposed two assertion/layout details: Vue Router retained `/workflow` unescaped in the query, and the 720px viewport overflowed by 13px. Resolution: assert the actual query form, reserve 300px above the canvas, and rerun with `pnpm exec playwright test --project=chromium`.
+- The first skipped-timeline component assertion expected Naive UI's `content` prop in wrapper text, but TimelineItem does not render that prop into the jsdom text snapshot. Resolution: assert the typed child-component prop while retaining the visible title assertion.
+- Generated workflow node status `skipped` was incompatible with a legacy workspace adapter that converts workflow executions to `AgentStep`. Resolution: keep Agent status unchanged, map skipped to success only in that compatibility view, and preserve `workflow_status: skipped` in metadata.
+- The first lease regression triggered SQLAlchemy's Python-side session synchronizer comparing SQLite naive datetimes with UTC-aware values. Resolution: disable session synchronization for atomic lease UPDATEs; the condition is evaluated by the database and the service explicitly reloads the row.
+- Alembic initially migrated the existing development DB despite an isolated `DATABASE_URL`, because `env.py` always used the fixed URL from `alembic.ini`. Resolution: bind Alembic to the application's `settings.DATABASE_URL` and normalize SQLite to `aiosqlite`.
+- The first durable-debug focused run used the nonexistent helper name `_json_loads_dict`; the established parser is `_json_loads_object`. Resolution: reuse the existing object parser for persisted inputs and node outputs.
+- The first advanced-node backend test run used the stale default SQLite schema and failed because `workflows.revision` was absent. Resolution: run the workflow suite against a newly initialized isolated database rather than mutating the user-running database.
+- Vue type-check rejected calling `join` on an `unknown` parameter directly in the inspector template. Resolution: move list formatting/parsing into typed script helpers.
+- First frontend type-check failed because Vue Flow's generic `Node.data` remains optional and generated workflow arrays are optional. Resolution: define the designer node with a required `data` override and normalize absent API arrays to empty arrays.
+
+### Phase 42: Vue Flow Parameter, Version, and Debug Completion
+- [x] Generate schema-aware typed parameter controls and validate upstream bindings.
+- [x] Add immutable published versions and execution history persistence.
+- [x] Enforce published-only execution in the DB-backed v2 service.
+- [x] Replace simulated debug steps with the real workflow node executor.
+- [x] Add browser-level orchestration acceptance coverage.
+- **Status:** complete
+
+### Phase 43: Vue Flow Completion-Definition Closure
+- [x] Add undo/redo history for graph mutations and toolbar controls.
+- [x] Protect route/workflow switching when unsaved changes exist.
+- [x] Add authoritative server validation for parameter bindings and required tool inputs.
+- [x] Add version restore and explicit workflow execution input UI.
+- [x] Extend browser/backend acceptance and run final verification.
+- **Status:** complete
+
+### Phase 44: Vue Flow Production Hardening
+- [x] Add optimistic concurrency revision checks to workflow updates.
+- [x] Preserve edge label/type fields across API and canvas round trips.
+- [x] Add debug-session cancellation and expiry cleanup.
+- [x] Add regression coverage and run final verification.
+- **Status:** complete
+
+### Phase 45: Workflow Execution Kernel Consolidation
+- [x] Use one node executor for formal runs and step debugging.
+- [x] Return accurate workflow-list node counts without loading full graphs into list responses.
+- [x] Prove formal/debug node-output parity and run full verification.
+- **Status:** complete
+
+### Phase 46: Advanced Node v2 DB Execution Semantics
+- [x] Define deterministic, bounded contracts for condition, transform, loop, and aggregate nodes.
+- [x] Implement advanced-node validation and execution in the shared formal/debug kernel.
+- [x] Implement condition true/false branch routing and skipped-branch scheduling.
+- [x] Add v2 DB API regression coverage for validation, execution, and debugging parity.
+- **Status:** complete
+
+### Phase 47: Advanced Node Vue Flow Authoring
+- [x] Preserve advanced node kinds losslessly in the workflow codec.
+- [x] Add advanced nodes to the palette/canvas and typed designer actions.
+- [x] Add focused inspector controls and condition branch handles.
+- [x] Add frontend unit/component coverage.
+- **Status:** complete
+
+### Phase 48: Advanced Node Acceptance Closure
+- [x] Regenerate the OpenAPI client after debug start accepted execution inputs.
+- [x] Run focused and full backend/frontend verification.
+- [x] Record supported semantics and remaining limits.
+- **Status:** complete
+
+### Phase 49: Durable Workflow Debug Sessions
+- [x] Persist active debug graph snapshots, inputs, cursor, outputs, results, owner, and expiry in the v2 database.
+- [x] Replace the module-scoped registry in start/step/cancel without changing the public API.
+- [x] Add migration and cross-service-instance/expiry/cancel regressions.
+- [x] Run focused and full verification.
+- **Status:** complete
+
+### Phase 50: Concurrent Debug Step Safety
+- [x] Atomically lease a debug session before executing its next node.
+- [x] Reject overlapping steps with a stable 409 error and allow recovery after lease expiry.
+- [x] Release the lease transactionally on successful persistence and execution errors.
+- [x] Add concurrency/lease regression coverage and run verification.
+- **Status:** complete
+
+### Phase 51: Branch Skip Observability
+- [x] Represent condition-pruned nodes as `skipped` in v2 execution/debug contracts and persisted history.
+- [x] Return a complete ordered node trace from formal execution.
+- [x] Surface skipped status in Vue Flow nodes and run/debug panels.
+- [x] Regenerate the client and run backend/frontend verification.
+- **Status:** complete
+
+### Phase 52: Frontend Auth, Keyboard Delete, and Viewport Layout Fixes
+- [x] Make protected-route entry validate every unverified local session before allowing navigation; refresh once, then clear invalid state and redirect with the original target.
+- [x] Add route/store regressions for invalid and expired-refreshable sessions without introducing redirect loops; network/refresh failures fail closed at the guard.
+- [x] Add canvas-scoped Delete/Backspace handling that removes the selected node/edge through `designer.removeSelection()` and ignores editable controls.
+- [x] Replace fixed 620px minimums with a viewport-bounded desktop canvas height and explicit internal overflow; keep a practical mobile stacked height.
+- [x] Add component/E2E coverage and run full frontend unit, type, build, and Chromium checks.
+- **Status:** complete
+
+#### Errors Encountered
+- Edge metadata schema normalization adds explicit nullable `label/type` fields and defaults missing canvas edge type to `smoothstep`, so older exact-equality fixtures failed. Resolution: update contract fixtures to assert the normalized lossless representation.
+
+#### Errors Encountered
+- Type-check rejected `Array.prototype.at` because the project TypeScript lib target predates ES2022. Resolution: use target-compatible indexed access for undo/redo stack tails.
+
+#### Errors Encountered
+- First real debug regression returned 404 on the first step because the request-scoped DB service recreated its in-memory session map. Resolution: share the interim debug-session registry at module scope so start and step requests see the same session; durable DB persistence remains part of execution-history work.
+- Published-only enforcement correctly broke three older v2 tests that executed/debugged drafts. Resolution: update those contracts to publish valid owner workflows before execution/debug; outsider authorization assertions remain unchanged.
+- Full frontend type-check caught an invalid auth-session fixture in the new workflow store test. Resolution: use the actual `WorkspaceAuthSession` fields (`displayName`, `userId`) rather than an unrelated `user` object.
+- History panel type-check exposed optional arrays in generated response models. Resolution: render defensive zero counts for absent `nodes`/`node_executions` while backend responses continue to populate both.
+- First Chromium E2E launch failed because Playwright's headless-shell binary was absent. A normal Chromium install downloaded the full Chrome fallback but not the required shell on this unsupported OS, so the next attempt installs `--only-shell` explicitly.
+- The fallback Playwright downloads were not retained on this OS, but system Google Chrome is available at `/usr/bin/google-chrome`. Resolution: configure the Chromium project to use `PLAYWRIGHT_CHROME_PATH` with that system path as the local default.
+- The first system-Chrome configuration placed `executablePath` at the test-use level, which Playwright ignored. Resolution: move it under `use.launchOptions.executablePath`, the BrowserType launch boundary.
+
 ## Current Phase
 Phase 33 — Iterative Agent Loop (next)
 

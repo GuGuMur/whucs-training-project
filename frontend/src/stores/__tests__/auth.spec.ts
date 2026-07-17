@@ -128,6 +128,41 @@ describe('auth store', () => {
     })
     expect(auth.isAuthenticated).toBe(true)
     expect(auth.currentUser?.display_name).toBe('恢复用户')
+    expect(auth.verificationState).toBe('verified')
+  })
+
+  it('verifies a local session before treating it as authenticated access', async () => {
+    localStorage.setItem('whu-workspace-session', JSON.stringify({
+      accessToken: 'unverified-token', displayName: '待验证', refreshToken: 'refresh-token', userId: '3',
+    }))
+    meApi.mockResolvedValue({ data: undefined, error: { code: 'INVALID_TOKEN', message: 'invalid' } as never })
+    const auth = useAuthStore()
+
+    await expect(auth.verifySession()).resolves.toBe(false)
+
+    expect(auth.verificationState).toBe('unknown')
+    expect(auth.isAuthenticated).toBe(false)
+  })
+
+  it('refreshes an expired access token during protected-route verification', async () => {
+    localStorage.setItem('whu-workspace-session', JSON.stringify({
+      accessToken: 'expired-token', displayName: '旧用户', refreshToken: 'valid-refresh', userId: '9',
+    }))
+    meApi.mockResolvedValue({ data: undefined, error: { code: 'TOKEN_EXPIRED', message: 'expired' } as never })
+    refreshApi.mockResolvedValue({
+      data: {
+        access_token: 'new-token', expires_in: 1800, refresh_token: 'new-refresh', token_type: 'bearer',
+        user: { display_name: '刷新用户', email: 'refresh@example.com', id: 9, roles: ['user'], username: 'refresh' },
+      },
+      error: undefined,
+    })
+    const auth = useAuthStore()
+
+    await expect(auth.verifySession()).resolves.toBe(true)
+
+    expect(refreshApi).toHaveBeenCalledWith({ body: { refresh_token: 'valid-refresh' } })
+    expect(auth.verificationState).toBe('verified')
+    expect(auth.session?.accessToken).toBe('new-token')
   })
 
   it('registers a new user through the generated auth client', async () => {

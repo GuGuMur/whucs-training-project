@@ -40,6 +40,11 @@ def test_export_openapi_writes_v2_contract(tmp_path) -> None:
     assert "/api/v2/agents/tasks/{task_id}/continue" in paths
     assert "/api/v2/agents/tasks/{task_id}/cancel" in paths
     assert "/api/v2/workflows" in paths
+    assert "/api/v2/workflows/{workflow_id}" in paths
+    assert "/api/v2/workflows/{workflow_id}/versions" in paths
+    assert "/api/v2/workflows/{workflow_id}/versions/{version_id}/restore" in paths
+    assert "get" in paths["/api/v2/workflows/{workflow_id}/executions"]
+    assert "/api/v2/workflows/{workflow_id}/debug/{session_id}" in paths
     assert "/api/v2/notifications" in paths
     assert "/api/v2/permissions/rules" in paths
     assert "/api/v2/health" in paths

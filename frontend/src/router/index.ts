@@ -62,40 +62,19 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
     ],
   })
 
-  let tokenValidated = false
-
   router.beforeEach(async (to) => {
     const auth = useAuthStore()
 
-    // Restore from localStorage if not already authenticated
-    const wasRestored = !auth.isAuthenticated
-    if (wasRestored) {
-      auth.restoreLocalSession()
-    }
-
-    // Validate restored token against server (runs once per app load)
-    if (to.meta.requiresAuth && auth.isAuthenticated && wasRestored && !tokenValidated) {
-      tokenValidated = true
-      const ok = await auth.restoreSession().catch(() => false)
-      if (!ok) {
-        // Token may have expired — try refresh, then retry restore
-        const refreshed = await auth.refreshSession().catch(() => false)
-        if (refreshed) {
-          await auth.restoreSession().catch(() => {})
-        }
-      }
-    }
-
-    // For protected routes without a session, redirect to login
-    if (to.meta.requiresAuth && !auth.isAuthenticated) {
-      return { name: 'login', query: { redirect: to.fullPath } }
+    if (to.meta.requiresAuth) {
+      const verified = await auth.verifySession()
+      if (!verified) return { name: 'login', query: { redirect: to.fullPath } }
     }
 
     if (to.meta.requiresAdmin && !auth.isAdmin) {
       return { name: 'files' }
     }
 
-    if (to.meta.guestOnly && auth.isAuthenticated) {
+    if (to.meta.guestOnly && auth.isAuthenticated && await auth.verifySession()) {
       return { name: 'files' }
     }
   })

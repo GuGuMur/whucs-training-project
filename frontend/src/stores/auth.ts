@@ -23,6 +23,7 @@ export interface LoginCredentials {
 }
 
 export type RegisterCredentials = UserCreate
+export type AuthVerificationState = 'unknown' | 'verifying' | 'verified'
 
 interface WorkspaceApiError {
   code?: string
@@ -64,6 +65,7 @@ export const useAuthStore = defineStore('auth', () => {
   const currentUser = shallowRef<UserPublic | null>(null)
   const loading = shallowRef(false)
   const errorMessage = shallowRef('')
+  const verificationState = shallowRef<AuthVerificationState>('unknown')
 
   const isAuthenticated = computed(() => Boolean(session.value?.accessToken))
   const displayName = computed(() => currentUser.value?.display_name ?? '未登录')
@@ -80,33 +82,40 @@ export const useAuthStore = defineStore('auth', () => {
     session.value = next
     currentUser.value = payload.user
     errorMessage.value = ''
+    verificationState.value = 'verified'
     saveWorkspaceSession(next)
   }
 
   function restoreLocalSession() {
     session.value = loadStoredWorkspaceSession()
+    verificationState.value = 'unknown'
     return session.value
   }
 
   async function restoreSession() {
     const s = restoreLocalSession()
-    if (!s?.accessToken) { currentUser.value = null; return false }
+    if (!s?.accessToken) { currentUser.value = null; verificationState.value = 'unknown'; return false }
+    verificationState.value = 'verifying'
     loading.value = true
     try {
       const r = await meApiV2UsersMeGet({ headers: createAuthorizationHeader(s.accessToken) })
       if (r.error || !r.data) {
-        // Don't logout on TOKEN_EXPIRED — caller may refresh token
-        if (r.error && typeof r.error === 'object' && 'detail' in r.error) {
-          const detail = (r.error as any).detail
-          if (detail && detail.code === 'TOKEN_EXPIRED') return false
+        // Preserve refresh credentials only for an explicitly expired access token.
+        const apiError = toWorkspaceApiError(r.error)
+        const detailCode = apiError?.detail?.code
+        if (apiError?.code === 'TOKEN_EXPIRED' || detailCode === 'TOKEN_EXPIRED') {
+          verificationState.value = 'unknown'
+          return false
         }
         logout(); return false
       }
       currentUser.value = r.data.user
       session.value = { ...s, displayName: r.data.user.display_name, userId: String(r.data.user.id) }
+      verificationState.value = 'verified'
       saveWorkspaceSession(session.value)
       return true
     } catch {
+      verificationState.value = 'unknown'
       return false  // Network error — don't logout, retry possible
     } finally { loading.value = false }
   }
@@ -131,6 +140,19 @@ export const useAuthStore = defineStore('auth', () => {
       applyAuthResponse(r.data)
       return r.data
     } finally { loading.value = false }
+  }
+
+  async function verifySession() {
+    if (verificationState.value === 'verified' && isAuthenticated.value) return true
+    if (!session.value?.accessToken) restoreLocalSession()
+    if (!session.value?.accessToken) return false
+
+    const restored = await restoreSession().catch(() => false)
+    if (restored) return true
+    if (!session.value?.refreshToken) return false
+
+    const refreshed = await refreshSession().catch(() => false)
+    return Boolean(refreshed && verificationState.value === 'verified')
   }
 
   async function registerWithPassword(credentials: RegisterCredentials) {
@@ -160,13 +182,14 @@ export const useAuthStore = defineStore('auth', () => {
     session.value = null
     currentUser.value = null
     errorMessage.value = ''
+    verificationState.value = 'unknown'
     clearStoredWorkspaceSession()
   }
 
   return {
     currentUser, errorMessage, loading, session,
-    displayName, isAdmin, isAuthenticated, roles,
+    displayName, isAdmin, isAuthenticated, roles, verificationState,
     loginWithPassword, logout, refreshSession, registerWithPassword,
-    restoreLocalSession, restoreSession, updateProfile,
+    restoreLocalSession, restoreSession, updateProfile, verifySession,
   }
 })

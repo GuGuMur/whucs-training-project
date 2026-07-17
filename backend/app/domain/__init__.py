@@ -107,6 +107,8 @@ from app.domain.workflow import (
     WorkflowEdgeDefinition,
     WorkflowExecutionRequest,
     WorkflowExecutionResponse,
+    WorkflowExecutionListResponse,
+    WorkflowExecutionRecord,
     WorkflowListResponse,
     WorkflowNodeDefinition,
     WorkflowNodeExecution,
@@ -114,4 +116,6 @@ from app.domain.workflow import (
     WorkflowUpdate,
     WorkflowValidationIssue,
     WorkflowValidationResponse,
+    WorkflowVersionListResponse,
+    WorkflowVersionPublic,
 )

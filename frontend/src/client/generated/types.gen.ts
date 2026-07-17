@@ -2124,6 +2124,10 @@ export type WorkflowDefinition = {
      */
     nodes?: Array<WorkflowNodeDefinition>;
     /**
+     * Revision
+     */
+    revision?: number;
+    /**
      * Status
      */
     status: 'draft' | 'published' | 'template';
@@ -2146,6 +2150,10 @@ export type WorkflowEdgeDefinition = {
      */
     id: string;
     /**
+     * Label
+     */
+    label?: string | null;
+    /**
      * Source
      */
     source: string;
@@ -2161,6 +2169,56 @@ export type WorkflowEdgeDefinition = {
      * Target Handle
      */
     target_handle?: string | null;
+    /**
+     * Type
+     */
+    type?: string | null;
+};
+
+/**
+ * WorkflowExecutionListResponse
+ */
+export type WorkflowExecutionListResponse = {
+    /**
+     * Items
+     */
+    items: Array<WorkflowExecutionRecord>;
+};
+
+/**
+ * WorkflowExecutionRecord
+ */
+export type WorkflowExecutionRecord = {
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Node Executions
+     */
+    node_executions?: Array<WorkflowNodeExecution>;
+    /**
+     * Output
+     */
+    output?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Status
+     */
+    status: 'queued' | 'running' | 'completed' | 'failed';
+    /**
+     * Workflow Id
+     */
+    workflow_id: string;
+    /**
+     * Workflow Version
+     */
+    workflow_version: string;
 };
 
 /**
@@ -2171,6 +2229,9 @@ export type WorkflowExecutionRequest = {
      * File Id
      */
     file_id?: string | null;
+    /**
+     * Inputs
+     */
     inputs?: {
         [key: string]: unknown;
     };
@@ -2279,7 +2340,7 @@ export type WorkflowNodeExecution = {
     /**
      * Status
      */
-    status: 'pending' | 'running' | 'success' | 'failed';
+    status: 'pending' | 'running' | 'success' | 'failed' | 'skipped';
     /**
      * Tool Name
      */
@@ -2298,6 +2359,10 @@ export type WorkflowUpdate = {
      * Edges
      */
     edges?: Array<WorkflowEdgeDefinition> | null;
+    /**
+     * Expected Revision
+     */
+    expected_revision?: number | null;
     /**
      * Name
      */
@@ -2354,6 +2419,58 @@ export type WorkflowValidationResponse = {
      * Valid
      */
     valid: boolean;
+};
+
+/**
+ * WorkflowVersionListResponse
+ */
+export type WorkflowVersionListResponse = {
+    /**
+     * Items
+     */
+    items: Array<WorkflowVersionPublic>;
+};
+
+/**
+ * WorkflowVersionPublic
+ */
+export type WorkflowVersionPublic = {
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Edges
+     */
+    edges?: Array<WorkflowEdgeDefinition>;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Nodes
+     */
+    nodes?: Array<WorkflowNodeDefinition>;
+    /**
+     * Published At
+     */
+    published_at: string;
+    /**
+     * Trigger
+     */
+    trigger: string;
+    /**
+     * Version
+     */
+    version: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id: string;
 };
 
 /**
@@ -5093,6 +5210,42 @@ export type CreateWorkflowApiV2WorkflowsPostResponses = {
 
 export type CreateWorkflowApiV2WorkflowsPostResponse = CreateWorkflowApiV2WorkflowsPostResponses[keyof CreateWorkflowApiV2WorkflowsPostResponses];
 
+export type GetWorkflowApiV2WorkflowsWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/v2/workflows/{workflow_id}';
+};
+
+export type GetWorkflowApiV2WorkflowsWorkflowIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetWorkflowApiV2WorkflowsWorkflowIdGetError = GetWorkflowApiV2WorkflowsWorkflowIdGetErrors[keyof GetWorkflowApiV2WorkflowsWorkflowIdGetErrors];
+
+export type GetWorkflowApiV2WorkflowsWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowDefinition;
+};
+
+export type GetWorkflowApiV2WorkflowsWorkflowIdGetResponse = GetWorkflowApiV2WorkflowsWorkflowIdGetResponses[keyof GetWorkflowApiV2WorkflowsWorkflowIdGetResponses];
+
 export type UpdateWorkflowApiV2WorkflowsWorkflowIdPatchData = {
     body: WorkflowUpdate;
     headers?: {
@@ -5130,7 +5283,7 @@ export type UpdateWorkflowApiV2WorkflowsWorkflowIdPatchResponses = {
 export type UpdateWorkflowApiV2WorkflowsWorkflowIdPatchResponse = UpdateWorkflowApiV2WorkflowsWorkflowIdPatchResponses[keyof UpdateWorkflowApiV2WorkflowsWorkflowIdPatchResponses];
 
 export type DebugStartApiV2WorkflowsWorkflowIdDebugStartPostData = {
-    body?: never;
+    body?: WorkflowExecutionRequest;
     headers?: {
         /**
          * Authorization
@@ -5213,6 +5366,82 @@ export type DebugStepApiV2WorkflowsWorkflowIdDebugStepPostResponses = {
 };
 
 export type DebugStepApiV2WorkflowsWorkflowIdDebugStepPostResponse = DebugStepApiV2WorkflowsWorkflowIdDebugStepPostResponses[keyof DebugStepApiV2WorkflowsWorkflowIdDebugStepPostResponses];
+
+export type DebugCancelApiV2WorkflowsWorkflowIdDebugSessionIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v2/workflows/{workflow_id}/debug/{session_id}';
+};
+
+export type DebugCancelApiV2WorkflowsWorkflowIdDebugSessionIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DebugCancelApiV2WorkflowsWorkflowIdDebugSessionIdDeleteError = DebugCancelApiV2WorkflowsWorkflowIdDebugSessionIdDeleteErrors[keyof DebugCancelApiV2WorkflowsWorkflowIdDebugSessionIdDeleteErrors];
+
+export type DebugCancelApiV2WorkflowsWorkflowIdDebugSessionIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DebugCancelApiV2WorkflowsWorkflowIdDebugSessionIdDeleteResponse = DebugCancelApiV2WorkflowsWorkflowIdDebugSessionIdDeleteResponses[keyof DebugCancelApiV2WorkflowsWorkflowIdDebugSessionIdDeleteResponses];
+
+export type ListWorkflowExecutionsApiV2WorkflowsWorkflowIdExecutionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/v2/workflows/{workflow_id}/executions';
+};
+
+export type ListWorkflowExecutionsApiV2WorkflowsWorkflowIdExecutionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListWorkflowExecutionsApiV2WorkflowsWorkflowIdExecutionsGetError = ListWorkflowExecutionsApiV2WorkflowsWorkflowIdExecutionsGetErrors[keyof ListWorkflowExecutionsApiV2WorkflowsWorkflowIdExecutionsGetErrors];
+
+export type ListWorkflowExecutionsApiV2WorkflowsWorkflowIdExecutionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowExecutionListResponse;
+};
+
+export type ListWorkflowExecutionsApiV2WorkflowsWorkflowIdExecutionsGetResponse = ListWorkflowExecutionsApiV2WorkflowsWorkflowIdExecutionsGetResponses[keyof ListWorkflowExecutionsApiV2WorkflowsWorkflowIdExecutionsGetResponses];
 
 export type ExecuteWorkflowApiV2WorkflowsWorkflowIdExecutionsPostData = {
     body: WorkflowExecutionRequest;
@@ -5321,6 +5550,82 @@ export type ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostResponses = {
 };
 
 export type ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostResponse = ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostResponses[keyof ValidateWorkflowApiV2WorkflowsWorkflowIdValidatePostResponses];
+
+export type ListWorkflowVersionsApiV2WorkflowsWorkflowIdVersionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/v2/workflows/{workflow_id}/versions';
+};
+
+export type ListWorkflowVersionsApiV2WorkflowsWorkflowIdVersionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListWorkflowVersionsApiV2WorkflowsWorkflowIdVersionsGetError = ListWorkflowVersionsApiV2WorkflowsWorkflowIdVersionsGetErrors[keyof ListWorkflowVersionsApiV2WorkflowsWorkflowIdVersionsGetErrors];
+
+export type ListWorkflowVersionsApiV2WorkflowsWorkflowIdVersionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowVersionListResponse;
+};
+
+export type ListWorkflowVersionsApiV2WorkflowsWorkflowIdVersionsGetResponse = ListWorkflowVersionsApiV2WorkflowsWorkflowIdVersionsGetResponses[keyof ListWorkflowVersionsApiV2WorkflowsWorkflowIdVersionsGetResponses];
+
+export type RestoreWorkflowVersionApiV2WorkflowsWorkflowIdVersionsVersionIdRestorePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+        /**
+         * Version Id
+         */
+        version_id: string;
+    };
+    query?: never;
+    url: '/api/v2/workflows/{workflow_id}/versions/{version_id}/restore';
+};
+
+export type RestoreWorkflowVersionApiV2WorkflowsWorkflowIdVersionsVersionIdRestorePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RestoreWorkflowVersionApiV2WorkflowsWorkflowIdVersionsVersionIdRestorePostError = RestoreWorkflowVersionApiV2WorkflowsWorkflowIdVersionsVersionIdRestorePostErrors[keyof RestoreWorkflowVersionApiV2WorkflowsWorkflowIdVersionsVersionIdRestorePostErrors];
+
+export type RestoreWorkflowVersionApiV2WorkflowsWorkflowIdVersionsVersionIdRestorePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowDefinition;
+};
+
+export type RestoreWorkflowVersionApiV2WorkflowsWorkflowIdVersionsVersionIdRestorePostResponse = RestoreWorkflowVersionApiV2WorkflowsWorkflowIdVersionsVersionIdRestorePostResponses[keyof RestoreWorkflowVersionApiV2WorkflowsWorkflowIdVersionsVersionIdRestorePostResponses];
 
 export type WorkspaceSnapshotApiV2WorkspaceSnapshotGetData = {
     body?: never;
